@@ -1,0 +1,20 @@
+-- Esquema SQL de ejemplo para MSP AXS
+CREATE TABLE IF NOT EXISTS msps (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  descripcion TEXT
+);
+
+CREATE TABLE IF NOT EXISTS usuarios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  correo TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS visitas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER,
+  fecha TEXT,
+  motivo TEXT,
+  FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+);

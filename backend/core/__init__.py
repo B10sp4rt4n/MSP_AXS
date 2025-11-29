@@ -1,0 +1,1 @@
+"""Paquete core del backend."""
