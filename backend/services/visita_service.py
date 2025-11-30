@@ -107,8 +107,8 @@ def crear_desde_preregistro(db: Session, data: Any, usuario: Any) -> Visita:
             visita_id=visita.visita_id,
             categoria="preregistro",
             sub_tipo="preregistro_metadata",
-            archivo_url=None,
-            hash_sha256=None,
+            archivo_url="",
+            hash_sha256="",
             guardia_id=getattr(usuario, "usuario_id", None),
             metadata_json={**metadata, "created_by": getattr(usuario, "usuario_id", None)},
         )
