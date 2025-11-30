@@ -1,107 +1,84 @@
 import { useState } from "react";
 
-export default function Preregistro({ onFinish }) {
+export default function Preregistro() {
   const [nombre, setNombre] = useState("");
   const [fecha, setFecha] = useState("");
   const [tipo, setTipo] = useState("Visita");
   const [placa, setPlaca] = useState("");
   const [notas, setNotas] = useState("");
+  const [qrImg, setQrImg] = useState(null);
 
-  const API = "http://0.0.0.0:8000/preregistro/crear";
+  const generarQR = async () => {
+    try {
+      const payload = {
+        nombre_visitante: nombre,
+        fecha_visita: new Date(fecha).toISOString(),
+        tipo_visita: tipo,
+        placa: placa || null,
+        notas: notas || null
+      };
 
-  async function generarQR() {
-    const payload = {
-      nombre_visitante: nombre,
-      fecha_visita: fecha,
-      tipo_visita: tipo,
-      placa,
-      notas,
-    };
+      const res = await fetch("http://0.0.0.0:8000/preregistro/crear", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Id": "1"
+        },
+        body: JSON.stringify(payload),
+      });
 
-    const res = await fetch(API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-User-Id": "1",
-      },
-      body: JSON.stringify(payload),
-    });
+      const data = await res.json();
+      console.log("Respuesta backend:", data);
 
-    const data = await res.json();
-    onFinish(data);
-  }
+      if (data.qr_base64) {
+        setQrImg(`data:image/png;base64,${data.qr_base64}`);
+      }
+    } catch (err) {
+      console.error("Error generando QR:", err);
+    }
+  };
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>Preregistro</h1>
+    <div style={{ padding: 40, maxWidth: 400, margin: "auto" }}>
+      <h1>Preregistro</h1>
 
       <input
-        style={styles.input}
         placeholder="Nombre del visitante"
         value={nombre}
         onChange={(e) => setNombre(e.target.value)}
       />
 
       <input
-        style={styles.input}
         type="datetime-local"
         value={fecha}
         onChange={(e) => setFecha(e.target.value)}
       />
 
-      <select style={styles.input} value={tipo} onChange={(e) => setTipo(e.target.value)}>
+      <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
         <option value="Visita">Visita</option>
-        <option value="Proveedor">Proveedor</option>
+        <option value="Servicio">Servicio</option>
       </select>
 
       <input
-        style={styles.input}
         placeholder="Placas (opcional)"
         value={placa}
         onChange={(e) => setPlaca(e.target.value)}
       />
 
       <textarea
-        style={styles.input}
-        placeholder="Notas (opcional)"
+        placeholder="Notas"
         value={notas}
         onChange={(e) => setNotas(e.target.value)}
-      />
+      ></textarea>
 
-      <button style={styles.button} onClick={generarQR}>
-        Generar QR
-      </button>
+      <button onClick={generarQR}>Generar QR</button>
+
+      {qrImg && (
+        <div style={{ marginTop: 20 }}>
+          <h3>QR generado:</h3>
+          <img src={qrImg} alt="QR" width={200} />
+        </div>
+      )}
     </div>
   );
 }
-
-const styles = {
-  container: {
-    padding: 30,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 15,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-  },
-  input: {
-    width: "90%",
-    padding: 12,
-    fontSize: 20,
-    borderRadius: 8,
-    border: "2px solid #ccc",
-  },
-  button: {
-    width: "90%",
-    padding: 15,
-    fontSize: 22,
-    borderRadius: 10,
-    background: "#4CAF50",
-    color: "white",
-    border: "none",
-    cursor: "pointer",
-  },
-};
