@@ -7,3 +7,11 @@ def hash_password(password: str) -> str:
 
 def check_password(plain: str, hashed: str) -> bool:
     return verify_password(plain, hashed)
+
+
+def calcular_hash_sha256(content: bytes) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    h.update(content)
+    return h.hexdigest()

@@ -1,32 +1,34 @@
 from fastapi import FastAPI
-
+import logging
+from .db.connection import Base, engine
 from .routers import (
-    msp_router,
-    condominios_router,
     visitas_router,
     qr_router,
     evidencias_router,
     preregistro_router,
 )
-from .db.connection import Base, engine
 
-app = FastAPI(title="MSP AXS - Backend")
+logger = logging.getLogger("axs.startup")
 
 
-@app.on_event("startup")
-def on_startup():
-    # crear tablas si es necesario
+app = FastAPI(title="AX-S MSP API")
+
+
+# Intentar crear tablas si la conexión DB está operativa (útil en local).
+try:
     Base.metadata.create_all(bind=engine)
+    logger.info("Database tables checked/created successfully")
+except Exception as exc:
+    # Loggear el error y continuar el arranque; la app puede funcionar en modo degradado
+    logger.warning("No se pudo crear/verificar tablas en la DB (se omite create_all)", exc_info=exc)
 
 
-app.include_router(msp_router.router, prefix="/msp")
-app.include_router(condominios_router.router, prefix="/condominios")
-app.include_router(visitas_router.router, prefix="/visitas")
-app.include_router(qr_router.router, prefix="/qr")
-app.include_router(evidencias_router.router, prefix="/evidencias")
-app.include_router(preregistro_router.router, prefix="/preregistro")
+app.include_router(visitas_router.router)
+app.include_router(qr_router.router)
+app.include_router(evidencias_router.router)
+app.include_router(preregistro_router.router)
 
 
 @app.get("/")
 def read_root():
-    return {"ok": True, "service": "MSP AXS Backend"}
+    return {"ok": True, "service": "AX-S MSP API"}
