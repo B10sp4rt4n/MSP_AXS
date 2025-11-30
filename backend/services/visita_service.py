@@ -150,3 +150,52 @@ def crear_desde_preregistro(db: Session, data: Any, usuario: Any) -> Visita:
         raise
 
     return visita
+
+
+from ..db.models import Visita
+from sqlalchemy.orm import Session
+
+
+# ---------------------------------------------------------
+# Visitas de un residente (condominio + casa_unidad)
+# ---------------------------------------------------------
+def obtener_visitas_residente(
+    db: Session,
+    condominio_id: str,
+    casa_unidad: str,
+):
+    return (
+        db.query(Visita)
+        .filter(
+            Visita.condominio_id == condominio_id,
+            Visita.casa_unidad == casa_unidad,
+        )
+        .order_by(Visita.vigencia.desc())
+        .all()
+    )
+
+
+# ---------------------------------------------------------
+# Visitas por condominio (Admin y Guardia)
+# ---------------------------------------------------------
+def obtener_visitas_condominio(
+    db: Session,
+    condominio_id: str,
+):
+    return (
+        db.query(Visita)
+        .filter(Visita.condominio_id == condominio_id)
+        .order_by(Visita.vigencia.desc())
+        .all()
+    )
+
+
+# ---------------------------------------------------------
+# Obtener visita individual
+# ---------------------------------------------------------
+def obtener_visita(db: Session, visita_id: str):
+    return (
+        db.query(Visita)
+        .filter(Visita.visita_id == visita_id)
+        .first()
+    )
