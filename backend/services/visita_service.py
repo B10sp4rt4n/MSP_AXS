@@ -1,19 +1,26 @@
 from sqlalchemy.orm import Session
-from ..db.models import Visita
+from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
 import uuid
 from typing import Any, Optional
-from ..db.models import Evidencia
+
+from ..db.models import Visita, Evidencia
 from ..utils.hash_tools import calcular_hash_sha256
 from ..utils.file_storage import guardar_archivo
 from ..core.config import settings
-from sqlalchemy.exc import SQLAlchemyError
 
+
+# ---------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------
 
 def generar_visita_id() -> str:
     return f"VIS-{uuid.uuid4().hex[:10]}"
 
 
+# ---------------------------------------------------------
+# Crear visita (ADMIN / CONDOMINIO)
+# ---------------------------------------------------------
 def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Optional[str] = None) -> Visita:
     visita_id = generar_visita_id()
     visita = Visita(
@@ -32,9 +39,13 @@ def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Option
     except Exception:
         db.rollback()
         raise
+
     return visita
 
 
+# ---------------------------------------------------------
+# Actualizar QR de una visita
+# ---------------------------------------------------------
 def actualizar_qr(db: Session, visita_id: str, token: str, qr_vigencia: datetime) -> Optional[Visita]:
     visita = db.query(Visita).filter(Visita.visita_id == visita_id).first()
     if visita:
@@ -49,6 +60,9 @@ def actualizar_qr(db: Session, visita_id: str, token: str, qr_vigencia: datetime
     return visita
 
 
+# ---------------------------------------------------------
+# Registrar entrada del visitante
+# ---------------------------------------------------------
 def registrar_entrada(db: Session, visita_id: str) -> Optional[Visita]:
     visita = db.query(Visita).filter(Visita.visita_id == visita_id).first()
     if visita:
@@ -63,6 +77,9 @@ def registrar_entrada(db: Session, visita_id: str) -> Optional[Visita]:
     return visita
 
 
+# ---------------------------------------------------------
+# Registrar salida del visitante
+# ---------------------------------------------------------
 def registrar_salida(db: Session, visita_id: str) -> Optional[Visita]:
     visita = db.query(Visita).filter(Visita.visita_id == visita_id).first()
     if visita:
@@ -77,36 +94,42 @@ def registrar_salida(db: Session, visita_id: str) -> Optional[Visita]:
     return visita
 
 
+# ---------------------------------------------------------
+# FIX: Crear visita desde PRE-REGISTRO (RESIDENTE)
+# Sin transacciones anidadas, sin with db.begin()
+# ---------------------------------------------------------
 def crear_desde_preregistro(db: Session, data: Any, usuario: Any) -> Visita:
-    """Crear una visita desde preregistro (usado por RESIDENTE).
 
-    No se añaden columnas nuevas: datos opcionales (notas, placa, documento)
-    se guardan como evidencia de tipo 'preregistro' en `Evidencia.metadata_json`.
-    """
-    # Usar casa_unidad y condominio del usuario si están disponibles
+    # tomar condominio + casa_unidad del usuario
     condominio_id = getattr(usuario, "condominio_id", None)
     casa_unidad = getattr(usuario, "casa_unidad", None)
 
+    # helper interno
     def _normalize_str(val: Optional[str]) -> Optional[str]:
         if val is None:
             return None
         v = str(val).strip()
         return v if v != "" else None
 
-    # Normalize inputs
+    # normalizar entradas
     nombre_visitante = _normalize_str(getattr(data, "nombre_visitante", None))
     tipo_visita = _normalize_str(getattr(data, "tipo_visita", None))
     vigencia = getattr(data, "fecha_visita", None)
 
-    # Use a transaction to ensure atomic creation of visita + metadata evidencia
-    try:
-        with db.begin():
-            # create Visita record
-            visita = crear_visita(db, type("T", (), {
-                "nombre_visitante": nombre_visitante,
-                "tipo_visita": tipo_visita,
-                "vigencia": vigencia,
-            })(), condominio_id=condominio_id, casa_unidad=casa_unidad)
+        # Create visita + optional evidencia without opening a new transaction
+        try:
+            # create Visita record directly on the session
+            visita_id = generar_visita_id()
+            visita = Visita(
+                visita_id=visita_id,
+                condominio_id=condominio_id,
+                nombre_visitante=nombre_visitante,
+                casa_unidad=casa_unidad,
+                tipo_visita=tipo_visita,
+                vigencia=vigencia,
+                estado="pendiente",
+            )
+            db.add(visita)
 
             # Collect optional metadata
             metadata = {}
@@ -124,7 +147,7 @@ def crear_desde_preregistro(db: Session, data: Any, usuario: Any) -> Visita:
                 # Ensure metadata-only evidencia stores empty strings for required fields
                 evidencia = Evidencia(
                     evidencia_id=str(uuid.uuid4()),
-                    visita_id=visita.visita_id,
+                    visita_id=visita_id,
                     categoria="preregistro",
                     sub_tipo="preregistro_metadata",
                     archivo_url="",
@@ -134,36 +157,24 @@ def crear_desde_preregistro(db: Session, data: Any, usuario: Any) -> Visita:
                 )
                 db.add(evidencia)
 
-        # refresh visita to get DB-populated fields
-        try:
-            db.refresh(visita)
-        except Exception:
-            # non-fatal if refresh fails
-            pass
+            # commit the current transaction (may be an existing transaction started by dependencies)
+            db.commit()
 
-    except SQLAlchemyError:
-        # ensure session is clean for caller
-        try:
+            # refresh visita to get DB-populated fields
+            db.refresh(visita)
+
+        except SQLAlchemyError:
+            # ensure session is clean for caller
             db.rollback()
-        except Exception:
-            pass
-        raise
+            raise
 
     return visita
 
 
-from ..db.models import Visita
-from sqlalchemy.orm import Session
-
-
 # ---------------------------------------------------------
-# Visitas de un residente (condominio + casa_unidad)
+# Consultar visitas del residente
 # ---------------------------------------------------------
-def obtener_visitas_residente(
-    db: Session,
-    condominio_id: str,
-    casa_unidad: str,
-):
+def obtener_visitas_residente(db: Session, condominio_id: str, casa_unidad: str):
     return (
         db.query(Visita)
         .filter(
@@ -176,12 +187,9 @@ def obtener_visitas_residente(
 
 
 # ---------------------------------------------------------
-# Visitas por condominio (Admin y Guardia)
+# Consultar visitas del condominio
 # ---------------------------------------------------------
-def obtener_visitas_condominio(
-    db: Session,
-    condominio_id: str,
-):
+def obtener_visitas_condominio(db: Session, condominio_id: str):
     return (
         db.query(Visita)
         .filter(Visita.condominio_id == condominio_id)
@@ -191,11 +199,7 @@ def obtener_visitas_condominio(
 
 
 # ---------------------------------------------------------
-# Obtener visita individual
+# Consultar visita individual
 # ---------------------------------------------------------
 def obtener_visita(db: Session, visita_id: str):
-    return (
-        db.query(Visita)
-        .filter(Visita.visita_id == visita_id)
-        .first()
-    )
+    return db.query(Visita).filter(Visita.visita_id == visita_id).first()
