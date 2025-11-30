@@ -6,6 +6,8 @@ from typing import Any, Optional
 from ..db.models import Evidencia
 from ..utils.hash_tools import calcular_hash_sha256
 from ..utils.file_storage import guardar_archivo
+from ..core.config import settings
+from sqlalchemy.exc import SQLAlchemyError
 
 
 def generar_visita_id() -> str:
@@ -85,39 +87,66 @@ def crear_desde_preregistro(db: Session, data: Any, usuario: Any) -> Visita:
     condominio_id = getattr(usuario, "condominio_id", None)
     casa_unidad = getattr(usuario, "casa_unidad", None)
 
-    # Reutilizar crear_visita para crear la entidad Visita
-    visita = crear_visita(db, type("T", (), {
-        "nombre_visitante": data.nombre_visitante,
-        "tipo_visita": data.tipo_visita,
-        "vigencia": data.fecha_visita,
-    })(), condominio_id=condominio_id, casa_unidad=casa_unidad)
+    def _normalize_str(val: Optional[str]) -> Optional[str]:
+        if val is None:
+            return None
+        v = str(val).strip()
+        return v if v != "" else None
 
-    # Si hay metadatos opcionales, guardarlos en Evidencia como preregistro
-    metadata = {}
-    if getattr(data, "notas", None):
-        metadata["notas"] = data.notas
-    if getattr(data, "placa", None):
-        metadata["placa"] = data.placa
-    if getattr(data, "documento", None):
-        metadata["documento"] = data.documento
+    # Normalize inputs
+    nombre_visitante = _normalize_str(getattr(data, "nombre_visitante", None))
+    tipo_visita = _normalize_str(getattr(data, "tipo_visita", None))
+    vigencia = getattr(data, "fecha_visita", None)
 
-    if metadata:
-        evidencia = Evidencia(
-            evidencia_id=str(uuid.uuid4()),
-            visita_id=visita.visita_id,
-            categoria="preregistro",
-            sub_tipo="preregistro_metadata",
-            archivo_url="",
-            hash_sha256="",
-            guardia_id=getattr(usuario, "usuario_id", None),
-            metadata_json={**metadata, "created_by": getattr(usuario, "usuario_id", None)},
-        )
+    # Use a transaction to ensure atomic creation of visita + metadata evidencia
+    try:
+        with db.begin():
+            # create Visita record
+            visita = crear_visita(db, type("T", (), {
+                "nombre_visitante": nombre_visitante,
+                "tipo_visita": tipo_visita,
+                "vigencia": vigencia,
+            })(), condominio_id=condominio_id, casa_unidad=casa_unidad)
+
+            # Collect optional metadata
+            metadata = {}
+            notas = _normalize_str(getattr(data, "notas", None))
+            placa = _normalize_str(getattr(data, "placa", None))
+            documento = _normalize_str(getattr(data, "documento", None))
+            if notas:
+                metadata["notas"] = notas
+            if placa:
+                metadata["placa"] = placa
+            if documento:
+                metadata["documento"] = documento
+
+            if metadata:
+                # Ensure metadata-only evidencia stores empty strings for required fields
+                evidencia = Evidencia(
+                    evidencia_id=str(uuid.uuid4()),
+                    visita_id=visita.visita_id,
+                    categoria="preregistro",
+                    sub_tipo="preregistro_metadata",
+                    archivo_url="",
+                    hash_sha256="",
+                    guardia_id=getattr(usuario, "usuario_id", None),
+                    metadata_json={**metadata, "created_by": getattr(usuario, "usuario_id", None)},
+                )
+                db.add(evidencia)
+
+        # refresh visita to get DB-populated fields
         try:
-            db.add(evidencia)
-            db.commit()
-            db.refresh(evidencia)
+            db.refresh(visita)
         except Exception:
+            # non-fatal if refresh fails
+            pass
+
+    except SQLAlchemyError:
+        # ensure session is clean for caller
+        try:
             db.rollback()
-            raise
+        except Exception:
+            pass
+        raise
 
     return visita

@@ -6,6 +6,10 @@ from ..services import visita_service, qr_service
 from ..schemas.preregistro import PreregistroCreate
 import base64
 from datetime import datetime
+import logging
+from fastapi import status
+
+logger = logging.getLogger("axs.preregistro")
 
 router = APIRouter(prefix="/preregistro", tags=["Preregistro"])
 
@@ -18,19 +22,23 @@ def crear_preregistro(
 ):
     verificar_rol(usuario, ["RESIDENTE"])
 
-    # Crear visita y persistir metadata opcional como evidencia
-    visita = visita_service.crear_desde_preregistro(db, data, usuario)
+    try:
+        # Crear visita y persistir metadata opcional como evidencia
+        visita = visita_service.crear_desde_preregistro(db, data, usuario)
 
-    # Generar QR y guardar token/vigencia en la visita
-    qr_data = qr_service.generar_qr_para_visita(visita.visita_id)
-    visita_service.actualizar_qr(db, visita.visita_id, qr_data["token"], qr_data["qr_vigencia"])
+        # Generar QR y guardar token/vigencia en la visita
+        qr_data = qr_service.generar_qr_para_visita(visita.visita_id)
+        visita_service.actualizar_qr(db, visita.visita_id, qr_data["token"], qr_data["qr_vigencia"])
 
-    return {
-        "status": "ok",
-        "visita_id": visita.visita_id,
-        "qr_base64": base64.b64encode(qr_data["qr_bytes"]).decode(),
-        "qr_vigencia": qr_data["qr_vigencia"],
-    }
+        return {
+            "status": "ok",
+            "visita_id": visita.visita_id,
+            "qr_base64": base64.b64encode(qr_data["qr_bytes"]).decode(),
+            "qr_vigencia": qr_data["qr_vigencia"],
+        }
+    except Exception as exc:
+        logger.exception("Failed to create preregistro")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error creando preregistro") from exc
 
 
 @router.get("/qr/{visita_id}")

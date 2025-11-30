@@ -4,6 +4,11 @@ from ..utils.file_storage import guardar_archivo
 from ..utils.hash_tools import calcular_hash_sha256
 import uuid
 from typing import Optional
+import os
+
+# Max upload size in MB (fallback to 15MB)
+_MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "15"))
+_MAX_UPLOAD_BYTES = _MAX_UPLOAD_MB * 1024 * 1024
 
 
 def guardar_evidencias_opcionales(
@@ -31,6 +36,11 @@ def guardar_evidencias_opcionales(
             except Exception:
                 continue
 
+        # Validate size
+        if isinstance(contenido, (bytes, bytearray)) and len(contenido) > _MAX_UPLOAD_BYTES:
+            # abort the whole batch
+            raise ValueError(f"Archivo '{filename}' excede tamaño máximo de {_MAX_UPLOAD_MB} MB")
+
         archivo_url = guardar_archivo(filename, contenido)
         hash_sha = calcular_hash_sha256(contenido)
 
@@ -49,6 +59,12 @@ def guardar_evidencias_opcionales(
 
     try:
         db.commit()
+        # refresh added registros
+        for r in registros:
+            try:
+                db.refresh(r)
+            except Exception:
+                pass
     except Exception:
         db.rollback()
         raise
