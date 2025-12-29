@@ -45,7 +45,34 @@ Sistema MSP_AXS implementado siguiendo paradigma AUP:
 
 ---
 
-### **3. PASO 2: AUP_SCOPE (Alcance Multi-Tenant)**
+### **4. PASO 4: AUP_GOV (Gobierno de Plataforma)**
+📄 [AUP_GOV.md](AUP_GOV.md)
+
+**Contenido:**
+- Declaración de AUP_AUTHORITY, AUP_POLICY, AUP_DELEGATION
+- Axiomas de gobierno (poder explícito, acotado, revocable)
+- Función central: evaluar_politica()
+- Casos de uso (first tier, límites, revocación)
+- Monetización nativa (planes comerciales)
+
+**Documentos relacionados:**
+- [AUP_GOV_INTEGRACION_SUMMARY.md](AUP_GOV_INTEGRACION_SUMMARY.md) - Integración con routers
+- [AUP_GOV_PLANES_COMERCIALES.md](AUP_GOV_PLANES_COMERCIALES.md) - Planes como composiciones
+- [AUP_GOV_PLANES_SUMMARY.md](AUP_GOV_PLANES_SUMMARY.md) - Resumen ejecutivo de planes
+- [AUP_GOV_VENTAJA_COMPETITIVA.md](AUP_GOV_VENTAJA_COMPETITIVA.md) - Análisis de barrera de copia
+
+**Archivos de código:**
+- `backend/core/gov/__init__.py` - Declaración conceptual
+- `backend/core/gov/authority.py` - Gestión de authorities
+- `backend/core/gov/policy.py` - Evaluador central de políticas
+- `backend/core/gov/delegation.py` - Gestión de delegaciones
+- `backend/core/gov/integration.py` - Integración con AUP_EVENT
+- `backend/core/gov/facade.py` - Interfaz única para routers
+- `backend/core/gov/plans.py` - Planes comerciales (FREE/PRO/ENTERPRISE)
+- `scripts/seed_gov_bootstrap.py` - Bootstrap inicial
+- `scripts/seed_planes_comerciales.py` - Seed de planes
+
+**Cuándo leerlo:** Para entender gobierno de poder y monetización.
 📄 [AUP_SCOPE.md](AUP_SCOPE.md)
 
 **Contenido:**

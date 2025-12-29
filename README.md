@@ -6,6 +6,7 @@ Sistema multi-tenant para gestión de accesos en condominios con:
 - ✅ Autenticación JWT (AUP_SESSION)
 - ✅ Alcance multi-tenant (AUP_SCOPE)
 - ✅ Trazabilidad completa (AUP_EVENT)
+- ✅ **Gobierno de poder (AUP_GOV)** ← INTEGRADO
 
 ## 📚 Documentación Completa
 
@@ -13,9 +14,9 @@ Sistema multi-tenant para gestión de accesos en condominios con:
 
 ---
 
-## 🏗️ Arquitectura AUP
+## 🏗️ Arquitectura AUP (4 Pasos Completos)
 
-El sistema implementa 3 pasos fundamentales:
+El sistema implementa los 4 pasos fundamentales:
 
 ### **PASO 1: AUP_SESSION** (Autenticación)
 - JWT con bcrypt para passwords
@@ -32,6 +33,14 @@ El sistema implementa 3 pasos fundamentales:
 - Hash SHA-256 para integridad
 - Base para auditoría y compliance
 - Documentación: [docs/AUP_EVENT.md](docs/AUP_EVENT.md)
+
+### **PASO 4: AUP_GOV** (Gobierno de Poder) ← NUEVO
+- Autoridades (GLOBAL, FIRST_TIER)
+- Políticas dinámicas (límites sin redeploy)
+- Delegaciones temporales y revocables
+- Monetización nativa (planes Free/Pro/Enterprise)
+- Documentación: [docs/AUP_GOV.md](docs/AUP_GOV.md)
+- **Integración:** [docs/AUP_GOV_INTEGRACION_SUMMARY.md](docs/AUP_GOV_INTEGRACION_SUMMARY.md)
 
 **Flujo completo:** [docs/AUP_FLOW_COMPLETE.txt](docs/AUP_FLOW_COMPLETE.txt)
 
@@ -66,8 +75,14 @@ psql -U postgres -d tu_bd < database/schema_axs.sql
 # 2. Migración de eventos (PASO 3)
 psql -U postgres -d tu_bd < database/migration_03_events_aup.sql
 
-# 3. Crear scopes desde usuarios existentes
+# 3. Migración de gobierno (PASO 4) ← NUEVO
+psql -U postgres -d tu_bd < database/migration_04_gov.sql
+
+# 4. Crear scopes desde usuarios existentes
 python scripts/migrate_create_scopes.py
+
+# 5. Bootstrap de gobierno ← NUEVO
+python scripts/seed_gov_bootstrap.py
 ```
 
 ### 4. Ejecutar servidor
