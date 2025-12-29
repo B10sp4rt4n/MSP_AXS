@@ -1,0 +1,341 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# ARQUITECTURA AUP COMPLETA - DIAGRAMA DE FLUJO
+# ═══════════════════════════════════════════════════════════════════════════
+
+## FLUJO COMPLETO: REQUEST → RESPONSE
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 1. CLIENTE HACE REQUEST                                                 │
+│                                                                           │
+│    POST /visitas                                                         │
+│    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...        │
+│    Body: {condominio_id: "condo_a", nombre_visitante: "Juan", ...}     │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 2. PASO 1: AUP_SESSION (Validación de Identidad)                       │
+│                                                                           │
+│    ┌───────────────────────────────────────────────┐                   │
+│    │ get_current_user() [dependencies.py]          │                   │
+│    ├───────────────────────────────────────────────┤                   │
+│    │ 1. Extraer JWT del header Authorization       │                   │
+│    │ 2. Decodificar JWT con SECRET_KEY             │                   │
+│    │ 3. Extraer user_id del payload                │                   │
+│    │ 4. Buscar Usuario en BD                       │                   │
+│    │ 5. Retornar AUP_IDENTITY (Usuario)            │                   │
+│    └───────────────────────────────────────────────┘                   │
+│                                                                           │
+│    ✓ Token válido → usuario = AUP_IDENTITY                             │
+│    ❌ Token inválido → 401 Unauthorized                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 3. PASO 2: AUP_SCOPE (Validación de Alcance)                           │
+│                                                                           │
+│    ┌───────────────────────────────────────────────┐                   │
+│    │ validate_user_owns_resource_in_tenant()       │                   │
+│    ├───────────────────────────────────────────────┤                   │
+│    │ 1. Extraer tenant_id del request (condo_a)    │                   │
+│    │ 2. Buscar UserTenantScope en BD               │                   │
+│    │    WHERE usuario_id = user.id                 │                   │
+│    │      AND tenant_id = "condo_a"                │                   │
+│    │      AND estado = ACTIVO                      │                   │
+│    │ 3. Verificar access_level >= requerido        │                   │
+│    │ 4. Retornar scope o lanzar 403                │                   │
+│    └───────────────────────────────────────────────┘                   │
+│                                                                           │
+│    ✓ Scope válido → Continuar                                          │
+│    ❌ Sin scope → 403 Forbidden + AUP_EVENT (DENEGADO)                  │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 4. LÓGICA DE NEGOCIO (Acción del Endpoint)                             │
+│                                                                           │
+│    ┌───────────────────────────────────────────────┐                   │
+│    │ visita_service.crear_visita(...)              │                   │
+│    ├───────────────────────────────────────────────┤                   │
+│    │ 1. Validar datos del request                  │                   │
+│    │ 2. Crear objeto Visita                        │                   │
+│    │ 3. Insertar en BD                             │                   │
+│    │ 4. Retornar visita creada                     │                   │
+│    └───────────────────────────────────────────────┘                   │
+│                                                                           │
+│    Visita creada exitosamente                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 5. PASO 3: AUP_EVENT (Declaración del Hecho)                           │
+│                                                                           │
+│    ┌───────────────────────────────────────────────┐                   │
+│    │ registrar_evento(...)                         │                   │
+│    ├───────────────────────────────────────────────┤                   │
+│    │ 1. Generar event_id (evt_abc123)              │                   │
+│    │ 2. Hash session_token (SHA-256)               │                   │
+│    │ 3. Calcular hash_evento de campos críticos    │                   │
+│    │ 4. Crear objeto Event                         │                   │
+│    │ 5. Insertar en BD (events_aup)                │                   │
+│    │ 6. Retornar evento creado                     │                   │
+│    └───────────────────────────────────────────────┘                   │
+│                                                                           │
+│    Event {                                                              │
+│      identity_id: "user123",                                            │
+│      tenant_id: "condo_a",                                              │
+│      entidad: "visita",                                                 │
+│      entidad_id: "v_abc456",                                            │
+│      accion: "crear",                                                   │
+│      resultado: "exito",                                                │
+│      hash_evento: "d4f5e6...",                                          │
+│      timestamp: "2024-12-29T10:30:00Z"                                  │
+│    }                                                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 6. RESPONSE AL CLIENTE                                                  │
+│                                                                           │
+│    200 OK                                                               │
+│    {                                                                    │
+│      "visita_id": "v_abc456",                                           │
+│      "condominio_id": "condo_a",                                        │
+│      "nombre_visitante": "Juan",                                        │
+│      "estado": "pre_registrado",                                        │
+│      ...                                                                │
+│    }                                                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+
+## ENTIDADES AUP Y SUS RELACIONES
+
+
+┌─────────────────┐
+│  AUP_IDENTITY   │  (Usuario)
+│  usuario_id     │
+│  email          │
+│  password_hash  │
+│  rol            │
+└────────┬────────┘
+         │
+         │ autentica
+         │
+         ▼
+┌─────────────────┐
+│  AUP_SESSION    │  (JWT)
+│  user_id        │
+│  role           │
+│  iat, exp       │
+└────────┬────────┘
+         │
+         │ genera
+         │
+         ▼
+┌─────────────────┐       ┌─────────────────┐
+│   AUP_SCOPE     │──────>│   AUP_TENANT    │
+│  usuario_id     │ sobre │  condominio_id  │
+│  tenant_id      │       │  nombre         │
+│  access_level   │       └─────────────────┘
+│  estado         │
+└────────┬────────┘
+         │
+         │ habilita
+         │
+         ▼
+┌─────────────────┐
+│   AUP_EVENT     │  (Evento)
+│  event_id       │
+│  identity_id    │ ──┐
+│  session_hash   │   │
+│  scope_id       │   │ referencias
+│  tenant_id      │   │ a entidades
+│  entidad        │   │ AUP
+│  entidad_id     │   │
+│  accion         │   │
+│  resultado      │ ──┘
+│  hash_evento    │
+│  timestamp      │
+└─────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+
+## FLUJO DE LOGIN (Crear AUP_SESSION)
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ POST /auth/login                                                        │
+│ Body: {email: "user@example.com", password: "secret"}                  │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 1. Buscar Usuario por email                                            │
+│    usuario = db.query(Usuario).filter(email=...)                       │
+│                                                                           │
+│    ❌ No encontrado → 401 + (NO registrar evento, sin identidad válida)│
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 2. Verificar password                                                  │
+│    verify_password(password, usuario.password_hash)                    │
+│                                                                           │
+│    ❌ Inválido → 401 + AUP_EVENT (LOGIN, FALLO, "Password incorrecta")│
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 3. Crear AUP_SESSION (JWT)                                             │
+│    access_token = create_access_token(user_id, role)                   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 4. Registrar AUP_EVENT                                                 │
+│    registrar_evento(                                                    │
+│      identity=usuario,                                                  │
+│      session_token=access_token,                                        │
+│      entidad="session",                                                 │
+│      accion="login",                                                    │
+│      resultado="exito"                                                  │
+│    )                                                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 5. Retornar token                                                      │
+│    {access_token: "eyJ...", token_type: "bearer"}                      │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+
+## FLUJO DE VALIDACIÓN QR (Caso Complejo)
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ GET /qr/validar/{visita_id}/{token}                                    │
+│ Authorization: Bearer <JWT>                                            │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+                        ┌─────────────────┐
+                        │  AUP_SESSION    │
+                        │  (get_current_  │
+                        │   user)         │
+                        └────────┬────────┘
+                                 │
+                                 ▼
+                        ┌─────────────────┐
+                        │ Buscar Visita   │
+                        │ en BD           │
+                        └────────┬────────┘
+                                 │
+                     ┌───────────┴───────────┐
+                     │                       │
+         ❌ No encontrada              ✓ Encontrada
+                     │                       │
+                     ▼                       ▼
+        ┌─────────────────────┐   ┌─────────────────────┐
+        │ AUP_EVENT           │   │ Verificar token     │
+        │ resultado=FALLO     │   │ qr_token == token   │
+        │ motivo="No exist"   │   └──────────┬──────────┘
+        └─────────────────────┘              │
+                                 ┌───────────┴───────────┐
+                                 │                       │
+                     ❌ Token inválido             ✓ Token válido
+                                 │                       │
+                                 ▼                       ▼
+                    ┌─────────────────────┐   ┌─────────────────────┐
+                    │ AUP_EVENT           │   │ Verificar vigencia  │
+                    │ resultado=FALLO     │   │ qr_vigencia > now   │
+                    │ motivo="Token mal"  │   └──────────┬──────────┘
+                    └─────────────────────┘              │
+                                         ┌───────────────┴───────────┐
+                                         │                           │
+                             ❌ Expirado                      ✓ Vigente
+                                         │                           │
+                                         ▼                           ▼
+                            ┌─────────────────────┐       ┌─────────────────────┐
+                            │ AUP_EVENT           │       │ Verificar no usado  │
+                            │ resultado=DENEGADO  │       │ estado != usado     │
+                            │ motivo="Expirado"   │       └──────────┬──────────┘
+                            └─────────────────────┘                  │
+                                                     ┌───────────────┴───────────┐
+                                                     │                           │
+                                         ❌ Ya usado                      ✓ No usado
+                                                     │                           │
+                                                     ▼                           ▼
+                                        ┌─────────────────────┐       ┌─────────────────────┐
+                                        │ AUP_EVENT           │       │ Registrar entrada   │
+                                        │ resultado=DENEGADO  │       │ visita.estado =     │
+                                        │ motivo="Ya usado"   │       │ "entrada_registrada"│
+                                        └─────────────────────┘       └──────────┬──────────┘
+                                                                                  │
+                                                                                  ▼
+                                                                     ┌─────────────────────┐
+                                                                     │ AUP_EVENT           │
+                                                                     │ resultado=EXITO     │
+                                                                     │ motivo="Validado"   │
+                                                                     │ metadata={visita}   │
+                                                                     └──────────┬──────────┘
+                                                                                │
+                                                                                ▼
+                                                                     ┌─────────────────────┐
+                                                                     │ 200 OK              │
+                                                                     │ {status: "aprobado"}│
+                                                                     └─────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+
+## QUERIES COMUNES DE AUP_EVENT
+
+
+1. ¿Qué le pasó a esta visita?
+   ───────────────────────────
+   SELECT * FROM events_aup
+   WHERE entidad = 'visita' AND entidad_id = 'v123'
+   ORDER BY timestamp ASC;
+
+   Resultado:
+   - 2024-12-29 10:00 | crear   | exito
+   - 2024-12-29 10:05 | crear   | exito    (qr generado)
+   - 2024-12-29 11:00 | validar | exito    (qr validado)
+
+
+2. ¿Qué hizo Juan hoy en Condominio A?
+   ────────────────────────────────────
+   SELECT * FROM events_aup
+   WHERE identity_id = 'juan123'
+     AND tenant_id = 'condo_a'
+     AND timestamp >= CURRENT_DATE
+   ORDER BY timestamp DESC;
+
+
+3. ¿Intentos de acceso denegados?
+   ───────────────────────────────
+   SELECT * FROM events_aup
+   WHERE resultado = 'denegado'
+   ORDER BY timestamp DESC
+   LIMIT 100;
+
+
+4. ¿Este evento fue alterado?
+   ──────────────────────────
+   verificar_integridad_evento(evento) -> bool
+   
+   Calcula hash desde campos actuales, compara con hash_evento.
+   False = evento alterado (alerta de seguridad)
+
+
+═══════════════════════════════════════════════════════════════════════════

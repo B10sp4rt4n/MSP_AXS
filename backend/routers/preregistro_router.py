@@ -1,13 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException
+"""Router de Preregistro - MIGRADO A AUP_SESSION"""
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from ..core.dependencies import get_db, get_usuario_actual
+from ..core.dependencies import get_db
+from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
 from ..services import visita_service, qr_service
 from ..schemas.preregistro import PreregistroCreate
+from ..db.models import Usuario
 import base64
 from datetime import datetime
 import logging
-from fastapi import status
 
 logger = logging.getLogger("axs.preregistro")
 
@@ -18,7 +21,7 @@ router = APIRouter(prefix="/preregistro", tags=["Preregistro"])
 def crear_preregistro(
     data: PreregistroCreate,
     db: Session = Depends(get_db),
-    usuario = Depends(get_usuario_actual),
+    usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
 ):
     verificar_rol(usuario, ["RESIDENTE"])
 
@@ -45,7 +48,7 @@ def crear_preregistro(
 def reenviar_qr(
     visita_id: str,
     db: Session = Depends(get_db),
-    usuario = Depends(get_usuario_actual),
+    usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
 ):
     verificar_rol(usuario, ["RESIDENTE"])
 

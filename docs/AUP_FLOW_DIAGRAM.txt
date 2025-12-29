@@ -1,0 +1,268 @@
+```
+═══════════════════════════════════════════════════════════════════════════════
+FLUJO COMPLETO DE AUTENTICACIÓN AUP - MSP_AXS
+═══════════════════════════════════════════════════════════════════════════════
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         PASO 1: LOGIN (Crear AUP_SESSION)                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    Cliente                      Backend                    Base de Datos
+       │                            │                             │
+       │  POST /auth/login          │                             │
+       │  {email, password}         │                             │
+       ├───────────────────────────>│                             │
+       │                            │                             │
+       │                            │  SELECT * FROM usuarios     │
+       │                            │  WHERE email = ?            │
+       │                            ├────────────────────────────>│
+       │                            │<────────────────────────────┤
+       │                            │  Usuario (con password_hash)│
+       │                            │                             │
+       │                            │ [AUP_CREDENTIAL]            │
+       │                            │ verify_password()           │
+       │                            │ bcrypt.verify()             │
+       │                            │  ✓ Válida                   │
+       │                            │                             │
+       │                            │ [AUP_SESSION]               │
+       │                            │ create_access_token()       │
+       │                            │ {                           │
+       │                            │   sub: usuario_id,          │
+       │                            │   role: rol,                │
+       │                            │   exp: now + 60min          │
+       │                            │ }                           │
+       │                            │ jwt.encode() -> JWT         │
+       │                            │                             │
+       │  {access_token, bearer}    │                             │
+       │<───────────────────────────┤                             │
+       │                            │                             │
+       ▼                            ▼                             ▼
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                   PASO 2: REQUEST PROTEGIDO (Validar AUP_SESSION)          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    Cliente                      Backend                    Base de Datos
+       │                            │                             │
+       │  GET /visitas/mis-visitas  │                             │
+       │  Authorization: Bearer JWT │                             │
+       ├───────────────────────────>│                             │
+       │                            │                             │
+       │                            │ [OAuth2PasswordBearer]      │
+       │                            │ Extrae JWT del header       │
+       │                            │                             │
+       │                            │ [decode_access_token()]     │
+       │                            │ jwt.decode(JWT)             │
+       │                            │ Valida firma                │
+       │                            │ Valida expiración           │
+       │                            │  ✓ Válido                   │
+       │                            │  payload = {sub, role, ...} │
+       │                            │                             │
+       │                            │ [get_current_user()]        │
+       │                            │  identity_id = payload.sub  │
+       │                            │                             │
+       │                            │  SELECT * FROM usuarios     │
+       │                            │  WHERE usuario_id = ?       │
+       │                            ├────────────────────────────>│
+       │                            │<────────────────────────────┤
+       │                            │  Usuario completo           │
+       │                            │  [AUP_IDENTITY reconstruida]│
+       │                            │                             │
+       │                            │ [Endpoint]                  │
+       │                            │ mis_visitas(current_user)   │
+       │                            │  SELECT * FROM visitas      │
+       │                            │  WHERE condominio_id = ?    │
+       │                            ├────────────────────────────>│
+       │                            │<────────────────────────────┤
+       │                            │  Lista de visitas           │
+       │                            │                             │
+       │  [visitas]                 │                             │
+       │<───────────────────────────┤                             │
+       │                            │                             │
+       ▼                            ▼                             ▼
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            AXIOMAS AUP APLICADOS                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ AXIOMA 1: Sin AUP_SESSION válida → 401 Unauthorized                       │
+│                                                                             │
+│   ❌ Token inválido    ──────> 401 "No se pudo validar las credenciales" │
+│   ❌ Token expirado    ──────> 401 "No se pudo validar las credenciales" │
+│   ❌ Usuario no existe ──────> 401 "No se pudo validar las credenciales" │
+│                                                                             │
+│   ✅ Token válido + Usuario existe ──> Ejecuta acción                     │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ AXIOMA 2: AUP_SESSION es temporal                                         │
+│                                                                             │
+│   JWT payload:                                                              │
+│   {                                                                         │
+│     "iat": 1735459200,     // Emitido: 2025-12-29 00:00:00               │
+│     "exp": 1735462800      // Expira: 2025-12-29 01:00:00 [60 minutos]   │
+│   }                                                                         │
+│                                                                             │
+│   Después de 01:00:00 → Token rechazado automáticamente                   │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ AXIOMA 3: No hay identidad implícita                                      │
+│                                                                             │
+│   ❌ ANTES (Inseguro):                                                     │
+│      Header: X-User-Id: admin123  ← Cualquiera puede falsificar           │
+│                                                                             │
+│   ✅ AHORA (Seguro - AUP):                                                │
+│      Header: Authorization: Bearer <JWT>                                   │
+│      JWT firmado con SECRET_KEY (solo el servidor puede crear/validar)    │
+└────────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         RELACIONES AUP EN CÓDIGO                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    AUP_IDENTITY (Usuario en BD)
+         │
+         │ validada_por
+         │
+         ▼
+    AUP_CREDENTIAL (password_hash)
+         │
+         │ genera (si válida)
+         │
+         ▼
+    AUP_SESSION (JWT)
+         │
+         │ reconstruye (en cada request)
+         │
+         ▼
+    AUP_IDENTITY (Usuario completo)
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      GUARDIÁN: get_current_user()                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ÚNICO PUNTO DE VALIDACIÓN DE IDENTIDAD
+    
+    def get_current_user(token: str, db: Session) -> Usuario:
+        │
+        ├─> 1. Extraer JWT desde header Authorization
+        │
+        ├─> 2. Decodificar y validar JWT
+        │      ├─ Validar firma (SECRET_KEY)
+        │      ├─ Validar expiración
+        │      └─ Extraer payload {sub, role, ...}
+        │
+        ├─> 3. Reconstruir AUP_IDENTITY desde BD
+        │      └─ SELECT * FROM usuarios WHERE usuario_id = payload.sub
+        │
+        └─> 4. Retornar Usuario completo
+        
+    Si cualquier paso falla → 401 Unauthorized
+    
+    TODO ENDPOINT PROTEGIDO PASA POR AQUÍ
+    ↓
+    No hay bypass posible
+    ↓
+    Auditoría centralizada
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         MIGRACIÓN FUTURA (Sin romper)                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    PASO 2 - AUP_SCOPE (Permisos granulares)
+    ────────────────────────────────────────
+    Agregar al JWT:
+    {
+      "sub": "user123",
+      "role": "RESIDENTE",
+      "tenant": "condominio_abc",     // ← NUEVO
+      "scopes": [                      // ← NUEVO
+        "visitas:read:own",
+        "visitas:create:own"
+      ]
+    }
+    
+    Modificar solo: create_access_token() y get_current_user()
+    Endpoints NO cambian
+
+
+    PASO 3 - OAuth/SSO
+    ──────────────────
+    1. Cambiar HS256 → RS256 en jwt.py
+    2. Agregar endpoint /auth/oauth/callback
+    3. Validar token con provider externo
+    
+    get_current_user() sigue siendo el guardián
+    Endpoints NO cambian
+
+
+    PASO 4 - Refresh Tokens
+    ────────────────────────
+    1. Agregar endpoint /auth/refresh
+    2. Generar refresh_token adicional (exp: 7 días)
+    3. Cliente usa refresh_token para obtener nuevo access_token
+    
+    get_current_user() NO cambia
+    Endpoints NO cambian
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                        RESUMEN: ARQUITECTURA AUP
+═══════════════════════════════════════════════════════════════════════════════
+
+    ┌────────────────┐
+    │  AUP_IDENTITY  │  ← QUÉ: Usuario persistente
+    │  (Usuario BD)  │  ← DÓNDE: tabla usuarios
+    └────────┬───────┘  ← ATRIBUTOS: id, email, rol, password_hash
+             │
+             │ validada_por
+             │
+    ┌────────▼────────┐
+    │ AUP_CREDENTIAL  │  ← QUÉ: Validador de identidad
+    │ (password_hash) │  ← TIPO: password_local (bcrypt)
+    └────────┬────────┘  ← FUNCIÓN: verify_password()
+             │
+             │ genera (si válida)
+             │
+    ┌────────▼────────┐
+    │  AUP_SESSION    │  ← QUÉ: Contexto temporal autenticado
+    │     (JWT)       │  ← CONTIENE: sub, role, method, exp
+    └────────┬────────┘  ← SERIALIZACIÓN: JWT HS256
+             │
+             │ usado en cada request
+             │
+    ┌────────▼───────────────┐
+    │  get_current_user()    │  ← GUARDIÁN del sistema
+    │  [ÚNICO PUNTO]         │  ← TODO endpoint pasa por aquí
+    └────────┬───────────────┘  ← RETORNA: AUP_IDENTITY reconstruida
+             │
+             │ alimenta
+             │
+    ┌────────▼────────┐
+    │  Lógica de      │  ← Endpoints protegidos
+    │  Negocio        │  ← NO conocen autenticación
+    └─────────────────┘  ← Solo reciben Usuario validado
+
+
+    AXIOMAS:
+    1. Sin SESSION → No acción
+    2. SESSION temporal (expira)
+    3. No identidad implícita
+
+    MIGRACIÓN FUTURA:
+    → AUP_SCOPE (multitenant + permisos)
+    → OAuth/SSO (RS256)
+    → Refresh tokens
+    
+    Todo sin romper endpoints existentes
+
+═══════════════════════════════════════════════════════════════════════════════
+```

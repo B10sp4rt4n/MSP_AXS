@@ -1,3 +1,23 @@
+"""
+═══════════════════════════════════════════════════════════════════════════════
+MSP_AXS Backend - MIGRADO A AUP_SESSION
+═══════════════════════════════════════════════════════════════════════════════
+
+SISTEMA DE AUTENTICACIÓN:
+  - AUP_IDENTITY: Usuario en base de datos
+  - AUP_CREDENTIAL: Password hash (bcrypt)
+  - AUP_SESSION: JWT con identity_id + role
+  
+ENDPOINTS PÚBLICOS:
+  - POST /auth/login: crear AUP_SESSION
+  - GET /: health check
+  
+ENDPOINTS PROTEGIDOS:
+  - Todos los demás requieren: Authorization: Bearer <token>
+
+═══════════════════════════════════════════════════════════════════════════════
+"""
+
 from fastapi import FastAPI
 import logging
 import os
@@ -8,13 +28,18 @@ from .routers import (
     qr_router,
     evidencias_router,
     preregistro_router,
+    auth_router,  # ← NUEVO: Router de autenticación AUP
 )
 
 from .core.config import settings
 
 logger = logging.getLogger("axs.startup")
 
-app = FastAPI(title="AX-S MSP API")
+app = FastAPI(
+    title="AX-S MSP API",
+    description="Sistema de gestión de accesos con autenticación JWT (AUP_SESSION)",
+    version="2.0.0-aup"
+)
 
 # ============================================================
 #   Inicialización de Base de Datos
@@ -31,6 +56,10 @@ except Exception as exc:
 #   Routers
 # ============================================================
 
+# Router de autenticación (público)
+app.include_router(auth_router.router)
+
+# Routers protegidos (requieren AUP_SESSION)
 app.include_router(visitas_router.router)
 app.include_router(qr_router.router)
 app.include_router(evidencias_router.router)
@@ -57,4 +86,11 @@ def debug_db():
 
 @app.get("/")
 def read_root():
-    return {"ok": True, "service": "AX-S MSP API"}
+    """Health check endpoint (público)."""
+    return {
+        "ok": True,
+        "service": "AX-S MSP API",
+        "version": "2.0.0-aup",
+        "auth_system": "AUP_SESSION (JWT)",
+        "login_endpoint": "/auth/login"
+    }

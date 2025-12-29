@@ -4,5 +4,10 @@ sqlalchemy
 psycopg[binary]
 python-multipart
 pydantic
+pydantic[email]
 qrcode
+pillow
+passlib[bcrypt]
+python-jose[cryptography]
+
 
