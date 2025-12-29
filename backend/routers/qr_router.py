@@ -10,8 +10,9 @@ from ..db.models import Visita, Usuario
 from ..services import qr_service, visita_service
 from ..core.event.registry import registrar_evento
 from ..core.event import EventEntity, EventAction, EventResult
+from ..core.gov.facade import puede_ejecutar_accion
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 
 router = APIRouter(prefix="/qr", tags=["QR"]) 
 
@@ -28,11 +29,33 @@ def generar_qr(
     if not visita:
         raise HTTPException(404, "Visita no encontrada")
 
+    # ═══════════════════════════════════════════════════════════════════
+    # AUP_GOV: Evaluar política ANTES de generar QR
+    # Axioma: Gobierno precede a operación
+    # ═══════════════════════════════════════════════════════════════════
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    
+    # Calcular días de vigencia (del servicio QR)
+    dias_vigencia = 7  # Default del sistema (puede venir de config)
+    
+    permitido, motivo = puede_ejecutar_accion(
+        db=db,
+        usuario=usuario,
+        session_token=token,
+        accion="generar_qr",
+        tenant_id=visita.condominio_id,
+        metadata={"dias_vigencia": dias_vigencia}
+    )
+    
+    if not permitido:
+        # AUP_GOV denegó la operación
+        raise HTTPException(403, detail=f"Gobierno denegó operación: {motivo}")
+    # ═══════════════════════════════════════════════════════════════════
+
     qr_data = qr_service.generar_qr_para_visita(visita_id)
     visita_service.actualizar_qr(db, visita_id, qr_data["token"], qr_data["qr_vigencia"])
     
     # AUP_EVENT: QR generado exitosamente
-    token = request.headers.get("Authorization", "").replace("Bearer ", "")
     registrar_evento(
         db=db,
         identity=usuario,

@@ -28,7 +28,8 @@ from .routers import (
     qr_router,
     evidencias_router,
     preregistro_router,
-    auth_router,  # ← NUEVO: Router de autenticación AUP
+    auth_router,  # ← Router de autenticación AUP
+    condominios_router,  # ← Router con gobierno integrado
 )
 
 from .core.config import settings
@@ -37,8 +38,8 @@ logger = logging.getLogger("axs.startup")
 
 app = FastAPI(
     title="AX-S MSP API",
-    description="Sistema de gestión de accesos con autenticación JWT (AUP_SESSION)",
-    version="2.0.0-aup"
+    description="Sistema de gestión de accesos con arquitectura AUP completa (SESSION + SCOPE + EVENT + GOV)",
+    version="3.0.0-aup-gov"
 )
 
 # ============================================================
@@ -64,6 +65,7 @@ app.include_router(visitas_router.router)
 app.include_router(qr_router.router)
 app.include_router(evidencias_router.router)
 app.include_router(preregistro_router.router)
+app.include_router(condominios_router.router)
 
 
 # ============================================================
@@ -90,7 +92,9 @@ def read_root():
     return {
         "ok": True,
         "service": "AX-S MSP API",
-        "version": "2.0.0-aup",
+        "version": "3.0.0-aup-gov",
         "auth_system": "AUP_SESSION (JWT)",
-        "login_endpoint": "/auth/login"
+        "login_endpoint": "/auth/login",
+        "gov_integrated": True,
+        "architecture": "AUP (SESSION + SCOPE + EVENT + GOV)"
     }

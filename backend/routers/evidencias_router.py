@@ -1,8 +1,12 @@
+"""Router de Evidencias - MIGRADO A AUP_SESSION"""
+
 from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
-from ..core.dependencies import get_db, get_usuario_actual
+from ..core.dependencies import get_db
+from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
 from ..services.evidencia_service import guardar_evidencias_opcionales
+from ..db.models import Usuario
 
 router = APIRouter(prefix="/evidencias", tags=["Evidencias"]) 
 
@@ -17,7 +21,7 @@ def evidencias_entrada(
     vehiculo: UploadFile | None = File(None),
     documento: UploadFile | None = File(None),
     db: Session = Depends(get_db),
-    usuario = Depends(get_usuario_actual),
+    usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
 ):
     verificar_rol(usuario, ["GUARDIA"])
 

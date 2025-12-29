@@ -1,6 +1,6 @@
 """Router de Preregistro - MIGRADO A AUP_SESSION"""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from ..core.dependencies import get_db
 from ..core.auth.dependencies import get_current_user
@@ -8,6 +8,7 @@ from ..core.security import verificar_rol
 from ..services import visita_service, qr_service
 from ..schemas.preregistro import PreregistroCreate
 from ..db.models import Usuario
+from ..core.gov.facade import puede_ejecutar_accion
 import base64
 from datetime import datetime
 import logging
@@ -20,10 +21,32 @@ router = APIRouter(prefix="/preregistro", tags=["Preregistro"])
 @router.post("/crear")
 def crear_preregistro(
     data: PreregistroCreate,
+    request: Request,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
 ):
     verificar_rol(usuario, ["RESIDENTE"])
+
+    # ═══════════════════════════════════════════════════════════════════
+    # AUP_GOV: Evaluar política ANTES de crear preregistro
+    # Axioma: Gobierno precede a operación
+    # ═══════════════════════════════════════════════════════════════════
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    
+    dias_vigencia = 7  # Default del sistema
+    
+    permitido, motivo = puede_ejecutar_accion(
+        db=db,
+        usuario=usuario,
+        session_token=token,
+        accion="generar_qr",
+        tenant_id=usuario.condominio_id,
+        metadata={"dias_vigencia": dias_vigencia}
+    )
+    
+    if not permitido:
+        raise HTTPException(403, detail=f"Gobierno denegó preregistro: {motivo}")
+    # ═══════════════════════════════════════════════════════════════════
 
     try:
         # Crear visita y persistir metadata opcional como evidencia
