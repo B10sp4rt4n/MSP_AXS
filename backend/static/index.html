@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MSP AXS - Preregistro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      margin-bottom: 20px;
+      color: #333;
+      font-size: 24px;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+    textarea {
+      font-family: system-ui, -apple-system, sans-serif;
+      resize: vertical;
+    }
+    button {
+      width: 100%;
+      padding: 15px;
+      background: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #1976D2;
+    }
+    button:active {
+      background: #1565C0;
+    }
+    .error {
+      margin-top: 15px;
+      padding: 15px;
+      background: #ffebee;
+      border: 1px solid #c62828;
+      border-radius: 6px;
+      color: #c62828;
+      font-weight: 500;
+    }
+    .success {
+      margin-top: 15px;
+      padding: 15px;
+      background: #e8f5e9;
+      border: 1px solid #4caf50;
+      border-radius: 6px;
+      color: #2e7d32;
+      font-weight: 500;
+    }
+    .ultima-accion {
+      margin-top: 15px;
+      padding: 10px;
+      background: #fff3e0;
+      border: 1px solid #ff9800;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .qr-container {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .qr-container h3 {
+      margin-bottom: 15px;
+      color: #333;
+    }
+    .qr-container img {
+      max-width: 300px;
+      width: 100%;
+      border: 2px solid #333;
+      border-radius: 8px;
+    }
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 12px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🏢 Preregistro de Visitas</h1>
+    
+    <input type="text" id="nombre" placeholder="Nombre del visitante" required>
+    <input type="datetime-local" id="fecha" required>
+    
+    <select id="tipo">
+      <option value="Visita">Visita</option>
+      <option value="Servicio">Servicio</option>
+    </select>
+    
+    <input type="text" id="placa" placeholder="Placas (opcional)">
+    <textarea id="notas" rows="3" placeholder="Notas adicionales"></textarea>
+    
+    <button onclick="generarQR()">Generar QR</button>
+    
+    <div id="error" class="error" style="display:none;"></div>
+    <div id="success" class="success" style="display:none;"></div>
+    <div id="ultimaAccion" class="ultima-accion" style="display:none;"></div>
+    
+    <div id="qrContainer" class="qr-container" style="display:none;">
+      <h3>QR Generado:</h3>
+      <img id="qrImg" alt="Código QR">
+    </div>
+    
+    <div class="footer">
+      MSP AXS - Sistema gobernado por AUP
+    </div>
+  </div>
+
+  <script>
+    // UI-AUP-01: Token mock temporal para piloto
+    // En producción: obtener desde login real
+    const TOKEN_MOCK = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJ1c2VyMSJ9.MOCK";
+    
+    async function generarQR() {
+      // Limpiar mensajes previos
+      document.getElementById('error').style.display = 'none';
+      document.getElementById('success').style.display = 'none';
+      document.getElementById('ultimaAccion').style.display = 'none';
+      document.getElementById('qrContainer').style.display = 'none';
+      
+      const nombre = document.getElementById('nombre').value.trim();
+      const fecha = document.getElementById('fecha').value;
+      const tipo = document.getElementById('tipo').value;
+      const placa = document.getElementById('placa').value.trim() || null;
+      const notas = document.getElementById('notas').value.trim() || null;
+      
+      // Validación básica
+      if (!nombre) {
+        mostrarError('Por favor ingresa el nombre del visitante');
+        return;
+      }
+      
+      if (!fecha) {
+        mostrarError('Por favor selecciona la fecha y hora de visita');
+        return;
+      }
+      
+      try {
+        const payload = {
+          nombre_visitante: nombre,
+          fecha_visita: new Date(fecha).toISOString(),
+          tipo_visita: tipo,
+          placa: placa,
+          notas: notas
+        };
+        
+        // UI-AUP-01: Endpoint gobernado por AUP
+        // Cambiado de /preregistro/crear a /qr/generar_gobernado
+        const res = await fetch('/qr/generar_gobernado', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${TOKEN_MOCK}`
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        
+        // UI-AUP-02: Manejo explícito de respuestas AUP
+        if (res.status === 401) {
+          mostrarError('⚠️ Sesión no válida o expirada. Acceso no autorizado.');
+          registrarAccion('Generación de QR', 'DENEGADA');
+          return;
+        }
+        
+        if (res.status === 403) {
+          mostrarError('⚠️ Acceso denegado por política del condominio. Este intento fue registrado.');
+          registrarAccion('Generación de QR', 'DENEGADA');
+          return;
+        }
+        
+        if (!res.ok) {
+          mostrarError(`Error del servidor: ${data.detail || 'Error desconocido'}`);
+          return;
+        }
+        
+        // UI-AUP-03: Mostrar éxito y evidencia
+        if (data.qr_base64) {
+          document.getElementById('qrImg').src = `data:image/png;base64,${data.qr_base64}`;
+          document.getElementById('qrContainer').style.display = 'block';
+          mostrarExito('✅ QR generado exitosamente');
+          registrarAccion('Generación de QR', 'AUTORIZADA');
+          
+          // Limpiar formulario
+          document.getElementById('nombre').value = '';
+          document.getElementById('fecha').value = '';
+          document.getElementById('placa').value = '';
+          document.getElementById('notas').value = '';
+        }
+      } catch (err) {
+        console.error('Error:', err);
+        mostrarError('❌ Error de conexión con el servidor');
+      }
+    }
+    
+    function mostrarError(mensaje) {
+      const el = document.getElementById('error');
+      el.innerHTML = mensaje;
+      el.style.display = 'block';
+    }
+    
+    function mostrarExito(mensaje) {
+      const el = document.getElementById('success');
+      el.innerHTML = mensaje;
+      el.style.display = 'block';
+    }
+    
+    // UI-AUP-03: Registro de última acción (evidencia visible)
+    function registrarAccion(accion, resultado) {
+      const el = document.getElementById('ultimaAccion');
+      const timestamp = new Date().toLocaleTimeString('es-MX');
+      el.innerHTML = `<strong>Última acción registrada:</strong><br>🕒 ${timestamp} — ${accion} (${resultado})`;
+      el.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

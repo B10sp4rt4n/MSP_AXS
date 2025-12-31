@@ -19,6 +19,8 @@ ENDPOINTS PROTEGIDOS:
 """
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import logging
 import os
 
@@ -110,18 +112,43 @@ def debug_db():
 
 
 # ============================================================
-#   Root
+#   Frontend Estático (Deployment)
 # ============================================================
 
-@app.get("/")
-def read_root():
-    """Health check endpoint (público)."""
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    logger.info("✅ Frontend estático montado en /static")
+    
+    @app.get("/")
+    async def serve_frontend():
+        """Servir frontend HTML para piloto."""
+        return FileResponse(os.path.join(static_dir, "index.html"))
+else:
+    @app.get("/")
+    def read_root():
+        """Health check endpoint (público) - solo si no hay frontend."""
+        return {
+            "ok": True,
+            "service": "AX-S MSP API",
+            "version": "3.0.0-aup-gov",
+            "auth_system": "AUP_SESSION (JWT)",
+            "login_endpoint": "/auth/login",
+            "gov_integrated": True,
+            "architecture": "AUP (SESSION + SCOPE + EVENT + GOV)"
+        }
+
+
+# ============================================================
+#   Health Check (para Railway/monitoring)
+# ============================================================
+
+@app.get("/health")
+def health_check():
+    """Endpoint de salud para deployment."""
     return {
-        "ok": True,
-        "service": "AX-S MSP API",
-        "version": "3.0.0-aup-gov",
-        "auth_system": "AUP_SESSION (JWT)",
-        "login_endpoint": "/auth/login",
-        "gov_integrated": True,
-        "architecture": "AUP (SESSION + SCOPE + EVENT + GOV)"
+        "status": "healthy",
+        "environment": os.getenv("ENVIRONMENT", "development"),
+        "aup_blocks_active": True,
+        "version": "3.0.0-aup-gov"
     }
