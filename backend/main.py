@@ -22,7 +22,11 @@ from fastapi import FastAPI
 import logging
 import os
 
-from .db.connection import Base, engine
+# ✅ AUP: Importar engines y bases separadas por dominio
+from .db.core import Base_CORE, engine_core
+from .db.event import Base_EVENT, engine_event
+from .db.gov import Base_GOV, engine_gov
+
 from .routers import (
     visitas_router,
     qr_router,
@@ -30,9 +34,11 @@ from .routers import (
     preregistro_router,
     auth_router,  # ← Router de autenticación AUP
     condominios_router,  # ← Router con gobierno integrado
+    canario_router,  # ← 🐤 Router canario AUP
 )
 
 from .core.config import settings
+from .core.aup_runtime_blocks import AUPSessionGuard  # ← Middleware BLOQUEO AUP-01
 
 logger = logging.getLogger("axs.startup")
 
@@ -43,14 +49,32 @@ app = FastAPI(
 )
 
 # ============================================================
-#   Inicialización de Base de Datos
+#   🔒 BLOQUEO AUP-01: No acción sin SESSION
+# ============================================================
+# Middleware que intercepta TODA request y valida SESSION
+# Axioma: Nada ocurre sin sesión
+app.add_middleware(AUPSessionGuard)
+logger.info("🔒 AUP-01 ACTIVADO: Middleware de SESSION activo")
+
+# ============================================================
+#   Inicialización de Bases de Datos (Separadas)
 # ============================================================
 
 try:
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables checked/created successfully")
+    # ✅ Crear tablas en AUP_CORE
+    Base_CORE.metadata.create_all(bind=engine_core)
+    logger.info("✅ AUP_CORE: Tablas verificadas/creadas")
+    
+    # ✅ Crear tablas en AUP_EVENT
+    Base_EVENT.metadata.create_all(bind=engine_event)
+    logger.info("✅ AUP_EVENT: Tablas verificadas/creadas")
+    
+    # ✅ Crear tablas en AUP_GOV
+    Base_GOV.metadata.create_all(bind=engine_gov)
+    logger.info("✅ AUP_GOV: Tablas verificadas/creadas")
+    
 except Exception as exc:
-    logger.warning("No se pudo crear/verificar tablas en la DB (se omite create_all)", exc_info=exc)
+    logger.warning("⚠ No se pudieron crear/verificar todas las tablas", exc_info=exc)
 
 
 # ============================================================
@@ -58,6 +82,9 @@ except Exception as exc:
 # ============================================================
 
 # Router de autenticación (público)
+
+# 🐤 Router canario AUP (demostrador)
+app.include_router(canario_router.router)
 app.include_router(auth_router.router)
 
 # Routers protegidos (requieren AUP_SESSION)

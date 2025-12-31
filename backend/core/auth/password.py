@@ -61,4 +61,17 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     AXIOMA APLICADO:
         Esta función es el único punto de validación de identidad local.
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    # Usar bcrypt directamente para evitar incompatibilidades con passlib
+    import bcrypt
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode('utf-8'),
+            hashed_password.encode('utf-8')
+        )
+    except Exception as e:
+        # Si falla bcrypt directo, intentar con passlib
+        try:
+            return pwd_context.verify(plain_password, hashed_password)
+        except:
+            return False
+

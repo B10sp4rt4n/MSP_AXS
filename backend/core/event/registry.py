@@ -15,7 +15,8 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 
-from backend.db.models import Event, Usuario
+from backend.db.event import Event
+from backend.db.core import Usuario
 from backend.core.event import EventEntity, EventAction, EventResult
 
 
@@ -169,19 +170,17 @@ def registrar_evento(
     # -------------------------------------------------------------------------
     
     evento = Event(
-        event_id=event_id,
         identity_id=identity.usuario_id,
-        session_hash=session_hash,
-        scope_id=scope_id,
         tenant_id=tenant_id,
+        tipo_evento=accion,
         entidad=entidad,
-        entidad_id=entidad_id,
+        entidad_id=entidad_id or "system",
         accion=accion,
         resultado=resultado,
         motivo=motivo,
         timestamp=timestamp,
         hash_evento=hash_evento,
-        metadata=metadata
+        metadata_json=metadata
     )
     
     # -------------------------------------------------------------------------
