@@ -170,7 +170,7 @@ class UserTenantScope(Base):
     revoked_at = Column(DateTime, nullable=True)
     
     # Metadatos adicionales (futuro: vigencia temporal, delegación, etc.)
-    metadata = Column(JSON, nullable=True)
+    scope_metadata = Column(JSON, nullable=True)
     
     # Índice compuesto para búsquedas eficientes
     # (usuario_id, tenant_id) debe ser único por combinación activa
@@ -250,7 +250,7 @@ class Event(Base):
     hash_evento = Column(String, nullable=False, unique=True)
     
     # Metadata adicional estructurada
-    metadata = Column(JSON, nullable=True)
+    event_metadata = Column(JSON, nullable=True)
     
     # Índices compuestos para queries comunes
     __table_args__ = (
@@ -321,7 +321,7 @@ class Authority(Base):
     revoked_at = Column(DateTime, nullable=True)
     
     # Metadata adicional
-    metadata = Column(JSON, nullable=True)
+    authority_metadata = Column(JSON, nullable=True)
     
     # Índices
     __table_args__ = (
@@ -370,7 +370,7 @@ class Policy(Base):
     estado = Column(SQLEnum(GovStatus), nullable=False, default=GovStatus.ACTIVO)
     
     # Metadata adicional
-    metadata = Column(JSON, nullable=True)
+    policy_metadata = Column(JSON, nullable=True)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -414,7 +414,7 @@ class Delegation(Base):
     estado = Column(SQLEnum(GovStatus), nullable=False, default=GovStatus.ACTIVO)
     
     # Metadata adicional
-    metadata = Column(JSON, nullable=True)
+    delegation_metadata = Column(JSON, nullable=True)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
