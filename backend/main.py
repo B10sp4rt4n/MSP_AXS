@@ -37,6 +37,7 @@ from .routers import (
     auth_router,  # ← Router de autenticación AUP
     condominios_router,  # ← Router con gobierno integrado
     canario_router,  # ← 🐤 Router canario AUP
+    meta_router,  # ← Router meta-operativo v1.0 (CONGELADO)
 )
 
 from .core.config import settings
@@ -95,6 +96,10 @@ app.include_router(qr_router.router)
 app.include_router(evidencias_router.router)
 app.include_router(preregistro_router.router)
 app.include_router(condominios_router.router)
+
+# ✅ Router Meta-Operativo v1.0 (CONGELADO)
+# NO usa middleware de tenant (dominio separado)
+app.include_router(meta_router.router)
 
 
 # ============================================================
