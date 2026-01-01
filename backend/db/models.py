@@ -427,3 +427,77 @@ class Delegation(Base):
         # Index('idx_delegation_target_scope', 'target_scope_id', 'estado'),
     )
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DOMINIO META-OPERATIVO v1.0 (CONGELADO)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class AssignmentType(str, enum.Enum):
+    """
+    Tipos de asignación Identity → Tenant.
+    Norma: ACTA_CONGELAMIENTO_META_OPERATIVO_v1.0.md sección 2.2
+    """
+    FIRST_TIER_ADMIN = "FIRST_TIER_ADMIN"  # Authority FIRST_TIER sobre el tenant
+    REGULAR_ADMIN = "REGULAR_ADMIN"        # Scope operativo como admin
+    OPERATOR = "OPERATOR"                  # Scope operativo como operador
+
+
+class IdentityTenantAssignment(Base):
+    """
+    Dominio Meta-Operativo: Relaciones Identity ↔ Tenant.
+    
+    Propósito: Registrar de forma auditable quién asignó a qué identidad
+               en qué tenant y cuándo.
+    
+    Norma: ACTA_CONGELAMIENTO_META_OPERATIVO_v1.0.md sección 2.1
+    
+    Invariantes:
+      1. Una identity solo puede tener UNA asignación activa por tenant
+      2. Si revoked=true, los campos de revocación DEBEN estar poblados
+      3. assigned_at < revoked_at (si revoked=true)
+      4. Todas las identidades referenciadas DEBEN existir
+    
+    El dominio meta-operativo NO opera dentro de ningún tenant.
+    """
+    __tablename__ = "identity_tenant_assignments"
+    
+    # Identificación única
+    assignment_id = Column(String(64), primary_key=True)
+    
+    # Relación (QUÉ)
+    identity_id = Column(
+        String(64),
+        ForeignKey("usuarios.usuario_id"),
+        nullable=False,
+        index=True
+    )
+    tenant_id = Column(
+        String(64),
+        ForeignKey("condominios_exo.condominio_id"),
+        nullable=False,
+        index=True
+    )
+    assignment_type = Column(
+        SQLEnum(AssignmentType),
+        nullable=False
+    )
+    
+    # Trazabilidad de creación (QUIÉN y CUÁNDO)
+    assigned_by_identity_id = Column(
+        String(64),
+        ForeignKey("usuarios.usuario_id"),
+        nullable=False,
+        index=True
+    )
+    assigned_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    
+    # Trazabilidad de revocación
+    revoked = Column(Integer, nullable=False, default=0)  # 0=false, 1=true (SQLite compatible)
+    revoked_by_identity_id = Column(
+        String(64),
+        ForeignKey("usuarios.usuario_id"),
+        nullable=True
+    )
+    revoked_at = Column(DateTime, nullable=True)
+    revocation_reason = Column(Text, nullable=True)
+
