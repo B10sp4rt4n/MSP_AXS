@@ -244,50 +244,72 @@ def crear_visita_legacy(
 # ═══════════════════════════════════════════════════════════════════════════
 # ENDPOINTS PENDIENTES DE MIGRACIÓN (usan verificar_rol - DEPRECADO)
 # ═══════════════════════════════════════════════════════════════════════════
-@router.get("/mis-visitas", response_model=List[VisitaResponse])
+@router.get("/mis-visitas/{condominio_id}", response_model=List[VisitaResponse])
 def mis_visitas(
+    condominio_id: str,                                          # PASO 2: tenant desde path
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),  # PASO 1: AUP_SESSION
+    current_user: Usuario = Depends(get_current_user),           # PASO 1: identidad
+    _tenant: str = Depends(set_tenant_context),                  # PASO 3: SET app.tenant_id
 ):
     """
-    VALIDACIÓN AUP:
-      Lista visitas del condominio al que pertenece el usuario.
-      AUP_SCOPE se valida implícitamente: usuario.condominio_id
-      debe tener scope activo.
+    ═══════════════════════════════════════════════════════════════════════════
+    LISTAR MIS VISITAS — Endpoint Migrado FASE 6
+    ═══════════════════════════════════════════════════════════════════════════
     
-    NOTA:
-      Este endpoint usa el tenant del usuario (usuario.condominio_id)
-      En vez de validar scope, asumimos que si usuario.condominio_id existe,
-      debería tener scope. Para ser estricto AUP, validar scope explícitamente.
+    FLUJO AUP COMPLETO:
+      1. ✅ Identidad resuelta (get_current_user)
+      2. ✅ Tenant resuelto (path param: condominio_id)
+      3. ✅ SET app.tenant_id (set_tenant_context)
+      4. ✅ Validar scope (RESIDENTE mínimo)
+      5. ✅ Ejecutar acción (listar visitas)
+    
+    Lista visitas del residente en su condominio.
+    RLS garantiza aislamiento multi-tenant.
     """
-    # TODO: Hacer estrictamente AUP validando scope
-    # validate_user_owns_resource_in_tenant(
-    #     usuario=usuario,
-    #     resource_tenant_id=usuario.condominio_id,
-    #     db=db,
-    #     required_level=AccessLevel.RESIDENTE
-    # )
+    # PASO 4: Validar scope (requiere al menos RESIDENTE)
+    if not validar_scope(db, current_user, condominio_id, AccessLevel.RESIDENTE):
+        raise HTTPException(
+            status_code=403,
+            detail="Requiere nivel RESIDENTE en este condominio"
+        )
     
-    verificar_rol(usuario, ["RESIDENTE"])
+    # PASO 6: Ejecutar acción - RLS ya está activo
     visitas = visita_service.obtener_visitas_residente(
         db,
-        condominio_id=usuario.condominio_id,
-        casa_unidad=usuario.casa_unidad,
+        condominio_id=condominio_id,
+        casa_unidad=current_user.casa_unidad,
     )
     return visitas
 
-
 # ---------------------------------------------------------
-# Listar todas las visitas del condominio (admin / guardia)
+# Listar todas las visitas del condominio (admin / guardia) - MIGRADO FASE 6
 # ---------------------------------------------------------
-@router.get("/condominio", response_model=List[VisitaResponse])
+@router.get("/condominio/{condominio_id}", response_model=List[VisitaResponse])
 def visitas_condominio(
+    condominio_id: str,                                          # PASO 2: tenant desde path
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
+    current_user: Usuario = Depends(get_current_user),           # PASO 1: identidad
+    _tenant: str = Depends(set_tenant_context),                  # PASO 3: SET app.tenant_id
 ):
-    verificar_rol(usuario, ["ADMIN_CONDOMINIO", "GUARDIA"])
+    """
+    ═══════════════════════════════════════════════════════════════════════════
+    LISTAR VISITAS DEL CONDOMINIO — Endpoint Migrado FASE 6
+    ═══════════════════════════════════════════════════════════════════════════
+    
+    Lista todas las visitas del condominio.
+    Requiere nivel GUARDIA (admin o guardia).
+    RLS garantiza aislamiento multi-tenant.
+    """
+    # PASO 4: Validar scope (requiere GUARDIA mínimo)
+    if not validar_scope(db, current_user, condominio_id, AccessLevel.GUARDIA):
+        raise HTTPException(
+            status_code=403,
+            detail="Requiere nivel GUARDIA o superior en este condominio"
+        )
+    
+    # PASO 6: Ejecutar acción - RLS ya está activo
     visitas = visita_service.obtener_visitas_condominio(
-        db, usuario.condominio_id
+        db, condominio_id
     )
     return visitas
 
