@@ -6,7 +6,8 @@ Sistema multi-tenant para gestión de accesos en condominios con:
 - ✅ Autenticación JWT (AUP_SESSION)
 - ✅ Alcance multi-tenant (AUP_SCOPE)
 - ✅ Trazabilidad completa (AUP_EVENT)
-- ✅ **Gobierno de poder (AUP_GOV)** ← INTEGRADO
+- ✅ Gobierno de poder (AUP_GOV)
+- ✅ **Evidencias con Cloudinary** ← NUEVO (Fase 1)
 
 ## 📚 Documentación Completa
 
@@ -34,7 +35,7 @@ El sistema implementa los 4 pasos fundamentales:
 - Base para auditoría y compliance
 - Documentación: [docs/AUP_EVENT.md](docs/AUP_EVENT.md)
 
-### **PASO 4: AUP_GOV** (Gobierno de Poder) ← NUEVO
+### **PASO 4: AUP_GOV** (Gobierno de Poder)
 - Autoridades (GLOBAL, FIRST_TIER)
 - Políticas dinámicas (límites sin redeploy)
 - Delegaciones temporales y revocables
@@ -43,6 +44,48 @@ El sistema implementa los 4 pasos fundamentales:
 - **Integración:** [docs/AUP_GOV_INTEGRACION_SUMMARY.md](docs/AUP_GOV_INTEGRACION_SUMMARY.md)
 
 **Flujo completo:** [docs/AUP_FLOW_COMPLETE.txt](docs/AUP_FLOW_COMPLETE.txt)
+
+---
+
+## 📸 Sistema de Evidencias con Cloudinary (Fase 1)
+
+**🆕 NUEVO:** Sistema consolidado de evidencias fotográficas con almacenamiento en la nube.
+
+### Características:
+- ☁️ **Almacenamiento escalable**: Sin límites de storage en servidor
+- 🌐 **CDN global**: Fotos rápidas desde cualquier ubicación (200+ PoPs)
+- 🖼️ **Transformaciones on-the-fly**: Thumbnails automáticos sin procesamiento
+- 📊 **Búsqueda por metadatos**: Tags, contexto, fechas
+- 💰 **Costo mínimo**: Plan gratuito hasta 25 GB/mes
+
+### Documentación:
+- 📖 [CLOUDINARY_RESUMEN_EJECUTIVO.md](docs/CLOUDINARY_RESUMEN_EJECUTIVO.md) - Análisis completo (problema, solución, ROI)
+- 🛠️ [CLOUDINARY_SETUP.md](docs/CLOUDINARY_SETUP.md) - Guía paso a paso de configuración
+- 🔄 [CLOUDINARY_MIGRATION.md](docs/CLOUDINARY_MIGRATION.md) - Plan técnico de migración
+
+### Quick Start:
+```bash
+# 1. Configurar variables de entorno
+export USE_CLOUDINARY=true
+export CLOUDINARY_CLOUD_NAME=tu-cloud-name
+export CLOUDINARY_API_KEY=tu-api-key
+export CLOUDINARY_API_SECRET=tu-api-secret
+
+# 2. Instalar dependencia
+pip install cloudinary
+
+# 3. Probar conexión
+python -c "from backend.utils.cloudinary_service import CloudinaryService; CloudinaryService()"
+
+# 4. Subir evidencia de prueba
+curl -X POST http://localhost:8000/evidencias/entrada/test_123 \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "foto_visitante=@test.jpg"
+```
+
+**⏱️ Tiempo de configuración:** 30 minutos  
+**💰 Costo Año 1:** $5/mes  
+**🎯 Estado:** ✅ Implementación completa, pendiente configuración
 
 ---
 
@@ -66,6 +109,15 @@ cp .env.example .env
 openssl rand -hex 32
 ```
 
+**Opcional - Cloudinary (Fase 1):**
+```bash
+# Agregar al .env
+USE_CLOUDINARY=true
+CLOUDINARY_CLOUD_NAME=tu-cloud-name
+CLOUDINARY_API_KEY=tu-api-key
+CLOUDINARY_API_SECRET=tu-api-secret
+```
+
 ### 3. Ejecutar migraciones de BD
 
 ```bash
@@ -75,13 +127,13 @@ psql -U postgres -d tu_bd < database/schema_axs.sql
 # 2. Migración de eventos (PASO 3)
 psql -U postgres -d tu_bd < database/migration_03_events_aup.sql
 
-# 3. Migración de gobierno (PASO 4) ← NUEVO
+# 3. Migración de gobierno (PASO 4)
 psql -U postgres -d tu_bd < database/migration_04_gov.sql
 
 # 4. Crear scopes desde usuarios existentes
 python scripts/migrate_create_scopes.py
 
-# 5. Bootstrap de gobierno ← NUEVO
+# 5. Bootstrap de gobierno
 python scripts/seed_gov_bootstrap.py
 ```
 
