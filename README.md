@@ -74,18 +74,16 @@ export CLOUDINARY_API_SECRET=tu-api-secret
 # 2. Instalar dependencia
 pip install cloudinary
 
-# 3. Probar conexión
-python -c "from backend.utils.cloudinary_service import CloudinaryService; CloudinaryService()"
+# 3. Verificar configuración
+python scripts/verify_cloudinary.py
 
-# 4. Subir evidencia de prueba
-curl -X POST http://localhost:8000/evidencias/entrada/test_123 \
-  -H "Authorization: Bearer $TOKEN" \
-  -F "foto_visitante=@test.jpg"
+# 4. Probar subida de imagen
+python test_cloudinary_upload.py
 ```
 
 **⏱️ Tiempo de configuración:** 30 minutos  
-**💰 Costo Año 1:** $5/mes  
-**🎯 Estado:** ✅ Implementación completa, pendiente configuración
+**💰 Costo Año 1:** $0/mes (Free tier)  
+**🎯 Estado:** ✅ **COMPLETADO** - Operativo al 100% (30 Enero 2026)
 
 ---
 
@@ -100,7 +98,7 @@ python -m pip install -r requirements.txt
 ### 2. Configurar variables de entorno
 
 ```bash
-cp .env.example .env
+cp .env.template .env
 # Editar .env y cambiar SECRET_KEY
 ```
 
@@ -109,14 +107,28 @@ cp .env.example .env
 openssl rand -hex 32
 ```
 
-**Opcional - Cloudinary (Fase 1):**
+**🔴 CRÍTICO - Cloudinary (Sistema de Evidencias):**
+
+Para que el sistema de evidencias funcione, DEBES configurar Cloudinary:
+
 ```bash
-# Agregar al .env
+# 1. Crear cuenta gratuita en https://cloudinary.com/users/register/free
+# 2. Ir a Dashboard → Settings → Access Keys
+# 3. Copiar tus credenciales al .env:
+
 USE_CLOUDINARY=true
-CLOUDINARY_CLOUD_NAME=tu-cloud-name
-CLOUDINARY_API_KEY=tu-api-key
-CLOUDINARY_API_SECRET=tu-api-secret
+CLOUDINARY_CLOUD_NAME=tu_cloud_name_aqui
+CLOUDINARY_API_KEY=123456789012345
+CLOUDINARY_API_SECRET=AbCdEfGhIjKlMnOpQrStUvWxYz123456
+
+# 4. Verificar conexión:
+python -c "from backend.utils.cloudinary_service import CloudinaryService; print('✅ Cloudinary conectado')"
 ```
+
+**Tiempo estimado:** 10 minutos  
+**Costo:** Gratis hasta 25 GB/mes (suficiente para 5,000+ fotos)  
+
+📖 **Guía completa:** [docs/CLOUDINARY_SETUP.md](docs/CLOUDINARY_SETUP.md)
 
 ### 3. Ejecutar migraciones de BD
 

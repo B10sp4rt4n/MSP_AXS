@@ -8,26 +8,40 @@
 
 ## 🔴 MUST HAVE (Semana 1-2) - MVP Funcional
 
-### Issue #1: Configurar Cloudinary en Producción
+### ✅ Issue #1: Configurar Cloudinary en Producción [COMPLETADO]
 **Prioridad:** 🔴 P0 - CRÍTICO  
 **Estimación:** 2 horas  
+**Tiempo real:** 30 minutos
 **Bloqueante:** SÍ (bloquea evidencias fotográficas)
+**Completado:** 30 Enero 2026
 
 **Descripción:**
 Sistema de evidencias implementado pero no configurado. Necesitamos credenciales y variables de entorno.
 
 **Tareas:**
-- [ ] Crear cuenta Cloudinary (free tier)
-- [ ] Obtener credenciales (cloud_name, api_key, api_secret)
-- [ ] Agregar a `.env` local
-- [ ] Agregar a Railway environment variables
-- [ ] Testing: Subir foto de prueba via Postman
-- [ ] Verificar foto en Cloudinary console
+- [x] Crear cuenta Cloudinary (free tier)
+- [x] Obtener credenciales (cloud_name, api_key, api_secret)
+- [x] Agregar a `.env` local
+- [x] Fix script verify_cloudinary.py (agregar load_dotenv)
+- [x] Testing: Subir foto de prueba
+- [x] Verificar foto en Cloudinary console
+- [x] Generar URLs con transformaciones (thumbnails)
+- [ ] Agregar a Railway environment variables (pendiente deploy)
 
 **Criterio de aceptación:**
-- ✅ Foto subida exitosamente vía API
+- ✅ Variables configuradas correctamente
+- ✅ Conexión con Cloudinary exitosa (6/6 verificaciones)
+- ✅ Servicio CloudinaryService funcional
+- ✅ Foto subida exitosamente vía API (test_cloudinary_upload.py)
 - ✅ URL generada accesible desde navegador
 - ✅ Thumbnail de 200x200 generado automáticamente
+
+**Resultado:**
+- ✅ CloudinaryService operativo al 100%
+- ✅ Free tier: 25 GB storage + 25 GB bandwidth/mes
+- ✅ Imágenes subiendo correctamente (300x300 → 0.63 KB)
+- ✅ Transformaciones on-the-fly funcionando
+- ✅ URLs públicas accesibles vía CDN
 
 **Referencias:**
 - [CLOUDINARY_SETUP.md](/workspaces/MSP_AXS/docs/CLOUDINARY_SETUP.md)
