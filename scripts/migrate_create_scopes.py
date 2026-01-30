@@ -6,8 +6,8 @@ basándose en su campo condominio_id actual.
 """
 
 from sqlalchemy.orm import Session
-from backend.db.connection import SessionLocal
-from backend.db.models import Usuario, UserTenantScope, AccessLevel, ScopeStatus
+# ✅ AUP_CORE: Identidad y alcance
+from backend.db.core import SessionLocal_CORE, Usuario, UserTenantScope, AccessLevel, ScopeStatus
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -72,7 +72,7 @@ def migrar_usuarios_a_scopes(db: Session):
 
 
 if __name__ == "__main__":
-    db = SessionLocal()
+    db = SessionLocal_CORE()
     try:
         migrar_usuarios_a_scopes(db)
     finally:

@@ -20,7 +20,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..auth.dependencies import get_current_user, get_db
-from ...db.models import Usuario, AccessLevel
+from backend.db.core import Usuario, AccessLevel
 from .validator import requerir_scope
 
 

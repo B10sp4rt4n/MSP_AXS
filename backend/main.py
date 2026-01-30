@@ -21,8 +21,19 @@ ENDPOINTS PROTEGIDOS:
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import logging
 import os
+
+# ✅ Configurar logging a nivel DEBUG para ver TODO
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+# Reducir verbosidad de librerías de terceros
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
 
 # ✅ AUP: Importar engines y bases separadas por dominio
 from .db.core import Base_CORE, engine_core
@@ -37,6 +48,7 @@ from .routers import (
     auth_router,  # ← Router de autenticación AUP
     condominios_router,  # ← Router con gobierno integrado
     canario_router,  # ← 🐤 Router canario AUP
+    msp_router,  # ← Router de MSPs
 )
 
 from .core.config import settings
@@ -49,6 +61,19 @@ app = FastAPI(
     description="Sistema de gestión de accesos con arquitectura AUP completa (SESSION + SCOPE + EVENT + GOV)",
     version="3.0.0-aup-gov"
 )
+
+# ============================================================
+#   🌍 CORS: Permitir requests desde cualquier origen
+# ============================================================
+# Necesario para GitHub Codespaces y otros entornos de desarrollo
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # En producción, restringir a dominios conocidos
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+logger.info("🌍 CORS ACTIVADO: Requests desde cualquier origen permitidas")
 
 # ============================================================
 #   🔒 BLOQUEO AUP-01: No acción sin SESSION
@@ -90,6 +115,7 @@ app.include_router(canario_router.router)
 app.include_router(auth_router.router)
 
 # Routers protegidos (requieren AUP_SESSION)
+app.include_router(msp_router.router)
 app.include_router(visitas_router.router)
 app.include_router(qr_router.router)
 app.include_router(evidencias_router.router)
@@ -124,6 +150,11 @@ if os.path.exists(static_dir):
     async def serve_frontend():
         """Servir frontend HTML para piloto."""
         return FileResponse(os.path.join(static_dir, "index.html"))
+    
+    @app.get("/admin.html")
+    async def serve_admin():
+        """Servir panel administrativo."""
+        return FileResponse(os.path.join(static_dir, "admin.html"))
 else:
     @app.get("/")
     def read_root():

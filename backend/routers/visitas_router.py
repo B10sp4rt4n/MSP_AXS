@@ -12,11 +12,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from ..core.dependencies import get_db
 from ..core.auth.dependencies import get_current_user
-from ..core.scope.validator import validate_user_owns_resource_in_tenant, obtener_scope_usuario_en_tenant
+# from ..core.scope.validator import validate_user_owns_resource_in_tenant, obtener_scope_usuario_en_tenant
+from ..core.scope.validator import obtener_scope_usuario_en_tenant
 from ..core.security import verificar_rol
 from ..services import visita_service
 from ..schemas.visita import VisitaCreate, VisitaResponse
-from ..db.models import Usuario, AccessLevel
+from backend.db.core import Usuario, AccessLevel
 from ..core.event.registry import registrar_evento
 from ..core.event import EventEntity, EventAction, EventResult
 from typing import List

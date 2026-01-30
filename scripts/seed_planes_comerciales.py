@@ -16,8 +16,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy.orm import Session
-from backend.db.connection import SessionLocal
-from backend.db.models import Usuario
+# ✅ AUP_CORE y AUP_GOV
+from backend.db.core import SessionLocal_CORE, Usuario
+from backend.db.gov import SessionLocal_GOV, Policy
 from backend.core.gov.plans import (
     PlanType,
     asignar_plan_con_evento,
@@ -26,7 +27,7 @@ from backend.core.gov.plans import (
 from datetime import datetime
 
 
-def seed_planes_demo(db: Session):
+def seed_planes_demo(db_core: Session, db_gov: Session):
     """
     Asigna planes de demostración a usuarios existentes.
     """
@@ -34,9 +35,9 @@ def seed_planes_demo(db: Session):
     print("SEED: Planes Comerciales Demo")
     print("═══════════════════════════════════════════════════════════════════\n")
     
-    # Buscar admin global para ejecutar asignaciones
-    admin = db.query(Usuario).filter(
-        Usuario.rol_base == "MSP_ADMIN"
+    # Buscar admin global para ejecutar asignaciones (CORE)
+    admin = db_core.query(Usuario).filter(
+        Usuario.rol == "MSP_ADMIN"
     ).first()
     
     if not admin:
@@ -52,8 +53,8 @@ def seed_planes_demo(db: Session):
     # ═══════════════════════════════════════════════════════════════════════
     # PLAN FREE: Asignar a primer usuario no-admin
     # ═══════════════════════════════════════════════════════════════════════
-    usuario_free = db.query(Usuario).filter(
-        Usuario.rol_base != "MSP_ADMIN"
+    usuario_free = db_core.query(Usuario).filter(
+        Usuario.rol != "MSP_ADMIN"
     ).first()
     
     if usuario_free:
@@ -123,18 +124,17 @@ def seed_planes_demo(db: Session):
     print("═══════════════════════════════════════════════════════════════════")
     
     # Contar políticas por plan
-    from backend.db.models import Policy
     
-    free_count = db.query(Policy).filter(
-        Policy.metadata["plan_type"].astext == "free"
+    free_count = db_gov.query(Policy).filter(
+        Policy.metadata_json["plan_type"].astext == "free"
     ).count()
     
-    pro_count = db.query(Policy).filter(
-        Policy.metadata["plan_type"].astext == "pro"
+    pro_count = db_gov.query(Policy).filter(
+        Policy.metadata_json["plan_type"].astext == "pro"
     ).count()
     
-    enterprise_count = db.query(Policy).filter(
-        Policy.metadata["plan_type"].astext == "enterprise"
+    enterprise_count = db_gov.query(Policy).filter(
+        Policy.metadata_json["plan_type"].astext == "enterprise"
     ).count()
     
     print(f"Plan FREE:       {free_count} políticas activas")
@@ -145,18 +145,22 @@ def seed_planes_demo(db: Session):
 
 
 def main():
-    db = SessionLocal()
+    # ✅ Separación de sesiones por dominio
+    db_core = SessionLocal_CORE()
+    db_gov = SessionLocal_GOV()
     
     try:
-        seed_planes_demo(db)
+        seed_planes_demo(db_core, db_gov)
     except Exception as e:
         print(f"\n❌ ERROR: {str(e)}")
         import traceback
         traceback.print_exc()
-        db.rollback()
+        db_core.rollback()
+        db_gov.rollback()
         sys.exit(1)
     finally:
-        db.close()
+        db_core.close()
+        db_gov.close()
 
 
 if __name__ == "__main__":

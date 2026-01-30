@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from ..db.models import Evidencia
+from backend.db.core import Evidencia
 from ..utils.file_storage import guardar_archivo
 from ..utils.hash_tools import calcular_hash_sha256
 import uuid

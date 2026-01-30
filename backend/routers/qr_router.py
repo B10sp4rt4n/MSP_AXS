@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ..core.dependencies import get_db
 from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
-from ..db.models import Visita, Usuario
+from backend.db.core import Visita, Usuario
 from ..services import qr_service, visita_service
 from ..core.event.registry import registrar_evento
 from ..core.event import EventEntity, EventAction, EventResult

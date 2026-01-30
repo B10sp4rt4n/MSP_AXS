@@ -17,7 +17,7 @@ TokenResponse.
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 
 class LoginRequest(BaseModel):
@@ -27,7 +27,7 @@ class LoginRequest(BaseModel):
     RELACIÓN AUP:
       Cliente presenta → AUP_CREDENTIAL → Sistema valida → AUP_IDENTITY
     """
-    email: EmailStr
+    email: str
     password: str
     
     class Config:

@@ -79,7 +79,8 @@ from typing import Optional
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from backend.db.models import Policy, PolicyScope, GovStatus, Usuario
+from backend.db.gov import Policy, PolicyScope, GovStatus
+from backend.db.core import Usuario
 from backend.core.gov.policy import crear_policy
 from backend.core.event.registry import registrar_evento
 from backend.core.event import EventEntity, EventAction, EventResult
@@ -296,7 +297,7 @@ def asignar_plan_con_evento(
     from backend.core.gov.policy import obtener_policies
     
     politicas_anteriores = db.query(Policy).filter(
-        Policy.metadata["target_identity"].astext == target_user.usuario_id,
+        Policy.metadata_json["target_identity"].astext == target_user.usuario_id,
         Policy.estado == GovStatus.ACTIVO
     ).all()
     
@@ -370,7 +371,7 @@ def obtener_plan_actual(
     """
     # Buscar políticas activas del usuario
     policies = db.query(Policy).filter(
-        Policy.metadata["target_identity"].astext == usuario_id,
+        Policy.metadata_json["target_identity"].astext == usuario_id,
         Policy.estado == GovStatus.ACTIVO
     ).all()
     
@@ -380,8 +381,8 @@ def obtener_plan_actual(
     # Extraer tipo de plan de metadata
     plan_type = None
     for pol in policies:
-        if pol.metadata and pol.metadata.get("plan_type"):
-            plan_type = pol.metadata["plan_type"]
+        if pol.metadata_json and pol.metadata_json.get("plan_type"):
+            plan_type = pol.metadata_json["plan_type"]
             break
     
     if not plan_type:

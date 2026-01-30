@@ -24,6 +24,21 @@
       color: #333;
       font-size: 24px;
     }
+    .admin-link {
+      display: block;
+      text-align: center;
+      padding: 10px;
+      background: #667eea;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      font-weight: 600;
+      transition: background 0.3s;
+    }
+    .admin-link:hover {
+      background: #5568d3;
+    }
     input, select, textarea {
       width: 100%;
       padding: 12px;
@@ -83,6 +98,13 @@
     .qr-container {
       margin-top: 20px;
       text-align: center;
+      padding: 15px;
+      background: #e8f5e9;
+      border: 1px solid #4caf50;
+      border-radius: 6px;
+      color: #2e7d32;
+      font-weight: 500;
+      line-height: 1.8;
     }
     .qr-container h3 {
       margin-bottom: 15px;
@@ -104,20 +126,39 @@
 </head>
 <body>
   <div class="container">
-    <h1>🏢 Preregistro de Visitas</h1>
+    <div id="loginForm" style="display:block;">
+      <h1>🔐 Login - MSP AXS</h1>
+      <a href="/admin.html" class="admin-link">🏢 Panel de Administración</a>
+      <input type="email" id="email" placeholder="Email" required>
+      <input type="password" id="password" placeholder="Contraseña" required>
+      <button onclick="login()">Ingresar</button>
+      <div id="loginError" class="error" style="display:none;"></div>
+      <div class="footer" style="margin-top:20px;">
+        <strong>Demo:</strong> test@example.com / test123
+      </div>
+    </div>
     
-    <input type="text" id="nombre" placeholder="Nombre del visitante" required>
-    <input type="datetime-local" id="fecha" required>
-    
-    <select id="tipo">
-      <option value="Visita">Visita</option>
-      <option value="Servicio">Servicio</option>
-    </select>
-    
-    <input type="text" id="placa" placeholder="Placas (opcional)">
-    <textarea id="notas" rows="3" placeholder="Notas adicionales"></textarea>
-    
-    <button onclick="generarQR()">Generar QR</button>
+    <div id="appForm" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h1>🏢 Preregistro de Visitas</h1>
+        <button onclick="logout()" style="width:auto; padding:8px 15px; font-size:14px;">Salir</button>
+      </div>
+      
+      <a href="/admin.html" class="admin-link">🏢 Ir a Panel de Administración</a>
+      
+      <input type="text" id="nombre" placeholder="Nombre del visitante" required>
+      <input type="datetime-local" id="fecha" required>
+      
+      <select id="tipo">
+        <option value="Visita">Visita</option>
+        <option value="Servicio">Servicio</option>
+      </select>
+      
+      <input type="text" id="placa" placeholder="Placas (opcional)">
+      <textarea id="notas" rows="3" placeholder="Notas adicionales"></textarea>
+      
+      <button onclick="generarQR()">Generar QR</button>
+    </div>
     
     <div id="error" class="error" style="display:none;"></div>
     <div id="success" class="success" style="display:none;"></div>
@@ -134,9 +175,112 @@
   </div>
 
   <script>
-    // UI-AUP-01: Token mock temporal para piloto
-    // En producción: obtener desde login real
-    const TOKEN_MOCK = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJ1c2VyMSJ9.MOCK";
+    // Variables globales
+    const API_URL = window.location.origin;
+    let token = localStorage.getItem('auth_token');
+    
+    console.log('📱 API_URL:', API_URL);
+    console.log('🔐 Token en localStorage:', token ? token.substring(0, 20) + '...' : 'NO HAY TOKEN');
+    
+    // Mostrar formulario según autenticación
+    if (token) {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('appForm').style.display = 'block';
+    }
+    
+    // ═════════════════════════════════════════════════════════════════════
+    // LOGIN
+    // ═════════════════════════════════════════════════════════════════════
+    
+    async function login() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      
+      if (!email || !password) {
+        mostrarErrorLogin('Por favor completa email y contraseña');
+        return;
+      }
+      
+      try {
+        const res = await fetch(`${API_URL}/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: email,
+            password: password
+          })
+        });
+        
+        const data = await res.json();
+        
+        console.log('📨 Respuesta login:', res.status, data);
+        
+        if (!res.ok) {
+          // Manejar diferentes tipos de errores
+          let errorMsg = 'Login falló';
+          
+          if (data.detail) {
+            if (typeof data.detail === 'string') {
+              errorMsg = data.detail;
+            } else if (Array.isArray(data.detail)) {
+              // Errores de validación de Pydantic
+              errorMsg = data.detail.map(err => 
+                err.msg || err.detail || JSON.stringify(err)
+              ).join('; ');
+            } else if (typeof data.detail === 'object') {
+              errorMsg = JSON.stringify(data.detail);
+            }
+          }
+          
+          mostrarErrorLogin(errorMsg);
+          return;
+        }
+        
+        if (data.access_token) {
+          // Guardar token
+          token = data.access_token;
+          console.log('✅ Token recibido y guardado:', token.substring(0, 20) + '...');
+          localStorage.setItem('auth_token', token);
+          
+          // Verificar que se guardó
+          const tokenGuardado = localStorage.getItem('auth_token');
+          console.log('✅ Token verificado en localStorage:', tokenGuardado ? tokenGuardado.substring(0, 20) + '...' : 'NO SE GUARDÓ');
+          
+          // Cambiar vista
+          document.getElementById('loginForm').style.display = 'none';
+          document.getElementById('appForm').style.display = 'block';
+          
+          // Limpiar campos
+          document.getElementById('email').value = '';
+          document.getElementById('password').value = '';
+          document.getElementById('loginError').style.display = 'none';
+        }
+      } catch (err) {
+        console.error('Error:', err);
+        mostrarErrorLogin('Error de conexión con el servidor');
+      }
+    }
+    
+    function mostrarErrorLogin(msg) {
+      const el = document.getElementById('loginError');
+      el.innerHTML = '❌ ' + msg;
+      el.style.display = 'block';
+    }
+    
+    function logout() {
+      localStorage.removeItem('auth_token');
+      token = null;
+      document.getElementById('loginForm').style.display = 'block';
+      document.getElementById('appForm').style.display = 'none';
+      document.getElementById('email').value = '';
+      document.getElementById('password').value = '';
+    }
+    
+    // ═════════════════════════════════════════════════════════════════════
+    // GENERAR QR
+    // ═════════════════════════════════════════════════════════════════════
     
     async function generarQR() {
       // Limpiar mensajes previos
@@ -163,21 +307,24 @@
       }
       
       try {
+        // Calcular días de vigencia desde fecha de visita hasta hoy
+        const fechaVisita = new Date(fecha);
+        const hoy = new Date();
+        const diasDiferencia = Math.ceil((fechaVisita - hoy) / (1000 * 60 * 60 * 24));
+        const diasVigencia = Math.max(1, Math.min(diasDiferencia, 30)); // Entre 1 y 30 días
+        
         const payload = {
-          nombre_visitante: nombre,
-          fecha_visita: new Date(fecha).toISOString(),
-          tipo_visita: tipo,
-          placa: placa,
-          notas: notas
+          visitante_nombre: nombre,
+          tenant_id: "default_tenant",  // Usando tenant por defecto
+          dias_vigencia: diasVigencia
         };
         
         // UI-AUP-01: Endpoint gobernado por AUP
-        // Cambiado de /preregistro/crear a /qr/generar_gobernado
-        const res = await fetch('/qr/generar_gobernado', {
+        const res = await fetch(`${API_URL}/qr/generar_gobernado`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${TOKEN_MOCK}`
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify(payload)
         });
@@ -198,15 +345,40 @@
         }
         
         if (!res.ok) {
-          mostrarError(`Error del servidor: ${data.detail || 'Error desconocido'}`);
+          // Manejar diferentes tipos de errores
+          let errorMsg = 'Error al generar QR';
+          
+          if (data.detail) {
+            if (typeof data.detail === 'string') {
+              errorMsg = data.detail;
+            } else if (Array.isArray(data.detail)) {
+              errorMsg = data.detail.map(err => 
+                err.msg || err.detail || JSON.stringify(err)
+              ).join('; ');
+            } else if (typeof data.detail === 'object') {
+              errorMsg = JSON.stringify(data.detail);
+            }
+          }
+          
+          mostrarError(errorMsg);
           return;
         }
         
         // UI-AUP-03: Mostrar éxito y evidencia
-        if (data.qr_base64) {
-          document.getElementById('qrImg').src = `data:image/png;base64,${data.qr_base64}`;
+        if (data.qr_id) {
+          // Mostrar datos del QR generado
+          const qrInfo = `
+            <strong>✅ QR Generado Exitosamente</strong><br>
+            📱 ID: ${data.qr_id}<br>
+            👤 Visitante: ${data.visitante}<br>
+            🏢 Tenant: ${data.tenant_id}<br>
+            🔑 Token: ${data.qr_token}<br>
+            📅 Vigencia hasta: ${new Date(data.vigencia_hasta).toLocaleString('es-MX')}
+          `;
+          
+          document.getElementById('qrContainer').innerHTML = qrInfo;
           document.getElementById('qrContainer').style.display = 'block';
-          mostrarExito('✅ QR generado exitosamente');
+          mostrarExito('✅ QR generado exitosamente y registrado en el sistema');
           registrarAccion('Generación de QR', 'AUTORIZADA');
           
           // Limpiar formulario

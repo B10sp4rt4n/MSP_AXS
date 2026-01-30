@@ -16,7 +16,7 @@ Axioma: Los routers NO deciden poder, lo consultan.
 from typing import Optional, Any
 from sqlalchemy.orm import Session
 
-from backend.db.models import Usuario
+from backend.db.core import Usuario
 from backend.core.gov.integration import evaluar_politica_con_evento
 
 
@@ -27,7 +27,8 @@ def puede_ejecutar_accion(
     accion: str,
     tenant_id: Optional[str] = None,
     valor_actual: Optional[Any] = None,
-    metadata: Optional[dict] = None
+    metadata: Optional[dict] = None,
+    db_gov: Optional[Session] = None
 ) -> tuple[bool, Optional[str]]:
     """
     ═══════════════════════════════════════════════════════════════════════
@@ -82,16 +83,30 @@ def puede_ejecutar_accion(
             raise HTTPException(403, detail=motivo)
     """
     try:
-        # Delegar a función de integración (que registra eventos)
-        return evaluar_politica_con_evento(
-            db=db,
-            ejecutor=usuario,
-            session_token=session_token,
-            accion=accion,
-            tenant_id=tenant_id,
-            valor_actual=valor_actual,
-            metadata=metadata
-        )
+        # Si no se proporciona db_gov, crear una
+        if db_gov is None:
+            from backend.db.gov import SessionLocal_GOV
+            db_gov = SessionLocal_GOV()
+            db_gov_created = True
+        else:
+            db_gov_created = False
+        
+        try:
+            # Delegar a función de integración (que registra eventos)
+            return evaluar_politica_con_evento(
+                db=db,
+                db_gov=db_gov,
+                ejecutor=usuario,
+                session_token=session_token,
+                accion=accion,
+                tenant_id=tenant_id,
+                valor_actual=valor_actual,
+                metadata=metadata
+            )
+        finally:
+            # Si creamos db_gov, cerrarlo
+            if db_gov_created and db_gov:
+                db_gov.close()
     
     except Exception as e:
         # Si AUP_GOV falla → denegar por defecto (safe)

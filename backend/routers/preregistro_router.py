@@ -7,7 +7,7 @@ from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
 from ..services import visita_service, qr_service
 from ..schemas.preregistro import PreregistroCreate
-from ..db.models import Usuario
+from backend.db.core import Usuario
 from ..core.gov.facade import puede_ejecutar_accion
 import base64
 from datetime import datetime
@@ -75,7 +75,7 @@ def reenviar_qr(
 ):
     verificar_rol(usuario, ["RESIDENTE"])
 
-    from ..db.models import Visita
+    from backend.db.core import Visita
 
     visita = db.query(Visita).filter(Visita.visita_id == visita_id).first()
     if not visita:

@@ -1,22 +1,30 @@
 """
 ═══════════════════════════════════════════════════════════════════════════════
-Dependencies Globales - MIGRADO A AUP_SESSION
+Dependencies Globales — Memoria AUP Declarada
 ═══════════════════════════════════════════════════════════════════════════════
 
-DEPRECADO: get_usuario_actual con X-User-Id
-NUEVO: Usar backend.core.auth.dependencies.get_current_user
+NOTA: get_db() ahora apunta a AUP_CORE por defecto (backward compatibility).
 
-MIGRACIÓN:
+Para usar dominios específicos:
+- get_core_db() → Identidad y Alcance
+- get_event_db() → Eventos inmutables
+- get_gov_db() → Políticas y gobierno
+
+MIGRACIÓN AUTH:
   Antes:  usuario = Depends(get_usuario_actual)
-  Ahora:  usuario = Depends(get_current_user)  # desde auth.dependencies
+  Ahora:  usuario = Depends(get_current_user)
 
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
 from fastapi import Header, Depends, HTTPException
 from sqlalchemy.orm import Session
-from ..db.connection import SessionLocal
-from ..db.models import Usuario
+
+# Importar conexiones por dominio AUP
+from backend.db.core import get_core_db
+from backend.db.event import get_event_db
+from backend.db.gov import get_gov_db
+from backend.db.core import Usuario
 
 # Importar el nuevo sistema AUP
 from .auth.dependencies import get_current_user, get_current_active_user
@@ -24,13 +32,12 @@ from .auth.dependencies import get_current_user, get_current_active_user
 
 def get_db():
     """
-    Dependency para obtener sesión de base de datos.
+    Dependency para obtener sesión de base de datos AUP_CORE.
+    
+    DEPRECADO: Usar get_core_db() explícitamente en nuevos routers.
+    Mantenido por backward compatibility.
     """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    yield from get_core_db()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

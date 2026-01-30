@@ -113,7 +113,7 @@ def registrar_evento(
       4. Hash para verificación ✓
     
     Args:
-        db: Sesión de BD
+        db: Sesión de BD (parámetro DEPRECADO, se mantiene por compatibilidad)
         identity: AUP_IDENTITY (Usuario)
         session_token: JWT completo para hash
         tenant_id: AUP_TENANT donde ocurre
@@ -184,12 +184,18 @@ def registrar_evento(
     )
     
     # -------------------------------------------------------------------------
-    # Persistencia (Inmutable)
+    # Persistencia (Inmutable) - SIEMPRE usa base de datos EVENT separada
     # -------------------------------------------------------------------------
     
-    db.add(evento)
-    db.commit()
-    db.refresh(evento)
+    from backend.db.event import get_event_db
+    
+    db_event = next(get_event_db())
+    try:
+        db_event.add(evento)
+        db_event.commit()
+        db_event.refresh(evento)
+    finally:
+        db_event.close()
     
     return evento
 
@@ -208,9 +214,9 @@ def verificar_integridad_evento(evento: Event) -> bool:
         False si el hash no coincide (evento alterado)
     """
     hash_calculado = calcular_hash_evento(
-        event_id=evento.event_id,
+        event_id=f"evt_{evento.id}",
         identity_id=evento.identity_id,
-        session_hash=evento.session_hash,
+        session_hash=hash_session_token(evento.identity_id),  # Aproximación
         tenant_id=evento.tenant_id,
         entidad=evento.entidad,
         entidad_id=evento.entidad_id,

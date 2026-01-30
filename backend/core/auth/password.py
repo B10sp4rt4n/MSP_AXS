@@ -51,6 +51,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Valida AUP_CREDENTIAL contra secreto proporcionado.
     
+    Soporta:
+    - Bcrypt (producción)
+    - SHA256 (fallback para desarrollo)
+    
     Args:
         plain_password: Secreto presentado
         hashed_password: AUP_CREDENTIAL almacenada
@@ -61,17 +65,28 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     AXIOMA APLICADO:
         Esta función es el único punto de validación de identidad local.
     """
-    # Usar bcrypt directamente para evitar incompatibilidades con passlib
+    import hashlib
+    
+    # Intentar bcrypt directo
     import bcrypt
     try:
         return bcrypt.checkpw(
             plain_password.encode('utf-8'),
             hashed_password.encode('utf-8')
         )
-    except Exception as e:
-        # Si falla bcrypt directo, intentar con passlib
-        try:
-            return pwd_context.verify(plain_password, hashed_password)
-        except:
-            return False
+    except Exception:
+        pass
+    
+    # Intentar con passlib
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except:
+        pass
+    
+    # Fallback: SHA256 (para desarrollo con SQLite)
+    try:
+        sha256_hash = hashlib.sha256(plain_password.encode()).hexdigest()
+        return sha256_hash == hashed_password
+    except:
+        return False
 
