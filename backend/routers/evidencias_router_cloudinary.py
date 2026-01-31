@@ -77,7 +77,7 @@ from ..utils.cloudinary_service import get_cloudinary_service
 from backend.db.core import Usuario, Evidencia
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/evidencias", tags=["Evidencias"])
+router = APIRouter(prefix="/evidencias/cloudinary", tags=["Evidencias Cloudinary"])
 
 
 @router.post("/entrada/{visita_id}")

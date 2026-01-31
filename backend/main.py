@@ -44,6 +44,7 @@ from .routers import (
     visitas_router,
     qr_router,
     evidencias_router,
+    evidencias_router_cloudinary,  # ← Router nuevo con Cloudinary
     preregistro_router,
     auth_router,  # ← Router de autenticación AUP
     condominios_router,  # ← Router con gobierno integrado
@@ -118,7 +119,8 @@ app.include_router(auth_router.router)
 app.include_router(msp_router.router)
 app.include_router(visitas_router.router)
 app.include_router(qr_router.router)
-app.include_router(evidencias_router.router)
+app.include_router(evidencias_router.router)  # Router legacy
+app.include_router(evidencias_router_cloudinary.router)  # ✨ Router con Cloudinary
 app.include_router(preregistro_router.router)
 app.include_router(condominios_router.router)
 
@@ -155,6 +157,11 @@ if os.path.exists(static_dir):
     async def serve_admin():
         """Servir panel administrativo."""
         return FileResponse(os.path.join(static_dir, "admin.html"))
+
+    @app.get("/guardia.html")
+    async def serve_guardia():
+        """Servir panel de guardia."""
+        return FileResponse(os.path.join(static_dir, "guardia.html"))
 else:
     @app.get("/")
     def read_root():
