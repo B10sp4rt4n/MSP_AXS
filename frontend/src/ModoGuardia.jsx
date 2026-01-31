@@ -12,6 +12,12 @@ function ModoGuardia() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraTipo, setCameraTipo] = useState(null);
+  const [cameraFacing, setCameraFacing] = useState('user');
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
   
   const inputVisitanteRef = useRef(null);
   const inputDocumentoRef = useRef(null);
@@ -30,6 +36,58 @@ function ModoGuardia() {
   });
 
   const API_BASE = '/api';
+
+  const closeCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setCameraOpen(false);
+    setCameraTipo(null);
+  };
+
+  const openCamera = async (tipo, facing = 'user') => {
+    setError('');
+    setCameraTipo(tipo);
+    setCameraFacing(facing);
+    setCameraOpen(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (err) {
+      setError('No se pudo abrir la cámara. Revisa permisos.');
+      closeCamera();
+    }
+  };
+
+  const takePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || !cameraTipo) return;
+
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File(
+        [blob],
+        `${cameraTipo}-${Date.now()}.jpg`,
+        { type: 'image/jpeg' }
+      );
+      handleFileChange(cameraTipo, file);
+      closeCamera();
+    }, 'image/jpeg', 0.9);
+  };
 
   // ========== PASO 1: LOGIN ==========
   const handleLogin = async (e) => {
@@ -536,18 +594,9 @@ function ModoGuardia() {
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>
                   📷 Foto del Visitante *
                 </label>
-                <input
-                  ref={inputVisitanteRef}
-                  type="file"
-                  accept="image/*"
-                  capture="user"
-                  onChange={(e) => handleFileChange('visitante', e.target.files[0])}
-                  style={{ display: 'none' }}
-                  required
-                />
                 <button
                   type="button"
-                  onClick={() => inputVisitanteRef.current.click()}
+                  onClick={() => openCamera('visitante', 'user')}
                   style={{
                     width: '100%',
                     padding: '15px',
@@ -560,7 +609,7 @@ function ModoGuardia() {
                     cursor: 'pointer'
                   }}
                 >
-                  {fotos.visitante ? `✓ ${fotos.visitante.name}` : '📸 Capturar Foto'}
+                  {fotos.visitante ? `✓ Foto capturada` : '📸 Abrir cámara'}
                 </button>
               </div>
 
@@ -568,17 +617,9 @@ function ModoGuardia() {
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>
                   📋 Foto Documento (frente)
                 </label>
-                <input
-                  ref={inputDocumentoRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={(e) => handleFileChange('documentoFrente', e.target.files[0])}
-                  style={{ display: 'none' }}
-                />
                 <button
                   type="button"
-                  onClick={() => inputDocumentoRef.current.click()}
+                  onClick={() => openCamera('documentoFrente', 'environment')}
                   style={{
                     width: '100%',
                     padding: '15px',
@@ -591,7 +632,7 @@ function ModoGuardia() {
                     cursor: 'pointer'
                   }}
                 >
-                  {fotos.documentoFrente ? `✓ ${fotos.documentoFrente.name}` : '📸 Capturar Documento'}
+                  {fotos.documentoFrente ? `✓ Foto capturada` : '📸 Abrir cámara'}
                 </button>
               </div>
 
@@ -600,17 +641,9 @@ function ModoGuardia() {
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>
                     🚗 Foto Placa ({formData.placa})
                   </label>
-                  <input
-                    ref={inputPlacaRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(e) => handleFileChange('placa', e.target.files[0])}
-                    style={{ display: 'none' }}
-                  />
                   <button
                     type="button"
-                    onClick={() => inputPlacaRef.current.click()}
+                    onClick={() => openCamera('placa', 'environment')}
                     style={{
                       width: '100%',
                       padding: '15px',
@@ -623,7 +656,7 @@ function ModoGuardia() {
                       cursor: 'pointer'
                     }}
                   >
-                    {fotos.placa ? `✓ ${fotos.placa.name}` : '📸 Capturar Placa'}
+                    {fotos.placa ? `✓ Foto capturada` : '📸 Abrir cámara'}
                   </button>
                 </div>
               )}
@@ -751,6 +784,83 @@ function ModoGuardia() {
           )}
         </div>
       </div>
+
+      {cameraOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            maxWidth: '600px',
+            width: '100%',
+            padding: '20px'
+          }}>
+            <h3 style={{ marginTop: 0, color: '#1f2937' }}>
+              Cámara activa
+            </h3>
+            <div style={{
+              borderRadius: '12px',
+              overflow: 'hidden',
+              background: '#111827'
+            }}>
+              <video
+                ref={videoRef}
+                playsInline
+                style={{ width: '100%', height: 'auto', display: 'block' }}
+              />
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '12px',
+              marginTop: '16px'
+            }}>
+              <button
+                type="button"
+                onClick={takePhoto}
+                style={{
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                📸 Tomar foto
+              </button>
+              <button
+                type="button"
+                onClick={closeCamera}
+                style={{
+                  padding: '12px',
+                  background: '#f3f4f6',
+                  color: '#374151',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                ✕ Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
 
       {/* Footer */}
       <div style={{
