@@ -82,6 +82,12 @@ def puede_ejecutar_accion(
         if not permitido:
             raise HTTPException(403, detail=motivo)
     """
+    # ═══════════════════════════════════════════════════════════════════════
+    # BYPASS GOV para MSP_ADMIN: Administradores MSP tienen acceso total
+    # ═══════════════════════════════════════════════════════════════════════
+    if usuario.rol == "MSP_ADMIN":
+        return (True, "MSP_ADMIN bypass - acceso total")
+    
     try:
         # Si no se proporciona db_gov, crear una
         if db_gov is None:

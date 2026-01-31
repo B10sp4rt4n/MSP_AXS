@@ -18,6 +18,9 @@ ENDPOINTS PROTEGIDOS:
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
+from dotenv import load_dotenv
+load_dotenv()  # ← Cargar variables de entorno ANTES de importar módulos
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -157,6 +160,11 @@ if os.path.exists(static_dir):
     async def serve_admin():
         """Servir panel administrativo."""
         return FileResponse(os.path.join(static_dir, "admin.html"))
+    
+    @app.get("/login.html")
+    async def serve_login():
+        """Servir página de login."""
+        return FileResponse(os.path.join(static_dir, "login.html"))
 
     @app.get("/guardia.html")
     async def serve_guardia():

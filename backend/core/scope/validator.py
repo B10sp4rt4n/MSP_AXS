@@ -85,12 +85,14 @@ def validar_scope(
       1. Sin AUP_SCOPE activo → No existe operativamente
       2. No se infiere alcance, se valida explícitamente
       3. El nivel de acceso debe ser suficiente
+      4. MSP_ADMIN tiene acceso a todos los tenants (bypass operativo)
     
     Flujo:
-      1. Buscar AUP_SCOPE para (usuario_id, tenant_id)
-      2. Verificar estado = ACTIVO
-      3. Verificar access_level >= required_level
-      4. Retornar true/false (NO lanza excepciones)
+      1. Si usuario es MSP_ADMIN → retornar True (acceso global)
+      2. Buscar AUP_SCOPE para (usuario_id, tenant_id)
+      3. Verificar estado = ACTIVO
+      4. Verificar access_level >= required_level
+      5. Retornar true/false (NO lanza excepciones)
     
     Args:
         db: Sesión de base de datos
@@ -106,6 +108,14 @@ def validar_scope(
       Esta función NO lanza excepciones.
       El caller decide qué hacer con false (403, 404, etc.)
     """
+    
+    # BYPASS OPERATIVO: MSP_ADMIN tiene acceso a todos los tenants
+    if usuario.rol == "MSP_ADMIN":
+        logger.info(
+            f"AUP_SCOPE bypass: usuario={usuario.usuario_id} "
+            f"rol=MSP_ADMIN tenant={tenant_id} (acceso global)"
+        )
+        return True
     
     # Buscar AUP_SCOPE activo
     scope = db.query(UserTenantScope).filter(

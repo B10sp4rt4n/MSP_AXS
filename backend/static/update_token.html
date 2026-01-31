@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Actualizando token...</title>
+</head>
+<body>
+    <h2>Actualizando token...</h2>
+    <p>Redirigiendo a admin...</p>
+    <script>
+        // Token válido generado
+        const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzBmZjBlNjM3Iiwicm9sZSI6Ik1TUF9BRE1JTiIsIm1ldGhvZCI6ImxvY2FsIiwiaWF0IjoxNzY5ODY4NzU5LCJleHAiOjE3Njk4OTc1NTl9.j3DBMkxxH30i9G4oTpy18v9gAT_XJI2VrkV2mL2TD1E';
+        
+        // Guardar en localStorage
+        localStorage.setItem('token', token);
+        
+        // Redirigir a admin
+        setTimeout(() => {
+            window.location.href = '/admin.html';
+        }, 1000);
+    </script>
+</body>
+</html>

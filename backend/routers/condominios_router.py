@@ -5,6 +5,7 @@ Operaciones críticas:
   - Crear tenant (condominio) → Requiere AUP_GOV
 """
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -16,6 +17,7 @@ from backend.db.core import Usuario, Condominio, MSP, UserTenantScope, AccessLev
 from ..core.gov.facade import puede_ejecutar_accion
 import uuid
 
+logger = logging.getLogger("axs.condominios")
 router = APIRouter(prefix="/condominios", tags=["condominios"])
 
 
@@ -130,7 +132,10 @@ def crear_condominio(
     OPERACIÓN CRÍTICA: Requiere evaluación de AUP_GOV
     ═══════════════════════════════════════════════════════════════════════
     """
+    logger.info(f"📝 Crear condominio solicitado por: {usuario.email} (rol: {usuario.rol})")
+    
     if usuario.rol not in ["MSP_ADMIN", "ADMIN"]:
+        logger.warning(f"🚫 Acceso denegado: usuario {usuario.email} tiene rol {usuario.rol}")
         raise HTTPException(403, detail="Requiere rol MSP_ADMIN")
     
     # Validar que el MSP existe
@@ -147,6 +152,8 @@ def crear_condominio(
     # Contar tenants actuales
     tenants_count = db.query(Condominio).count()
     
+    logger.info(f"🔍 Evaluando GOV para crear_tenant: tenants actuales={tenants_count}")
+    
     permitido, motivo = puede_ejecutar_accion(
         db=db,
         usuario=usuario,
@@ -155,7 +162,10 @@ def crear_condominio(
         valor_actual=tenants_count
     )
     
+    logger.info(f"📊 Resultado GOV: permitido={permitido}, motivo={motivo}")
+    
     if not permitido:
+        logger.warning(f"🚫 GOV denegó acción: {motivo}")
         raise HTTPException(403, detail=f"Gobierno denegó creación: {motivo}")
     # ═══════════════════════════════════════════════════════════════════════
     
@@ -221,13 +231,14 @@ def crear_casa(
         )
         
         db.add(nuevo_usuario)
+        db.flush()  # Asegurar que el usuario se inserte primero
         
         # Crear scope para el usuario
         scope = UserTenantScope(
             usuario_id=usuario_id,
             tenant_id=condominio_id,
             access_level=AccessLevel.RESIDENTE,
-            estado="activo"
+            estado="ACTIVO"
         )
         db.add(scope)
         db.commit()

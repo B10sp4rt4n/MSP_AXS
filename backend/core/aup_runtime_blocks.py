@@ -65,13 +65,16 @@ class AUPSessionGuard(BaseHTTPMiddleware):
     # Endpoints públicos (whitelist)
     PUBLIC_PATHS: Set[str] = {
         "/",
+        "/health",  # Health check para monitoring
         "/docs",
         "/openapi.json",
         "/favicon.ico",
         "/auth/login",  # Login es la ÚNICA forma de obtener SESSION
         "/auth/register",
+        "/login.html",  # Página de login
         "/admin.html",  # Panel de administración (valida token en cliente)
         "/guardia.html",  # Modo guardia (valida token en cliente)
+        "/update_token.html",  # Página de actualización de token
     }
     
     async def dispatch(self, request: Request, call_next: Callable):
@@ -83,7 +86,7 @@ class AUPSessionGuard(BaseHTTPMiddleware):
         # ─────────────────────────────────────────────────────────────
         # 1. Permitir endpoints públicos
         # ─────────────────────────────────────────────────────────────
-        if path in self.PUBLIC_PATHS or path.startswith("/docs"):
+        if path in self.PUBLIC_PATHS or path.startswith("/docs") or path.startswith("/static"):
             return await call_next(request)
         
         # ─────────────────────────────────────────────────────────────
