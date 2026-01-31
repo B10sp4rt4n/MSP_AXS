@@ -71,6 +71,7 @@ class AUPSessionGuard(BaseHTTPMiddleware):
         "/auth/login",  # Login es la ÚNICA forma de obtener SESSION
         "/auth/register",
         "/admin.html",  # Panel de administración (valida token en cliente)
+        "/guardia.html",  # Modo guardia (valida token en cliente)
     }
     
     async def dispatch(self, request: Request, call_next: Callable):

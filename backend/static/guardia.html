@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guardia - Flujo de Acceso</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+    h1 { color: #1f2937; margin-bottom: 8px; }
+    .subtitle { color: #6b7280; margin-bottom: 20px; }
+    .section {
+      background: #f8f9fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    label { display: block; margin-bottom: 6px; color: #374151; font-weight: 600; }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    textarea { resize: vertical; min-height: 80px; }
+    button {
+      padding: 12px 20px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: #1d4ed8; }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .result {
+      margin-top: 12px;
+      padding: 12px;
+      background: #ecfdf5;
+      border: 1px solid #10b981;
+      border-radius: 8px;
+      color: #065f46;
+      display: none;
+    }
+    .error {
+      margin-top: 12px;
+      padding: 12px;
+      background: #fef2f2;
+      border: 1px solid #ef4444;
+      border-radius: 8px;
+      color: #991b1b;
+      display: none;
+    }
+    .links {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .links a {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛡️ Modo Guardia - Flujo de Acceso</h1>
+    <p class="subtitle">Validar QR y subir evidencias fotográficas (Cloudinary).</p>
+
+    <div class="section">
+      <h3>🔐 Sesión</h3>
+      <label>Token JWT (Bearer)</label>
+      <input type="text" id="tokenInput" placeholder="Pega aquí tu token" />
+      <button onclick="guardarToken()">Guardar Token</button>
+      <div class="result" id="tokenResult"></div>
+    </div>
+
+    <div class="section">
+      <h3>✅ Validar QR</h3>
+      <div class="row">
+        <div>
+          <label>Visita ID</label>
+          <input type="text" id="visitaId" placeholder="visita_id" />
+        </div>
+        <div>
+          <label>QR Token</label>
+          <input type="text" id="qrToken" placeholder="token QR" />
+        </div>
+      </div>
+      <button onclick="validarQR()">Validar QR</button>
+      <div class="result" id="qrResult"></div>
+      <div class="error" id="qrError"></div>
+    </div>
+
+    <div class="section">
+      <h3>📸 Evidencias de Entrada</h3>
+      <label>Visita ID</label>
+      <input type="text" id="entradaVisitaId" placeholder="visita_id" />
+      <div class="row">
+        <div>
+          <label>Foto Visitante</label>
+          <input type="file" id="entradaFotoVisitante" accept="image/*" />
+        </div>
+        <div>
+          <label>INE Frente</label>
+          <input type="file" id="entradaIneFrente" accept="image/*" />
+        </div>
+        <div>
+          <label>INE Reverso</label>
+          <input type="file" id="entradaIneReverso" accept="image/*" />
+        </div>
+        <div>
+          <label>Placas</label>
+          <input type="file" id="entradaPlacas" accept="image/*" />
+        </div>
+        <div>
+          <label>Vehículo</label>
+          <input type="file" id="entradaVehiculo" accept="image/*" />
+        </div>
+        <div>
+          <label>Documento</label>
+          <input type="file" id="entradaDocumento" accept="image/*" />
+        </div>
+      </div>
+      <button onclick="subirEntrada()">Subir Evidencias de Entrada</button>
+      <div class="result" id="entradaResult"></div>
+      <div class="error" id="entradaError"></div>
+    </div>
+
+    <div class="section">
+      <h3>🚗 Evidencias de Salida</h3>
+      <label>Visita ID</label>
+      <input type="text" id="salidaVisitaId" placeholder="visita_id" />
+      <div class="row">
+        <div>
+          <label>Foto Visitante (Salida)</label>
+          <input type="file" id="salidaFotoVisitante" accept="image/*" />
+        </div>
+        <div>
+          <label>Vehículo (Salida)</label>
+          <input type="file" id="salidaVehiculo" accept="image/*" />
+        </div>
+      </div>
+      <label>Notas</label>
+      <textarea id="salidaNotas" placeholder="Observaciones de salida"></textarea>
+      <button onclick="subirSalida()">Subir Evidencias de Salida</button>
+      <div class="result" id="salidaResult"></div>
+      <div class="error" id="salidaError"></div>
+    </div>
+
+    <div class="section">
+      <h3>📂 Consultar Evidencias</h3>
+      <label>Visita ID</label>
+      <input type="text" id="consultaVisitaId" placeholder="visita_id" />
+      <button onclick="consultarEvidencias()">Consultar</button>
+      <div class="result" id="consultaResult"></div>
+      <div class="error" id="consultaError"></div>
+    </div>
+
+    <div class="links">
+      <a href="/">Entrada</a>
+      <a href="/admin.html">Panel Admin</a>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = window.location.origin;
+
+    function getToken() {
+      return localStorage.getItem('auth_token');
+    }
+
+    function guardarToken() {
+      const token = document.getElementById('tokenInput').value.trim();
+      const result = document.getElementById('tokenResult');
+      result.style.display = 'none';
+
+      if (!token) {
+        result.textContent = 'Ingresa un token válido.';
+        result.style.display = 'block';
+        return;
+      }
+      localStorage.setItem('auth_token', token);
+      result.textContent = '✅ Token guardado.';
+      result.style.display = 'block';
+    }
+
+    async function validarQR() {
+      const visitaId = document.getElementById('visitaId').value.trim();
+      const qrToken = document.getElementById('qrToken').value.trim();
+      const result = document.getElementById('qrResult');
+      const error = document.getElementById('qrError');
+      result.style.display = 'none';
+      error.style.display = 'none';
+
+      if (!visitaId || !qrToken) {
+        error.textContent = 'Completa visita_id y qr_token.';
+        error.style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/qr/validar/${visitaId}/${qrToken}`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          error.textContent = data?.detail || 'Error validando QR.';
+          error.style.display = 'block';
+          return;
+        }
+
+        result.innerHTML = `✅ Acceso aprobado<br>Visitante: ${data.nombre_visitante}<br>Casa: ${data.casa_unidad}`;
+        result.style.display = 'block';
+        document.getElementById('entradaVisitaId').value = visitaId;
+        document.getElementById('salidaVisitaId').value = visitaId;
+        document.getElementById('consultaVisitaId').value = visitaId;
+      } catch (e) {
+        error.textContent = 'Error de conexión.';
+        error.style.display = 'block';
+      }
+    }
+
+    async function subirEntrada() {
+      const visitaId = document.getElementById('entradaVisitaId').value.trim();
+      const result = document.getElementById('entradaResult');
+      const error = document.getElementById('entradaError');
+      result.style.display = 'none';
+      error.style.display = 'none';
+
+      if (!visitaId) {
+        error.textContent = 'Ingresa visita_id.';
+        error.style.display = 'block';
+        return;
+      }
+
+      const formData = new FormData();
+      const f1 = document.getElementById('entradaFotoVisitante').files[0];
+      const f2 = document.getElementById('entradaIneFrente').files[0];
+      const f3 = document.getElementById('entradaIneReverso').files[0];
+      const f4 = document.getElementById('entradaPlacas').files[0];
+      const f5 = document.getElementById('entradaVehiculo').files[0];
+      const f6 = document.getElementById('entradaDocumento').files[0];
+
+      if (f1) formData.append('foto_visitante', f1);
+      if (f2) formData.append('ine_frente', f2);
+      if (f3) formData.append('ine_reverso', f3);
+      if (f4) formData.append('placas', f4);
+      if (f5) formData.append('vehiculo', f5);
+      if (f6) formData.append('documento', f6);
+
+      if (![f1,f2,f3,f4,f5,f6].some(Boolean)) {
+        error.textContent = 'Selecciona al menos una imagen.';
+        error.style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/evidencias/cloudinary/entrada/${visitaId}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${getToken()}` },
+          body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          error.textContent = data?.detail || 'Error subiendo evidencias.';
+          error.style.display = 'block';
+          return;
+        }
+        result.textContent = `✅ Evidencias guardadas: ${data?.evidencias?.length || 0}`;
+        result.style.display = 'block';
+      } catch (e) {
+        error.textContent = 'Error de conexión.';
+        error.style.display = 'block';
+      }
+    }
+
+    async function subirSalida() {
+      const visitaId = document.getElementById('salidaVisitaId').value.trim();
+      const result = document.getElementById('salidaResult');
+      const error = document.getElementById('salidaError');
+      result.style.display = 'none';
+      error.style.display = 'none';
+
+      if (!visitaId) {
+        error.textContent = 'Ingresa visita_id.';
+        error.style.display = 'block';
+        return;
+      }
+
+      const formData = new FormData();
+      const f1 = document.getElementById('salidaFotoVisitante').files[0];
+      const f2 = document.getElementById('salidaVehiculo').files[0];
+      const notas = document.getElementById('salidaNotas').value.trim();
+
+      if (f1) formData.append('foto_visitante', f1);
+      if (f2) formData.append('vehiculo', f2);
+      if (notas) formData.append('notas', notas);
+
+      if (![f1,f2].some(Boolean)) {
+        error.textContent = 'Selecciona al menos una imagen.';
+        error.style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/evidencias/cloudinary/salida/${visitaId}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${getToken()}` },
+          body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          error.textContent = data?.detail || 'Error subiendo evidencias.';
+          error.style.display = 'block';
+          return;
+        }
+        result.textContent = `✅ Evidencias de salida guardadas: ${data?.evidencias?.length || 0}`;
+        result.style.display = 'block';
+      } catch (e) {
+        error.textContent = 'Error de conexión.';
+        error.style.display = 'block';
+      }
+    }
+
+    async function consultarEvidencias() {
+      const visitaId = document.getElementById('consultaVisitaId').value.trim();
+      const result = document.getElementById('consultaResult');
+      const error = document.getElementById('consultaError');
+      result.style.display = 'none';
+      error.style.display = 'none';
+
+      if (!visitaId) {
+        error.textContent = 'Ingresa visita_id.';
+        error.style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/evidencias/cloudinary/visita/${visitaId}`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          error.textContent = data?.detail || 'Error consultando evidencias.';
+          error.style.display = 'block';
+          return;
+        }
+        const items = (data?.evidencias || []).map(e => `• ${e.sub_tipo}: ${e.url}`).join('<br>');
+        result.innerHTML = items || 'Sin evidencias.';
+        result.style.display = 'block';
+      } catch (e) {
+        error.textContent = 'Error de conexión.';
+        error.style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>

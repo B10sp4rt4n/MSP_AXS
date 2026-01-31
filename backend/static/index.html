@@ -36,6 +36,23 @@
       font-weight: 600;
       transition: background 0.3s;
     }
+    
+    .guard-link {
+      display: block;
+      text-align: center;
+      padding: 10px;
+      background: #10b981;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      font-weight: 600;
+      transition: background 0.3s;
+    }
+    
+    .guard-link:hover {
+      background: #059669;
+    }
     .admin-link:hover {
       background: #5568d3;
     }
@@ -129,6 +146,7 @@
     <div id="loginForm" style="display:block;">
       <h1>🔐 Login - MSP AXS</h1>
       <a href="/admin.html" class="admin-link">🏢 Panel de Administración</a>
+        <a class="guard-link" href="/guardia.html">🛡️ Modo Guardia (Acceso)</a>
       <input type="email" id="email" placeholder="Email" required>
       <input type="password" id="password" placeholder="Contraseña" required>
       <button onclick="login()">Ingresar</button>

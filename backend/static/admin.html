@@ -126,6 +126,43 @@
             margin-top: 20px;
         }
 
+        .flow-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .flow-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .flow-step {
+            background: white;
+            border-radius: 10px;
+            padding: 14px;
+            border: 1px solid #eaeaea;
+        }
+
+        .flow-step h4 {
+            margin-bottom: 6px;
+            color: #667eea;
+        }
+
+        .qr-result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e8f5e9;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            color: #2e7d32;
+            font-weight: 500;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -241,9 +278,10 @@
     <div class="container">
         <button class="logout-btn" onclick="logout()">🚪 Cerrar Sesión</button>
         <button class="logout-btn" style="right: 200px; background: #17a2b8;" onclick="mostrarTokenDebug()" title="Ver token para debugging">🔐 Ver Token</button>
+        <a class="logout-btn" style="right: 380px; background: #10b981; text-decoration: none; display: inline-block;" href="/guardia.html">🛡️ Modo Guardia</a>
         
         <h1>🏢 Panel de Administración MSP</h1>
-        <p class="subtitle">Gestión de MSPs, Condominios y Residentes</p>
+        <p class="subtitle">Gestión de MSPs, Condominios y Residentes • v2 Flujos & QR</p>
 
         <div id="stats" class="grid">
             <div class="card">
@@ -263,6 +301,7 @@
         <div class="tabs">
             <button class="tab active" onclick="showTab('msps')">📦 MSPs</button>
             <button class="tab" onclick="showTab('condominios')">🏘️ Estructura</button>
+            <button class="tab" onclick="showTab('qr')">🧾 Flujos & QR</button>
         </div>
 
         <!-- TAB: MSPs -->
@@ -312,6 +351,73 @@
             </div>
 
             <div id="estructuraContainer"></div>
+        </div>
+
+        <!-- TAB: Flujos & QR -->
+        <div id="qr-tab" class="tab-content">
+            <div class="flow-card">
+                <h3>🧭 Flujo AUP para QR</h3>
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <h4>1) AUP_SESSION</h4>
+                        <p>Validar sesión JWT antes de cualquier acción.</p>
+                    </div>
+                    <div class="flow-step">
+                        <h4>2) AUP_GOV</h4>
+                        <p>Evaluar políticas del tenant antes de generar QR.</p>
+                    </div>
+                    <div class="flow-step">
+                        <h4>3) AUP_EVENT</h4>
+                        <p>Registrar el evento de generación con hash.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>🧾 Generar QR Gobernado</h3>
+                <div class="form-group">
+                    <label>Nombre del visitante:</label>
+                    <input type="text" id="qrVisitante" placeholder="Ej: Juan Pérez">
+                </div>
+                <div class="form-group">
+                    <label>Tenant ID:</label>
+                    <input type="text" id="qrTenant" placeholder="Ej: default_tenant" value="default_tenant">
+                </div>
+                <div class="form-group">
+                    <label>Días de vigencia:</label>
+                    <input type="number" id="qrDias" min="1" max="30" value="7">
+                </div>
+                <button onclick="generarQRGobernado()">Generar QR</button>
+
+                <div id="qrResult" class="qr-result" style="display:none;"></div>
+            </div>
+
+            <div class="form-section">
+                <h3>📸 Evidencias Fotográficas (Cloudinary)</h3>
+                <div class="form-group">
+                    <label>Visita ID:</label>
+                    <input type="text" id="evidenciaVisitaId" placeholder="Ej: vis_123">
+                </div>
+                <div class="form-group">
+                    <label>Foto Visitante:</label>
+                    <input type="file" id="fotoVisitante" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label>INE Frente:</label>
+                    <input type="file" id="ineFrente" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label>INE Reverso:</label>
+                    <input type="file" id="ineReverso" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label>Placas:</label>
+                    <input type="file" id="fotoPlacas" accept="image/*">
+                </div>
+                <button onclick="subirEvidenciasEntrada()">Subir Evidencias</button>
+
+                <div id="evidenciaResult" class="qr-result" style="display:none;"></div>
+            </div>
         </div>
 
         <div id="messages"></div>
@@ -441,6 +547,118 @@
             const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
             messagesDiv.innerHTML = `<div class="alert ${alertClass}">${message}</div>`;
             setTimeout(() => messagesDiv.innerHTML = '', 5000);
+        }
+
+        async function generarQRGobernado() {
+            const visitante = document.getElementById('qrVisitante').value.trim();
+            const tenantId = document.getElementById('qrTenant').value.trim() || 'default_tenant';
+            const diasVigencia = parseInt(document.getElementById('qrDias').value, 10) || 1;
+            const resultEl = document.getElementById('qrResult');
+
+            resultEl.style.display = 'none';
+            resultEl.innerHTML = '';
+
+            if (!visitante) {
+                showMessage('Ingresa el nombre del visitante.', 'error');
+                return;
+            }
+
+            try {
+                const payload = {
+                    visitante_nombre: visitante,
+                    tenant_id: tenantId,
+                    dias_vigencia: Math.min(Math.max(diasVigencia, 1), 30)
+                };
+
+                const res = await fetch(`${API_URL}/qr/generar_gobernado`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    const msg = data?.detail || 'Error al generar QR';
+                    showMessage(msg, 'error');
+                    return;
+                }
+
+                resultEl.innerHTML = `
+                    <strong>✅ QR Generado</strong><br>
+                    🧾 ID: ${data.qr_id || 'N/A'}<br>
+                    👤 Visitante: ${data.visitante || visitante}<br>
+                    🏢 Tenant: ${data.tenant_id || tenantId}<br>
+                    🔑 Token: ${data.qr_token || 'N/A'}<br>
+                    📅 Vigencia hasta: ${data.vigencia_hasta ? new Date(data.vigencia_hasta).toLocaleString('es-MX') : 'N/A'}
+                `;
+                resultEl.style.display = 'block';
+                showMessage('QR generado correctamente.', 'success');
+            } catch (error) {
+                console.error('Error generando QR:', error);
+                showMessage('Error de conexión al generar QR.', 'error');
+            }
+        }
+
+        async function subirEvidenciasEntrada() {
+            const visitaId = document.getElementById('evidenciaVisitaId').value.trim();
+            const resultEl = document.getElementById('evidenciaResult');
+
+            resultEl.style.display = 'none';
+            resultEl.innerHTML = '';
+
+            if (!visitaId) {
+                showMessage('Ingresa el ID de la visita.', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            const fotoVisitante = document.getElementById('fotoVisitante').files[0];
+            const ineFrente = document.getElementById('ineFrente').files[0];
+            const ineReverso = document.getElementById('ineReverso').files[0];
+            const fotoPlacas = document.getElementById('fotoPlacas').files[0];
+
+            if (fotoVisitante) formData.append('foto_visitante', fotoVisitante);
+            if (ineFrente) formData.append('ine_frente', ineFrente);
+            if (ineReverso) formData.append('ine_reverso', ineReverso);
+            if (fotoPlacas) formData.append('placas', fotoPlacas);
+
+            if ([fotoVisitante, ineFrente, ineReverso, fotoPlacas].every(f => !f)) {
+                showMessage('Selecciona al menos una imagen.', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/evidencias/cloudinary/entrada/${visitaId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    const msg = data?.detail || 'Error al subir evidencias';
+                    showMessage(msg, 'error');
+                    return;
+                }
+
+                resultEl.innerHTML = `
+                    <strong>✅ Evidencias subidas</strong><br>
+                    📦 Total: ${data?.evidencias?.length || 0}<br>
+                    🔗 URLs disponibles en respuesta
+                `;
+                resultEl.style.display = 'block';
+                showMessage('Evidencias subidas correctamente.', 'success');
+            } catch (error) {
+                console.error('Error subiendo evidencias:', error);
+                showMessage('Error de conexión al subir evidencias.', 'error');
+            }
         }
 
         async function cargarEstadisticas() {
