@@ -1,9 +1,20 @@
 import { useState } from "react";
 import Preregistro from "./Preregistro";
 import ModoGuardia from "./ModoGuardia";
+import GuardiaApp from "./components/guardia/GuardiaApp";
+import LoginGuardia from "./components/LoginGuardia";
+import "./styles/guardia.css";
 
 function App() {
-  const [modo, setModo] = useState("menu"); // menu, preregistro, guardia
+  const [modo, setModo] = useState("menu"); // menu, preregistro, guardia, guardia-nueva
+  const [usuarioAutenticado, setUsuarioAutenticado] = useState(null);
+  const [token, setToken] = useState(null);
+  
+  // Handler para login exitoso
+  const handleLoginSuccess = (userData, accessToken) => {
+    setUsuarioAutenticado(userData);
+    setToken(accessToken);
+  };
 
   if (modo === "preregistro") {
     return (
@@ -33,6 +44,30 @@ function App() {
 
   if (modo === "guardia") {
     return <ModoGuardia />;
+  }
+  
+  if (modo === "guardia-nueva") {
+    // Si no hay usuario autenticado, mostrar login
+    if (!usuarioAutenticado) {
+      return <LoginGuardia onLoginSuccess={handleLoginSuccess} />;
+    }
+    
+    // Si ya está autenticado, mostrar la app con datos reales
+    return (
+      <GuardiaApp 
+        usuario={{
+          nombre: usuarioAutenticado.nombre,
+          rol: usuarioAutenticado.rol,
+          tenant_nombre: usuarioAutenticado.tenant_nombre || "MSP Demo",
+          usuario_id: usuarioAutenticado.usuario_id
+        }}
+        condominio={{
+          id: usuarioAutenticado.condominio_id,
+          nombre: usuarioAutenticado.condominio_nombre || "Sin condominio"
+        }}
+        token={token}
+      />
+    );
   }
 
   // Menu Principal
@@ -79,9 +114,9 @@ function App() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: "1fr 1fr 1fr",
             gap: "30px",
-            maxWidth: "700px",
+            maxWidth: "1000px",
             margin: "0 auto",
           }}
         >
@@ -134,7 +169,7 @@ function App() {
             </p>
           </div>
 
-          {/* Card Modo Guardia */}
+          {/* Card Modo Guardia (Antiguo) */}
           <div
             onClick={() => setModo("guardia")}
             style={{
@@ -181,6 +216,69 @@ function App() {
             >
               Guardias registran visitas rápidas sin preregistro (60% de casos)
             </p>
+          </div>
+          
+          {/* Card Nueva App Guardia */}
+          <div
+            onClick={() => setModo("guardia-nueva")}
+            style={{
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              borderRadius: "20px",
+              padding: "40px 30px",
+              cursor: "pointer",
+              transition: "all 0.3s",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+              border: "3px solid white",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-10px)";
+              e.currentTarget.style.boxShadow = "0 20px 40px rgba(0,0,0,0.3)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 10px 30px rgba(0,0,0,0.2)";
+            }}
+          >
+            <div
+              style={{
+                fontSize: "60px",
+                marginBottom: "20px",
+              }}
+            >
+              ✨
+            </div>
+            <h2
+              style={{
+                fontSize: "24px",
+                fontWeight: "bold",
+                color: "white",
+                marginBottom: "10px",
+              }}
+            >
+              App Guardia PRO
+            </h2>
+            <p
+              style={{
+                color: "rgba(255,255,255,0.9)",
+                fontSize: "15px",
+                lineHeight: "1.5",
+              }}
+            >
+              Nueva interfaz PWA con QR, compartir WhatsApp/SMS/Email/Slack
+            </p>
+            <div
+              style={{
+                marginTop: "15px",
+                padding: "5px 15px",
+                background: "rgba(255,255,255,0.2)",
+                borderRadius: "20px",
+                fontSize: "12px",
+                color: "white",
+                fontWeight: "bold",
+              }}
+            >
+              🆕 NUEVO
+            </div>
           </div>
         </div>
 

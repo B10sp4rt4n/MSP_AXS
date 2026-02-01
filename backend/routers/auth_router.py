@@ -39,6 +39,7 @@ from backend.db.event import get_event_db
 from backend.core.auth.schemas import LoginRequest, TokenResponse
 from backend.core.auth.password import verify_password
 from backend.core.auth.jwt import create_access_token
+from backend.core.auth.dependencies import get_current_user
 from ..core.event.registry import registrar_evento
 from ..core.event import EventEntity, EventAction, EventResult
 
@@ -77,8 +78,28 @@ def login(
     El token será validado por get_current_user() en endpoints protegidos.
     """
     
+    # DEBUG: Log de inicio
+    logger.info(f"🔍 Intento de login: {credentials.email}")
+    
+    # DEBUG: Verificar configuración de BD
+    from backend.db.core.engine import DATABASE_CORE_URL
+    import os
+    logger.info(f"🔍 DATABASE_CORE_URL: {DATABASE_CORE_URL}")
+    logger.info(f"🔍 CWD: {os.getcwd()}")
+    
+    # DEBUG: Verificar todos los usuarios
+    todos_usuarios = db_core.query(Usuario).all()
+    logger.info(f"🔍 Total usuarios en BD: {len(todos_usuarios)}")
+    for u in todos_usuarios[:3]:
+        logger.info(f"   - {u.email}")
+    
     # Paso 1: Buscar AUP_IDENTITY por email (CORE)
+    logger.info(f"🔍 Buscando en base de datos...")
     usuario = db_core.query(Usuario).filter(Usuario.email == credentials.email).first()
+    
+    logger.info(f"🔍 Resultado de búsqueda: {usuario is not None}")
+    if usuario:
+        logger.info(f"🔍 Usuario encontrado: {usuario.email} - {usuario.nombre}")
     
     if not usuario:
         logger.warning(f"Login fallido: AUP_IDENTITY no encontrada - {credentials.email}")
@@ -144,3 +165,108 @@ def login(
         access_token=access_token,
         token_type="bearer"
     )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_token(
+    current_user: Usuario = Depends(get_current_user),
+    db_event: Session = Depends(get_event_db)
+):
+    """
+    ═══════════════════════════════════════════════════════════════════════
+    Renovar AUP_SESSION: Crear nuevo token desde uno existente válido
+    ═══════════════════════════════════════════════════════════════════════
+    
+    Este endpoint permite renovar un token ANTES de que expire, evitando
+    que el usuario tenga que volver a hacer login.
+    
+    Flujo:
+      1. Usuario presenta token válido (pero puede estar cerca de expirar)
+      2. Sistema valida el token (vía get_current_user)
+      3. Sistema genera nuevo token con el mismo contexto
+      4. Retorna nuevo token con tiempo de vida completo
+    
+    USO RECOMENDADO:
+      - Llamar este endpoint cada 7 horas (1 hora antes de expirar)
+      - O llamarlo cuando recibas 401 y tengas token "reciente"
+      - Implementar auto-refresh en el frontend
+    
+    VENTAJA:
+      El usuario mantiene su sesión sin interrupciones.
+    """
+    
+    # Generar nuevo token con el mismo contexto del usuario actual
+    new_token = create_access_token(
+        user_id=current_user.usuario_id,
+        role=current_user.rol
+    )
+    
+    logger.info(
+        f"Token renovado: identity={current_user.usuario_id} "
+        f"email={current_user.email}"
+    )
+    
+    # Registrar evento de renovación
+    registrar_evento(
+        db=db_event,
+        identity=current_user,
+        session_token=new_token,
+        tenant_id=current_user.condominio_id or "sistema",
+        entidad=EventEntity.SESSION.value,
+        entidad_id=current_user.usuario_id,
+        accion=EventAction.LOGIN.value,
+        resultado=EventResult.EXITO.value,
+        scope_id=None,
+        motivo="Token renovado",
+        metadata={"email": current_user.email, "rol": current_user.rol}
+    )
+    
+    return TokenResponse(
+        access_token=new_token,
+        token_type="bearer"
+    )
+
+
+@router.get("/me")
+def get_me(
+    current_user: Usuario = Depends(get_current_user),
+    db_core: Session = Depends(get_core_db)
+):
+    """
+    ═══════════════════════════════════════════════════════════════════════
+    Obtener datos del usuario autenticado
+    ═══════════════════════════════════════════════════════════════════════
+    
+    Retorna la información completa del usuario actual basado en el token JWT.
+    Incluye datos del tenant y condominio si están disponibles.
+    """
+    
+    # Buscar información del tenant (MSP) si existe
+    tenant_nombre = None
+    if current_user.msp_id:
+        from backend.db.core.models import MSP
+        msp = db_core.query(MSP).filter(MSP.msp_id == current_user.msp_id).first()
+        if msp:
+            tenant_nombre = msp.nombre
+    
+    # Buscar información del condominio en registro de condominios activos
+    condominio_nombre = None
+    if current_user.condominio_id:
+        from backend.db.core.models import Condominio
+        condominio = db_core.query(Condominio).filter(
+            Condominio.condominio_id == current_user.condominio_id
+        ).first()
+        if condominio:
+            condominio_nombre = condominio.nombre
+    
+    return {
+        "usuario_id": current_user.usuario_id,
+        "email": current_user.email,
+        "nombre": current_user.nombre,
+        "rol": current_user.rol,
+        "msp_id": current_user.msp_id,
+        "tenant_nombre": tenant_nombre or current_user.msp_id,
+        "condominio_id": current_user.condominio_id,
+        "condominio_nombre": condominio_nombre or current_user.condominio_id,
+        "casa_unidad": current_user.casa_unidad
+    }

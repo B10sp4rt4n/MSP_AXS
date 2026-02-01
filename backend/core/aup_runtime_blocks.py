@@ -84,6 +84,12 @@ class AUPSessionGuard(BaseHTTPMiddleware):
         path = request.url.path
         
         # ─────────────────────────────────────────────────────────────
+        # 0. Permitir preflight CORS (OPTIONS)
+        # ─────────────────────────────────────────────────────────────
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        
+        # ─────────────────────────────────────────────────────────────
         # 1. Permitir endpoints públicos
         # ─────────────────────────────────────────────────────────────
         if path in self.PUBLIC_PATHS or path.startswith("/docs") or path.startswith("/static"):

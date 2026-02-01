@@ -67,9 +67,19 @@ app = FastAPI(
 )
 
 # ============================================================
+#   🔒 BLOQUEO AUP-01: No acción sin SESSION
+# ============================================================
+# Middleware que intercepta TODA request y valida SESSION
+# Axioma: Nada ocurre sin sesión
+# NOTA: Este middleware se agrega PRIMERO para que se ejecute DESPUÉS de CORS
+app.add_middleware(AUPSessionGuard)
+logger.info("🔒 AUP-01 ACTIVADO: Middleware de SESSION activo")
+
+# ============================================================
 #   🌍 CORS: Permitir requests desde cualquier origen
 # ============================================================
 # Necesario para GitHub Codespaces y otros entornos de desarrollo
+# NOTA: Se agrega DESPUÉS de AUPSessionGuard para ejecutarse PRIMERO (orden inverso)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # En producción, restringir a dominios conocidos
@@ -78,14 +88,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 logger.info("🌍 CORS ACTIVADO: Requests desde cualquier origen permitidas")
-
-# ============================================================
-#   🔒 BLOQUEO AUP-01: No acción sin SESSION
-# ============================================================
-# Middleware que intercepta TODA request y valida SESSION
-# Axioma: Nada ocurre sin sesión
-app.add_middleware(AUPSessionGuard)
-logger.info("🔒 AUP-01 ACTIVADO: Middleware de SESSION activo")
 
 # ============================================================
 #   Inicialización de Bases de Datos (Separadas)

@@ -20,6 +20,8 @@ engine_core = create_engine(
     DATABASE_CORE_URL,
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_CORE_URL else {},
     poolclass=NullPool if "sqlite" in DATABASE_CORE_URL else None,
+    pool_pre_ping=False if "sqlite" in DATABASE_CORE_URL else True,
+    pool_recycle=300 if "sqlite" not in DATABASE_CORE_URL else -1,
     echo=False  # Cambiar a True para debug
 )
 

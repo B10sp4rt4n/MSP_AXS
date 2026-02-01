@@ -18,6 +18,7 @@ from .models import (
     Caseta,
     Visita,
     Evidencia,
+    QRCode,
 )
 
 __all__ = [
@@ -37,4 +38,5 @@ __all__ = [
     "Caseta",
     "Visita",
     "Evidencia",
+    "QRCode",
 ]

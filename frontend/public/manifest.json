@@ -1,0 +1,9 @@
+{
+  "name": "AXS - Control de Acceso",
+  "short_name": "AXS",
+  "description": "Sistema de control de acceso para condominios",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb"
+}

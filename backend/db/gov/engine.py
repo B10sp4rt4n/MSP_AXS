@@ -21,6 +21,8 @@ engine_gov = create_engine(
     DATABASE_GOV_URL,
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_GOV_URL else {},
     poolclass=NullPool if "sqlite" in DATABASE_GOV_URL else None,
+    pool_pre_ping=False if "sqlite" in DATABASE_GOV_URL else True,
+    pool_recycle=300 if "sqlite" not in DATABASE_GOV_URL else -1,
     echo=False
 )
 

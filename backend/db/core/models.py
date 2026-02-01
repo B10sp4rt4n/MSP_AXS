@@ -13,7 +13,7 @@ Contiene:
 - Evidencia (artefactos de operación)
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Enum as SQLEnum, Index
 from datetime import datetime
 import enum
 
@@ -179,15 +179,27 @@ class Visita(Base_CORE):
     visita_id = Column(String, unique=True, index=True)
     condominio_id = Column(String, ForeignKey("condominios_exo.condominio_id"))
     nombre_visitante = Column(String)
+    telefono = Column(String, nullable=True)  # Nuevo: teléfono visitante
     casa_unidad = Column(String)
-    tipo_visita = Column(String)  # frecuente, eventual, proveedor
-    vigencia = Column(DateTime)
+    residente_anfitrion = Column(String, nullable=True)  # Nuevo: residente anfitrión
+    tipo_visitante = Column(String)  # frecuente, eventual, proveedor, cliente, entrega, consulta, familia
+    motivo = Column(String, nullable=True)  # Nuevo: motivo de visita
+    placa_vehiculo = Column(String, nullable=True)  # Nuevo: placa vehículo
+    vigencia = Column(DateTime, nullable=True)  # Permitir NULL
     qr_token = Column(String, unique=True, nullable=True)
     qr_vigencia = Column(DateTime, nullable=True)
-    estado = Column(String, default="pendiente")  # pendiente, activa, completada, cancelada
+    estado = Column(String, default="creada_sin_qr")  # creada_sin_qr, entrada_registrada, salida_registrada
+    hora_entrada = Column(DateTime, nullable=True)  # Nuevo: hora de entrada registrada
+    hora_salida = Column(DateTime, nullable=True)  # Nuevo: hora de salida registrada
     entrada_registrada_en = Column(DateTime, nullable=True)
     salida_registrada_en = Column(DateTime, nullable=True)
+    creada_por = Column(String, ForeignKey("usuarios.usuario_id"), nullable=True)  # Nuevo: guardia que creó
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index("idx_visita_estado", "estado"),
+        Index("idx_visita_condominio_fecha", "condominio_id", "created_at"),
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -208,3 +220,44 @@ class Evidencia(Base_CORE):
     guardia_id = Column(String, ForeignKey("usuarios.usuario_id"))
     metadata_json = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# QR_CODE (Códigos alfanuméricos)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class QRCode(Base_CORE):
+    """
+    Códigos QR alfanuméricos para compartir acceso
+    Permite validar acceso por código sin escanear QR
+    """
+    __tablename__ = "qr_codes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    codigo = Column(String, unique=True, index=True)  # V-260201-123
+    visita_id = Column(String, ForeignKey("visitas.visita_id"), index=True)
+    condominio_id = Column(String, ForeignKey("condominios_exo.condominio_id"))
+    
+    # Vigencia
+    vigencia_desde = Column(DateTime, default=datetime.utcnow)
+    vigencia_hasta = Column(DateTime)
+    
+    # Estado
+    usado = Column(Integer, default=0)  # 0=no usado, 1=usado
+    usado_en = Column(DateTime, nullable=True)
+    
+    # Auditoría de compartición
+    compartido_via = Column(String, nullable=True)  # whatsapp, sms, email, pantalla
+    compartido_a = Column(String, nullable=True)   # teléfono/email destinatario
+    compartido_por = Column(String, ForeignKey("usuarios.usuario_id"), nullable=True)
+    compartido_en = Column(DateTime, nullable=True)
+    
+    # Metadata
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index("idx_qrcode_vigencia", "vigencia_hasta"),
+        Index("idx_qrcode_visita", "visita_id"),
+        Index("idx_qrcode_usado", "usado"),
+    )

@@ -14,3 +14,10 @@ python-multipart
 qrcode
 sqlalchemy
 uvicorn[standard]
+
+# ═══════════════════════════════════════════════════════════════
+# Proveedores externos para compartir QR
+# ═══════════════════════════════════════════════════════════════
+twilio==9.0.4
+sendgrid==6.11.0
+requests==2.31.0
