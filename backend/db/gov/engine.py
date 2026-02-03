@@ -6,9 +6,13 @@ Axioma: Si AUP_GOV falla → deny by default
 """
 
 import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.pool import NullPool
+
+# Cargar variables de entorno
+load_dotenv()
 
 # Variable de entorno específica para AUP_GOV
 DATABASE_GOV_URL = os.getenv(

@@ -9,6 +9,7 @@ from ..core.security import verificar_rol
 from backend.db.core import Visita, Usuario, QRCode
 from ..services import qr_service, visita_service
 from ..services.qr_share_service import QRShareService
+from ..services.notification_service import notification_service
 from pydantic import BaseModel
 from ..core.event.registry import registrar_evento
 from ..core.event import EventEntity, EventAction, EventResult
@@ -161,6 +162,12 @@ def validar_qr(
             motivo="Token QR no coincide",
             metadata={"visita_id": visita_id}
         )
+        # Notificación Slack: QR Inválido
+        notification_service.enviar_qr_invalido(
+            qr_code=token,
+            tenant_id=visita.condominio_id,
+            vigilante_id=usuario.usuario_id
+        )
         raise HTTPException(400, "QR inválido")
 
     if not visita.qr_vigencia or visita.qr_vigencia < datetime.utcnow():
@@ -180,6 +187,17 @@ def validar_qr(
             metadata={
                 "visita_id": visita_id,
                 "qr_vigencia": str(visita.qr_vigencia)
+            }
+        )
+        # Notificación Slack: QR Expirado
+        notification_service.enviar_alerta_seguridad(
+            titulo="QR Expirado Escaneado",
+            descripcion=f"Se intentó usar un QR expirado\nVisita: {visita.nombre_visitante}\nExpiró: {visita.qr_vigencia.strftime('%Y-%m-%d %H:%M')}",
+            tenant_id=visita.condominio_id,
+            prioridad="normal",
+            metadata={
+                "vigilante": usuario.usuario_id,
+                "visita_id": visita_id
             }
         )
         raise HTTPException(400, "QR expirado")

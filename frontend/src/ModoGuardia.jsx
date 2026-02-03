@@ -25,8 +25,8 @@ function ModoGuardia() {
 
   // Estado del formulario
   const [formData, setFormData] = useState({
-    email: 'guardia@condoriente.com',
-    password: 'guard123',
+    email: 'guardia@demo.com',
+    password: 'demo123',
     nombre: '',
     telefono: '',
     residente: '',

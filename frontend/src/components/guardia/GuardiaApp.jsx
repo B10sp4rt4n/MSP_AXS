@@ -14,21 +14,42 @@ const GuardiaApp = ({ usuario, condominio, token }) => {
   const [error, setError] = useState(null);
   const [visitasHoy, setVisitasHoy] = useState(0);
   const [codigosActivos, setCodigosActivos] = useState(0);
+  const [visitasRecientes, setVisitasRecientes] = useState([]);
+  const [mostrarListaVisitas, setMostrarListaVisitas] = useState(false);
   
   // Configurar el token en guardiaApi cuando cambie
   useEffect(() => {
     if (token) {
       guardiaApi.setToken(token);
+      cargarVisitas();
     }
   }, [token]);
+  
+  // Cargar visitas existentes
+  const cargarVisitas = async () => {
+    try {
+      const result = await guardiaApi.client.get('/visitas/condominio');
+      
+      if (result.data) {
+        const visitas = result.data;
+        setVisitasRecientes(visitas || []);
+        setVisitasHoy(visitas?.length || 0);
+        
+        // Contar códigos activos (visitas no completadas)
+        const activos = visitas?.filter(v => 
+          v.estado !== 'salida_registrada' && v.estado !== 'completada'
+        ).length || 0;
+        setCodigosActivos(activos);
+      }
+    } catch (err) {
+      console.error('Error cargando visitas:', err);
+    }
+  };
   
   const handleVisitaCreada = async (visita) => {
     setVisitaActual(visita);
     setPaso('generando');
     setError(null);
-    
-    // Incrementar contador de visitas
-    setVisitasHoy(prev => prev + 1);
     
     try {
       // Generar QR automáticamente
@@ -38,8 +59,8 @@ const GuardiaApp = ({ usuario, condominio, token }) => {
       if (result.success) {
         setQrData(result.data);
         setPaso('qr_generado');
-        // Incrementar códigos activos
-        setCodigosActivos(prev => prev + 1);
+        // Recargar lista de visitas
+        await cargarVisitas();
       } else {
         setError(result.error);
         setPaso('formulario');
@@ -131,6 +152,41 @@ const GuardiaApp = ({ usuario, condominio, token }) => {
                     <span>Códigos activos:</span>
                     <strong>{codigosActivos}</strong>
                   </div>
+                  <button 
+                    className="btn-ver-visitas"
+                    onClick={() => setMostrarListaVisitas(!mostrarListaVisitas)}
+                    style={{
+                      marginTop: '12px',
+                      width: '100%',
+                      padding: '8px',
+                      background: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {mostrarListaVisitas ? '📊 Ocultar' : '📋 Ver todas las visitas'}
+                  </button>
+                  
+                  {mostrarListaVisitas && visitasRecientes.length > 0 && (
+                    <div style={{ marginTop: '12px', maxHeight: '300px', overflowY: 'auto' }}>
+                      {visitasRecientes.map((visita, idx) => (
+                        <div key={idx} style={{
+                          padding: '8px',
+                          marginBottom: '6px',
+                          background: '#f3f4f6',
+                          borderRadius: '4px',
+                          fontSize: '13px'
+                        }}>
+                          <div style={{ fontWeight: 'bold' }}>{visita.nombre_visitante}</div>
+                          <div style={{ color: '#6b7280', fontSize: '11px' }}>
+                            {visita.tipo_visitante} • {visita.estado}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

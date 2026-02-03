@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export default function LoginGuardia({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -108,8 +108,8 @@ export default function LoginGuardia({ onLoginSuccess }) {
 
         <div className="login-footer">
           <p className="demo-credentials">
-            <strong>💡 Credenciales de prueba:</strong><br />
-            Email: <code>guardia@demo.com</code><br />
+            <strong>💡 Credenciales válidas:</strong><br />
+            Email: <code>guardia@demo.com</code> o <code>guardia@condoriente.com</code><br />
             Password: <code>demo123</code>
           </p>
         </div>

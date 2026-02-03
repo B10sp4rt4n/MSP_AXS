@@ -118,16 +118,16 @@ except Exception as exc:
 
 # 🐤 Router canario AUP (demostrador)
 app.include_router(canario_router.router)
-app.include_router(auth_router.router)
+app.include_router(auth_router.router, prefix="/api")
 
 # Routers protegidos (requieren AUP_SESSION)
-app.include_router(msp_router.router)
-app.include_router(visitas_router.router)
-app.include_router(qr_router.router)
-app.include_router(evidencias_router.router)  # Router legacy
-app.include_router(evidencias_router_cloudinary.router)  # ✨ Router con Cloudinary
-app.include_router(preregistro_router.router)
-app.include_router(condominios_router.router)
+app.include_router(msp_router.router, prefix="/api")
+app.include_router(visitas_router.router, prefix="/api")
+app.include_router(qr_router.router, prefix="/api")
+app.include_router(evidencias_router.router, prefix="/api")  # Router legacy
+app.include_router(evidencias_router_cloudinary.router, prefix="/api")  # ✨ Router con Cloudinary
+app.include_router(preregistro_router.router, prefix="/api")
+app.include_router(condominios_router.router, prefix="/api")
 
 
 # ============================================================

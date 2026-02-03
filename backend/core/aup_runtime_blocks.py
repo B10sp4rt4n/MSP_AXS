@@ -70,7 +70,9 @@ class AUPSessionGuard(BaseHTTPMiddleware):
         "/openapi.json",
         "/favicon.ico",
         "/auth/login",  # Login es la ÚNICA forma de obtener SESSION
+        "/api/auth/login",  # Login con prefijo /api (para proxy de Vite)
         "/auth/register",
+        "/api/auth/register",  # Register con prefijo /api
         "/login.html",  # Página de login
         "/admin.html",  # Panel de administración (valida token en cliente)
         "/guardia.html",  # Modo guardia (valida token en cliente)

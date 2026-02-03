@@ -5,7 +5,7 @@ from typing import Optional, List, List
 
 class VisitaBase(BaseModel):
     nombre_visitante: str
-    tipo_visita: str
+    tipo_visitante: Optional[str] = None
     vigencia: datetime
 
 
