@@ -22,6 +22,110 @@ from backend.core.auth.password import hash_password
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Database Fixtures
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(scope="function")
+def db_core_engine():
+    """
+    Create an in-memory SQLite engine for CORE database (per test).
+    """
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base_CORE.metadata.create_all(bind=engine)
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture(scope="function")
+def db_core_session(db_core_engine):
+    """
+    Provide a transactional database session for CORE.
+    """
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_core_engine)
+    session = SessionLocal()
+    yield session
+    session.rollback()
+    session.close()
+
+
+@pytest.fixture(scope="function")
+def db_event_engine():
+    """
+    Create an in-memory SQLite engine for EVENT database (per test).
+    """
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base_EVENT.metadata.create_all(bind=engine)
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture(scope="function")
+def db_event_session(db_event_engine):
+    """
+    Provide a transactional database session for EVENT.
+    """
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_event_engine)
+    session = SessionLocal()
+    yield session
+    session.rollback()
+    session.close()
+
+
+@pytest.fixture(scope="function")
+def db_gov_engine():
+    """
+    Create an in-memory SQLite engine for GOV database (per test).
+    """
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base_GOV.metadata.create_all(bind=engine)
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture(scope="function")
+def db_gov_session(db_gov_engine):
+    """
+    Provide a transactional database session for GOV.
+    """
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_gov_engine)
+    session = SessionLocal()
+    yield session
+    session.rollback()
+    session.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Environment Fixtures
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_environment():
+    """
+    Setup test environment variables.
+    """
+    os.environ["TESTING"] = "1"
+    os.environ["SECRET_KEY"] = "test_secret_key_insecure_for_testing_only"
+    os.environ["JWT_ALGORITHM"] = "HS256"
+    os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "30"
+    yield
+    # Cleanup
+    if "TESTING" in os.environ:
+        del os.environ["TESTING"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # DATABASE FIXTURES
 # ═══════════════════════════════════════════════════════════════════════════
 
