@@ -175,3 +175,24 @@ Cada validación de scope será un evento auditable:
 
 ═══════════════════════════════════════════════════════════════════════════════
 """
+<<<<<<< HEAD
+=======
+
+from .validator import (
+    validar_scope,
+    obtener_scopes_usuario,
+    obtener_scope_especifico,
+    obtener_scope_usuario_en_tenant,
+    nivel_suficiente,
+    ACCESS_LEVEL_HIERARCHY
+)
+
+__all__ = [
+    "validar_scope",
+    "obtener_scopes_usuario", 
+    "obtener_scope_especifico",
+    "obtener_scope_usuario_en_tenant",
+    "nivel_suficiente",
+    "ACCESS_LEVEL_HIERARCHY"
+]
+>>>>>>> origin/main

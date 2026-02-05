@@ -1,15 +1,29 @@
 """
 ═══════════════════════════════════════════════════════════════════════════════
-Router de Visitas - MIGRADO A AUP_SESSION + AUP_SCOPE
+Router de Visitas - FASE 6: ALINEADO CON AUP
 ═══════════════════════════════════════════════════════════════════════════════
 
-PASO 1: AUP_SESSION valida identidad (JWT)
-PASO 2: AUP_SCOPE valida alcance en tenant (scope)
+FLUJO CANÓNICO (7 pasos):
+  1. Resolver identidad     → get_current_user
+  2. Resolver tenant        → path param / body
+  3. SET app.tenant_id      → set_tenant_context
+  4. Validar scope          → validar_scope (si > LECTURA)
+  5. Evaluar gobierno       → puede_ejecutar_accion (si aplica)
+  6. Ejecutar acción        → service
+  7. Registrar evento       → registrar_evento
 
+ESTADO: Migración FASE 6 en progreso
+  - POST /visitas/           → MIGRADO ✅
+  - GET /mis-visitas         → PENDIENTE
+  - GET /condominio          → PENDIENTE
+  - GET /{visita_id}         → PENDIENTE
+
+═══════════════════════════════════════════════════════════════════════════════
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+<<<<<<< HEAD
 from ..core.dependencies import get_db
 from ..core.auth.dependencies import get_current_user
 # from ..core.scope.validator import validate_user_owns_resource_in_tenant, obtener_scope_usuario_en_tenant
@@ -20,28 +34,182 @@ from ..schemas.visita import VisitaCreate, VisitaResponse
 from backend.db.core import Usuario, AccessLevel
 from ..core.event.registry import registrar_evento
 from ..core.event import EventEntity, EventAction, EventResult
+=======
+>>>>>>> origin/main
 from typing import List
+
+# AUP_IDENTITY
+from backend.core.auth.dependencies import get_current_user
+from backend.db.models import Usuario, AccessLevel
+
+# AUP_TENANT (FASE 6)
+from backend.core.tenant.context import set_tenant_context, require_tenant_context
+
+# AUP_SCOPE
+from backend.core.scope.validator import validar_scope, obtener_scope_usuario_en_tenant
+
+# AUP_GOV
+from backend.core.gov.facade import puede_ejecutar_accion
+
+# AUP_EVENT
+from backend.core.event.registry import registrar_evento
+from backend.core.event import EventEntity, EventAction, EventResult
+
+# Infraestructura
+from backend.core.dependencies import get_db
+from backend.services import visita_service
+from backend.schemas.visita import VisitaCreate, VisitaResponse
+
+# DEPRECADO - Solo para endpoints no migrados aún
+from backend.core.security import verificar_rol
 
 router = APIRouter(prefix="/visitas", tags=["Visitas"])
 
 
-# ---------------------------------------------------------
-# Crear visita (solo Administración del condominio)
-# ---------------------------------------------------------
-@router.post("/", response_model=VisitaResponse)
+# ═══════════════════════════════════════════════════════════════════════════
+# ENDPOINT MIGRADO FASE 6: POST /visitas/
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.post("/{condominio_id}", response_model=VisitaResponse)
 def crear_visita(
+    condominio_id: str,                                          # PASO 2: tenant desde path
     data: VisitaCreate,
     request: Request,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),  # PASO 1: AUP_SESSION
+    current_user: Usuario = Depends(get_current_user),           # PASO 1: identidad
+    _tenant: str = Depends(set_tenant_context),                  # PASO 3: SET app.tenant_id
 ):
     """
-    VALIDACIÓN AUP COMPLETA:
-      1. AUP_SESSION: Usuario autenticado (JWT válido)
-      2. AUP_SCOPE: Usuario tiene alcance en el tenant objetivo
-      3. AUP_EVENT: Registrar creación de visita
+    ═══════════════════════════════════════════════════════════════════════════
+    CREAR VISITA — Endpoint Canónico FASE 6
+    ═══════════════════════════════════════════════════════════════════════════
+    
+    FLUJO AUP COMPLETO:
+      1. ✅ Identidad resuelta (get_current_user)
+      2. ✅ Tenant resuelto (path param: condominio_id)
+      3. ✅ SET app.tenant_id (set_tenant_context)
+      4. ✅ Validar scope (ADMIN_CONDOMINIO requerido)
+      5. ✅ Evaluar gobierno (límite de visitas si aplica)
+      6. ✅ Ejecutar acción (crear visita)
+      7. ✅ Registrar evento (éxito o denegación)
+    
+    CRITERIOS AUP-A:
+      - AUP-A1: No usa verificar_rol() ✅
+      - AUP-A2: No usa usuario.rol para decisiones ✅
+      - AUP-A3: Usa get_current_user ✅
+      - AUP-A4: Usa set_tenant_context ✅
+      - AUP-A5: Usa validar_scope ✅
+      - AUP-A6: Usa puede_ejecutar_accion ✅
+      - AUP-A7: Usa registrar_evento ✅
     """
-    # PASO 2: AUP_SCOPE - Validar alcance en tenant
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASO 4: Validar scope (requiere ADMIN_CONDOMINIO para crear visitas)
+    # ─────────────────────────────────────────────────────────────────────────
+    if not validar_scope(db, current_user, condominio_id, AccessLevel.ADMIN_CONDOMINIO):
+        # Registrar intento denegado ANTES de fallar
+        registrar_evento(
+            db=db,
+            identity=current_user,
+            session_token=token,
+            tenant_id=condominio_id,
+            entidad=EventEntity.VISITA.value,
+            entidad_id="pending",
+            accion=EventAction.CREAR.value,
+            resultado=EventResult.DENEGADO.value,
+            scope_id=None,
+            motivo="Scope insuficiente: requiere ADMIN_CONDOMINIO"
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="Requiere nivel ADMIN_CONDOMINIO en este condominio"
+        )
+    
+    # Obtener scope_id para eventos
+    scope = obtener_scope_usuario_en_tenant(db, current_user.usuario_id, condominio_id)
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASO 5: Evaluar gobierno (límites de política si aplica)
+    # ─────────────────────────────────────────────────────────────────────────
+    permitido, motivo_gov = puede_ejecutar_accion(
+        db=db,
+        usuario=current_user,
+        session_token=token,
+        accion="crear_visita",
+        tenant_id=condominio_id,
+        metadata={"visitante": data.nombre_visitante}
+    )
+    
+    if not permitido:
+        registrar_evento(
+            db=db,
+            identity=current_user,
+            session_token=token,
+            tenant_id=condominio_id,
+            entidad=EventEntity.VISITA.value,
+            entidad_id="pending",
+            accion=EventAction.CREAR.value,
+            resultado=EventResult.DENEGADO.value,
+            scope_id=scope.id if scope else None,
+            motivo=f"Gobierno denegó: {motivo_gov}"
+        )
+        raise HTTPException(status_code=403, detail=f"Gobierno denegó: {motivo_gov}")
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASO 6: Ejecutar acción de negocio
+    # ─────────────────────────────────────────────────────────────────────────
+    visita = visita_service.crear_visita(
+        db,
+        data,
+        condominio_id=condominio_id,
+        casa_unidad=data.casa_unidad,
+    )
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASO 7: Registrar evento de éxito
+    # ─────────────────────────────────────────────────────────────────────────
+    registrar_evento(
+        db=db,
+        identity=current_user,
+        session_token=token,
+        tenant_id=condominio_id,
+        entidad=EventEntity.VISITA.value,
+        entidad_id=visita.visita_id,
+        accion=EventAction.CREAR.value,
+        resultado=EventResult.EXITO.value,
+        scope_id=scope.id if scope else None,
+        motivo="Visita creada exitosamente",
+        metadata={
+            "visitante": data.nombre_visitante,
+            "casa_unidad": data.casa_unidad,
+            "fecha_entrada": str(data.fecha_entrada) if data.fecha_entrada else None
+        }
+    )
+    
+    return visita
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ENDPOINT LEGACY (compatibilidad) - DEPRECADO
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.post("/", response_model=VisitaResponse, deprecated=True)
+def crear_visita_legacy(
+    data: VisitaCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    """
+    ⚠️ DEPRECADO: Usar POST /{condominio_id} en su lugar.
+    
+    Este endpoint se mantiene temporalmente para compatibilidad.
+    Fecha de muerte: 2026-04-01
+    """
+    # Redirigir al nuevo endpoint usando condominio_id del body
+    from backend.core.scope.validator import validate_user_owns_resource_in_tenant
+    
     try:
         validate_user_owns_resource_in_tenant(
             usuario=usuario,
@@ -50,7 +218,6 @@ def crear_visita(
             required_level=AccessLevel.ADMIN_CONDOMINIO
         )
     except HTTPException as e:
-        # AUP_EVENT: Intento denegado por falta de scope
         token = request.headers.get("Authorization", "").replace("Bearer ", "")
         registrar_evento(
             db=db,
@@ -62,22 +229,13 @@ def crear_visita(
             accion=EventAction.CREAR.value,
             resultado=EventResult.DENEGADO.value,
             scope_id=None,
-            motivo=f"Sin scope válido en tenant: {e.detail}"
+            motivo=f"[LEGACY] Sin scope válido: {e.detail}"
         )
         raise
     
-    # Obtener scope_id para el evento
     scope = obtener_scope_usuario_en_tenant(db, usuario.usuario_id, data.condominio_id)
+    visita = visita_service.crear_visita(db, data, condominio_id=data.condominio_id, casa_unidad=data.casa_unidad)
     
-    # Crear visita
-    visita = visita_service.crear_visita(
-        db,
-        data,
-        condominio_id=data.condominio_id,
-        casa_unidad=data.casa_unidad,
-    )
-    
-    # PASO 3: AUP_EVENT - Registrar creación exitosa
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     registrar_evento(
         db=db,
@@ -89,64 +247,82 @@ def crear_visita(
         accion=EventAction.CREAR.value,
         resultado=EventResult.EXITO.value,
         scope_id=scope.id if scope else None,
-        motivo="Visita creada exitosamente",
-        metadata={
-            "visitante": data.nombre_visitante,
-            "casa_unidad": data.casa_unidad,
-            "fecha_entrada": str(data.fecha_entrada)
-        }
+        motivo="[LEGACY] Visita creada",
+        metadata={"visitante": data.nombre_visitante, "casa_unidad": data.casa_unidad}
     )
     
     return visita
 
 
-# ---------------------------------------------------------
-# Listar visitas del residente
-# ---------------------------------------------------------
-@router.get("/mis-visitas", response_model=List[VisitaResponse])
+# ═══════════════════════════════════════════════════════════════════════════
+# ENDPOINTS PENDIENTES DE MIGRACIÓN (usan verificar_rol - DEPRECADO)
+# ═══════════════════════════════════════════════════════════════════════════
+@router.get("/mis-visitas/{condominio_id}", response_model=List[VisitaResponse])
 def mis_visitas(
+    condominio_id: str,                                          # PASO 2: tenant desde path
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),  # PASO 1: AUP_SESSION
+    current_user: Usuario = Depends(get_current_user),           # PASO 1: identidad
+    _tenant: str = Depends(set_tenant_context),                  # PASO 3: SET app.tenant_id
 ):
     """
-    VALIDACIÓN AUP:
-      Lista visitas del condominio al que pertenece el usuario.
-      AUP_SCOPE se valida implícitamente: usuario.condominio_id
-      debe tener scope activo.
+    ═══════════════════════════════════════════════════════════════════════════
+    LISTAR MIS VISITAS — Endpoint Migrado FASE 6
+    ═══════════════════════════════════════════════════════════════════════════
     
-    NOTA:
-      Este endpoint usa el tenant del usuario (usuario.condominio_id)
-      En vez de validar scope, asumimos que si usuario.condominio_id existe,
-      debería tener scope. Para ser estricto AUP, validar scope explícitamente.
+    FLUJO AUP COMPLETO:
+      1. ✅ Identidad resuelta (get_current_user)
+      2. ✅ Tenant resuelto (path param: condominio_id)
+      3. ✅ SET app.tenant_id (set_tenant_context)
+      4. ✅ Validar scope (RESIDENTE mínimo)
+      5. ✅ Ejecutar acción (listar visitas)
+    
+    Lista visitas del residente en su condominio.
+    RLS garantiza aislamiento multi-tenant.
     """
-    # TODO: Hacer estrictamente AUP validando scope
-    # validate_user_owns_resource_in_tenant(
-    #     usuario=usuario,
-    #     resource_tenant_id=usuario.condominio_id,
-    #     db=db,
-    #     required_level=AccessLevel.RESIDENTE
-    # )
+    # PASO 4: Validar scope (requiere al menos RESIDENTE)
+    if not validar_scope(db, current_user, condominio_id, AccessLevel.RESIDENTE):
+        raise HTTPException(
+            status_code=403,
+            detail="Requiere nivel RESIDENTE en este condominio"
+        )
     
-    verificar_rol(usuario, ["RESIDENTE"])
+    # PASO 6: Ejecutar acción - RLS ya está activo
     visitas = visita_service.obtener_visitas_residente(
         db,
-        condominio_id=usuario.condominio_id,
-        casa_unidad=usuario.casa_unidad,
+        condominio_id=condominio_id,
+        casa_unidad=current_user.casa_unidad,
     )
     return visitas
 
-
 # ---------------------------------------------------------
-# Listar todas las visitas del condominio (admin / guardia)
+# Listar todas las visitas del condominio (admin / guardia) - MIGRADO FASE 6
 # ---------------------------------------------------------
-@router.get("/condominio", response_model=List[VisitaResponse])
+@router.get("/condominio/{condominio_id}", response_model=List[VisitaResponse])
 def visitas_condominio(
+    condominio_id: str,                                          # PASO 2: tenant desde path
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
+    current_user: Usuario = Depends(get_current_user),           # PASO 1: identidad
+    _tenant: str = Depends(set_tenant_context),                  # PASO 3: SET app.tenant_id
 ):
-    verificar_rol(usuario, ["ADMIN_CONDOMINIO", "GUARDIA"])
+    """
+    ═══════════════════════════════════════════════════════════════════════════
+    LISTAR VISITAS DEL CONDOMINIO — Endpoint Migrado FASE 6
+    ═══════════════════════════════════════════════════════════════════════════
+    
+    Lista todas las visitas del condominio.
+    Requiere nivel GUARDIA (admin o guardia).
+    RLS garantiza aislamiento multi-tenant.
+    """
+    # PASO 4: Validar scope (requiere GUARDIA mínimo)
+    if not validar_scope(db, current_user, condominio_id, AccessLevel.GUARDIA):
+        raise HTTPException(
+            status_code=403,
+            detail="Requiere nivel GUARDIA o superior en este condominio"
+        )
+    
+    # PASO 6: Ejecutar acción - RLS ya está activo
     visitas = visita_service.obtener_visitas_condominio(
-        db, usuario.condominio_id
+        db, condominio_id
     )
     return visitas
 
