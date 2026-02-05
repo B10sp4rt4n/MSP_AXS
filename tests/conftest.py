@@ -1,28 +1,23 @@
 """
-Fixtures globales para testing AUP.
+Pytest configuration and shared fixtures for MSP_AXS test suite.
 
-Este módulo provee:
-- Base de datos temporal (SQLite in-memory)
-- Cliente FastAPI con overrides
-- Usuarios de prueba
-- Políticas base
-- Helpers de autenticación
+Architecture: AUP (SESSION → SCOPE → EVENT → GOV)
 """
 
 import pytest
+import os
+from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-# from fastapi.testclient import TestClient  # Comentado temporalmente para evitar cascada de imports
-from datetime import datetime
+from sqlalchemy.pool import StaticPool
 
-# from backend.main import app  # Comentado - imports rotos en routers
-from backend.db.connection import Base  # , get_db
-from backend.db.models import (
-    Usuario, Condominio, MSP, Visita,
-    UserTenantScope, Event,
-    Authority, Policy, Delegation,
-    AccessLevel, ScopeStatus, AuthorityType, PolicyScope, GovStatus
-)
+# Import bases and models (AUP architecture)
+from backend.db.core import Base_CORE, MSP, Condominio, Usuario
+from backend.db.event import Base_EVENT, Event
+from backend.db.gov import Base_GOV, Policy
+
+# Import auth utilities
+from backend.core.auth.jwt import create_access_token
 from backend.core.auth.password import hash_password
 
 
