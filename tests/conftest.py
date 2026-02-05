@@ -1,29 +1,151 @@
 """
-Fixtures globales para testing AUP.
+Pytest configuration and shared fixtures for MSP_AXS test suite.
 
-Este módulo provee:
-- Base de datos temporal (SQLite in-memory)
-- Cliente FastAPI con overrides
-- Usuarios de prueba
-- Políticas base
-- Helpers de autenticación
+Architecture: AUP (SESSION → SCOPE → EVENT → GOV)
 """
 
 import pytest
+import os
+from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-# from fastapi.testclient import TestClient  # Comentado temporalmente para evitar cascada de imports
-from datetime import datetime
+from sqlalchemy.pool import StaticPool
 
-# from backend.main import app  # Comentado - imports rotos en routers
-from backend.db.connection import Base  # , get_db
-from backend.db.models import (
-    Usuario, Condominio, MSP, Visita,
-    UserTenantScope, Event,
-    Authority, Policy, Delegation,
-    AccessLevel, ScopeStatus, AuthorityType, PolicyScope, GovStatus
-)
+# Import bases and models (AUP architecture)
+from backend.db.core import Base_CORE, MSP, Condominio, Usuario
+from backend.db.event import Base_EVENT, Event
+from backend.db.gov import Base_GOV, Policy
+
+# Import auth utilities
+from backend.core.auth.jwt import create_access_token
 from backend.core.auth.password import hash_password
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Database Fixtures
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(scope="function")
+def db_core_engine():
+    """
+    Create an in-memory SQLite engine for CORE database (per test).
+    """
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base_CORE.metadata.create_all(bind=engine)
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture(scope="function")
+def db_core_session(db_core_engine):
+    """
+    Provide a transactional database session for CORE.
+    """
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_core_engine)
+    session = SessionLocal()
+    yield session
+    session.rollback()
+    session.close()
+
+
+@pytest.fixture(scope="function")
+def db_event_engine():
+    """
+    Create an in-memory SQLite engine for EVENT database (per test).
+    """
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base_EVENT.metadata.create_all(bind=engine)
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture(scope="function")
+def db_event_session(db_event_engine):
+    """
+    Provide a transactional database session for EVENT.
+    """
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_event_engine)
+    session = SessionLocal()
+    yield session
+    session.rollback()
+    session.close()
+
+
+@pytest.fixture(scope="function")
+def db_gov_engine():
+    """
+    Create an in-memory SQLite engine for GOV database (per test).
+    """
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base_GOV.metadata.create_all(bind=engine)
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture(scope="function")
+def db_gov_session(db_gov_engine):
+    """
+    Provide a transactional database session for GOV.
+    """
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_gov_engine)
+    session = SessionLocal()
+    yield session
+    session.rollback()
+    session.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Environment Fixtures
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_environment():
+    """
+    Setup test environment variables.
+    """
+    os.environ["TESTING"] = "1"
+    os.environ["SECRET_KEY"] = "test_secret_key_insecure_for_testing_only"
+    os.environ["JWT_ALGORITHM"] = "HS256"
+    os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "30"
+    yield
+    # Cleanup
+    if "TESTING" in os.environ:
+        del os.environ["TESTING"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Monkeypatch for registrar_evento()
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(scope="function", autouse=True)
+def patch_get_event_db(monkeypatch, db_event_session):
+    """
+    Monkeypatch get_event_db() to return test DB session.
+    
+    This is necessary because registrar_evento() calls get_event_db()
+    internally, which would try to connect to the real database.
+    """
+    def mock_get_event_db():
+        """Return the test db_event_session as a generator."""
+        yield db_event_session
+    
+    # Patch backend.db.event.get_event_db
+    import backend.db.event
+    monkeypatch.setattr(backend.db.event, "get_event_db", mock_get_event_db)
+    
+    yield
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -32,9 +154,9 @@ from backend.core.auth.password import hash_password
 
 @pytest.fixture(scope="function")
 def db_engine():
-    """Motor de BD temporal en memoria (SQLite)."""
+    """Motor de BD temporal en memoria (SQLite) para backend.db.core."""
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    Base.metadata.create_all(bind=engine)
+    Base_CORE.metadata.create_all(bind=engine)
     yield engine
     engine.dispose()
 

@@ -12,7 +12,8 @@ from typing import Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from backend.db.models import Authority, Policy, Delegation, Usuario, AuthorityType, PolicyScope
+from backend.db.gov import Authority, Policy, Delegation, AuthorityType, PolicyScope
+from backend.db.core import Usuario
 from backend.core.gov.authority import crear_authority as _crear_authority, revocar_authority as _revocar_authority
 from backend.core.gov.policy import crear_policy as _crear_policy, evaluar_politica as _evaluar_politica, revocar_policy as _revocar_policy
 from backend.core.gov.delegation import delegar_poder as _delegar_poder, revocar_delegacion as _revocar_delegacion
@@ -203,6 +204,7 @@ def crear_policy_con_evento(
 
 def evaluar_politica_con_evento(
     db: Session,
+    db_gov: Session,
     ejecutor: Usuario,
     session_token: str,
     accion: str,
@@ -214,7 +216,8 @@ def evaluar_politica_con_evento(
     Evalúa AUP_POLICY y registra AUP_EVENT.
     
     Args:
-        db: Sesión de BD
+        db: Sesión de BD CORE
+        db_gov: Sesión de BD GOV
         ejecutor: Usuario que solicita la acción
         session_token: JWT del ejecutor
         accion: Acción a evaluar
@@ -225,10 +228,10 @@ def evaluar_politica_con_evento(
     Returns:
         (permitido, motivo)
     """
-    # Evaluar política
-    permitido, motivo = _evaluar_politica(db, accion, tenant_id, valor_actual, metadata)
+    # Evaluar política (con db_gov)
+    permitido, motivo = _evaluar_politica(db_gov, accion, tenant_id, valor_actual, metadata)
     
-    # Registrar evento
+    # Registrar evento (con db que es EVENT)
     registrar_evento(
         db=db,
         identity=ejecutor,

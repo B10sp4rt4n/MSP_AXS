@@ -45,6 +45,8 @@ import uuid
 import logging
 
 from backend.db.core import Usuario, get_core_db
+from backend.db.gov import get_gov_db
+from backend.db.event import get_event_db
 from backend.core.auth.dependencies import get_current_user
 from backend.core.scope.validator import validar_scope
 from backend.core.gov.facade import puede_ejecutar_accion
@@ -136,6 +138,8 @@ def generar_qr_gobernado(
     request: Request,
     body: GenerarQRGobernado_Request,
     db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
+    db_event: Session = Depends(get_event_db),
     usuario: Usuario = Depends(get_current_user)  # ← AUP-01: SESSION validada por middleware
 ):
     """
@@ -174,7 +178,7 @@ def generar_qr_gobernado(
     
     tiene_scope = validar_scope(
         db=db,
-        identity=usuario,
+        usuario=usuario,
         tenant_id=body.tenant_id,
         required_level=AccessLevel.RESIDENTE  # Mínimo nivel requerido
     )
@@ -184,7 +188,7 @@ def generar_qr_gobernado(
         
         # Registrar evento de denegación
         registrar_evento(
-            db=db,
+            db=db_event,
             identity=usuario,
             session_token=token,
             tenant_id=body.tenant_id,
@@ -209,7 +213,8 @@ def generar_qr_gobernado(
     with AUPGovEnforcer() as gov:
         # Evaluar política
         permitido, motivo = puede_ejecutar_accion(
-            db=db,
+            db=db_event,
+            db_gov=db_gov,
             usuario=usuario,
             session_token=token,
             accion="generar_qr",
@@ -249,7 +254,7 @@ def generar_qr_gobernado(
     # ─────────────────────────────────────────────────────────────────────
     with AUPEventEnforcer(operation="generar_qr_gobernado") as event_guard:
         evento_id = registrar_evento(
-            db=db,
+            db=db_event,
             identity=usuario,
             session_token=token,
             tenant_id=body.tenant_id,
@@ -269,12 +274,15 @@ def generar_qr_gobernado(
         # Marcar que EVENT fue registrado
         event_guard.mark_event_registered()
         
-        logger.info(f"✅ PASO 5/5: EVENT registrado (evento_id={evento_id})")
+        # Extraer ID del evento retornado
+        evento_id_str = str(evento_id.id) if hasattr(evento_id, 'id') else str(evento_id)
+        
+        logger.info(f"✅ PASO 5/5: EVENT registrado (evento_id={evento_id_str})")
     
     # ─────────────────────────────────────────────────────────────────────
     # RETORNO: Solo después de pasar TODOS los pasos AUP
     # ─────────────────────────────────────────────────────────────────────
-    logger.info(f"🎉 CANARIO: Operación completa (QR={qr_id}, EVENT={evento_id})")
+    logger.info(f"🎉 CANARIO: Operación completa (QR={qr_id}, EVENT={evento_id_str})")
     
     return GenerarQRGobernado_Response(
         qr_id=qr_id,
@@ -283,7 +291,7 @@ def generar_qr_gobernado(
         tenant_id=body.tenant_id,
         vigencia_hasta=vigencia_hasta,
         creado_por=usuario.usuario_id,
-        evento_id=evento_id
+        evento_id=evento_id_str
     )
 
 

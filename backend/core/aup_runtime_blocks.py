@@ -67,8 +67,10 @@ class AUPSessionGuard(BaseHTTPMiddleware):
         "/",
         "/docs",
         "/openapi.json",
+        "/favicon.ico",
         "/auth/login",  # Login es la ÚNICA forma de obtener SESSION
         "/auth/register",
+        "/admin.html",  # Panel de administración (valida token en cliente)
     }
     
     async def dispatch(self, request: Request, call_next: Callable):
@@ -87,6 +89,7 @@ class AUPSessionGuard(BaseHTTPMiddleware):
         # 2. Todos los demás endpoints requieren SESSION
         # ─────────────────────────────────────────────────────────────
         auth_header = request.headers.get("Authorization")
+        logger.debug(f"🔍 Authorization header recibido: {auth_header[:50] if auth_header else 'VACÍO'}...")
         
         if not auth_header:
             logger.warning(f"🚫 AUP-01 BLOQUEADO: No SESSION en {request.method} {path}")
@@ -109,17 +112,24 @@ class AUPSessionGuard(BaseHTTPMiddleware):
         # ─────────────────────────────────────────────────────────────
         try:
             token = auth_header.replace("Bearer ", "")
+            logger.debug(f"🔍 Token extraído: {token[:30]}... (primeros 30 chars)")
+            
             payload = decode_access_token(token)
+            logger.debug(f"🔍 Payload después de decode: {payload}")
             
             if not payload:
-                raise ValueError("Token inválido")
+                logger.warning(f"🚫 AUP-01 BLOQUEADO: Payload vacío/None después de decode")
+                logger.warning(f"   Token que se intentó: {token[:50]}...")
+                raise ValueError("Token inválido o expirado")
+            
+            logger.info(f"✅ AUP-01 PASADO: Token válido para identity_id={payload.get('sub')}")
             
             # Agregar identity_id al state de request (para uso posterior)
             request.state.identity_id = payload.get("sub")
             request.state.session_token = token
             
         except Exception as e:
-            logger.warning(f"🚫 AUP-01 BLOQUEADO: SESSION inválida en {request.method} {path}: {e}")
+            logger.warning(f"🚫 AUP-01 BLOQUEADO: SESSION inválida en {request.method} {path}: {type(e).__name__}: {str(e)}")
             
             # Registrar evento de denegación
             self._registrar_denied_no_session(request)
@@ -152,30 +162,39 @@ class AUPSessionGuard(BaseHTTPMiddleware):
             
             # Registrar evento sin identity (porque no hay SESSION)
             from backend.db.event import Event
-            import uuid
             from datetime import datetime
             import hashlib
             
-            event_id = str(uuid.uuid4())
             timestamp = datetime.utcnow()
             
+            # Calcular hash sin event_id (usamos timestamp como parte del hash)
+            contenido = "|".join([
+                "NONE",  # identity
+                "NONE",  # tenant
+                EventEntity.SESSION.value,
+                "NONE",
+                EventAction.DENEGAR.value,
+                EventResult.DENEGADO.value,
+                timestamp.isoformat()
+            ])
+            hash_evento = hashlib.sha256(contenido.encode('utf-8')).hexdigest()
+            
             evento = Event(
-                event_id=event_id,
                 identity_id="NONE",  # No hay identidad sin SESSION
-                session_hash="NONE",
                 tenant_id="NONE",
+                tipo_evento=EventAction.DENEGAR.value,
                 entidad=EventEntity.SESSION.value,
                 entidad_id="NONE",
                 accion=EventAction.DENEGAR.value,
                 resultado=EventResult.DENEGADO.value,
                 motivo=f"AUP-01 VIOLATED: No SESSION en {request.method} {request.url.path}",
-                metadata={
+                metadata_json={
                     "path": request.url.path,
                     "method": request.method,
                     "client_ip": request.client.host if request.client else "unknown"
                 },
                 timestamp=timestamp,
-                hash="N/A"  # No calculamos hash para eventos de denegación sin actor
+                hash_evento=hash_evento
             )
             
             db.add(evento)

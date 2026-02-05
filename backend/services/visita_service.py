@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Optional
 import uuid
 
-from ..db.models import Visita, Evidencia
+from backend.db.core import Visita, Evidencia
 from ..utils.hash_tools import calcular_hash_sha256
 from ..utils.file_storage import guardar_archivo
 from ..core.config import settings
@@ -211,7 +211,7 @@ from datetime import datetime
 from typing import Any, Optional
 import uuid
 
-from ..db.models import Visita, Evidencia
+from backend.db.core import Visita, Evidencia
 from ..utils.hash_tools import calcular_hash_sha256
 from ..utils.file_storage import guardar_archivo
 from ..core.config import settings

@@ -6,7 +6,7 @@ from ..core.dependencies import get_db
 from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
 from ..services.evidencia_service import guardar_evidencias_opcionales
-from ..db.models import Usuario
+from backend.db.core import Usuario
 
 router = APIRouter(prefix="/evidencias", tags=["Evidencias"]) 
 

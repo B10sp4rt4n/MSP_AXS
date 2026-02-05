@@ -17,7 +17,8 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
-from backend.db.models import Delegation, Authority, Usuario, UserTenantScope, GovStatus
+from backend.db.gov import Delegation, Authority, GovStatus
+from backend.db.core import Usuario, UserTenantScope
 
 
 def delegar_poder(
@@ -213,10 +214,10 @@ def revocar_delegacion(
     delegation.estado = GovStatus.REVOCADO
     delegation.revoked_at = datetime.utcnow()
     
-    if not delegation.metadata:
-        delegation.metadata = {}
-    delegation.metadata["revoked_by"] = revocada_por
-    delegation.metadata["revoked_reason"] = motivo
+    if not delegation.metadata_json:
+        delegation.metadata_json = {}
+    delegation.metadata_json["revoked_by"] = revocada_por
+    delegation.metadata_json["revoked_reason"] = motivo
     
     db.commit()
     db.refresh(delegation)

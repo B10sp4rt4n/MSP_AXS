@@ -15,7 +15,8 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
-from backend.db.models import Authority, Usuario, Condominio, AuthorityType, GovStatus
+from backend.db.gov import Authority, AuthorityType, GovStatus
+from backend.db.core import Usuario, Condominio
 from backend.core.gov import AuthorityType as GovAuthorityType
 
 
@@ -173,10 +174,10 @@ def revocar_authority(
     authority.revoked_at = datetime.utcnow()
     
     if motivo:
-        if not authority.metadata:
-            authority.metadata = {}
-        authority.metadata["revoked_by"] = revocada_por
-        authority.metadata["revoked_reason"] = motivo
+        if not authority.metadata_json:
+            authority.metadata_json = {}
+        authority.metadata_json["revoked_by"] = revocada_por
+        authority.metadata_json["revoked_reason"] = motivo
     
     db.commit()
     db.refresh(authority)

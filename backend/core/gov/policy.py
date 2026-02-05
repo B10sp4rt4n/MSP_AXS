@@ -14,7 +14,7 @@ from typing import Optional, Any
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
-from backend.db.models import Policy, PolicyScope, GovStatus
+from backend.db.gov import Policy, PolicyScope, GovStatus
 
 
 def crear_policy(
@@ -72,7 +72,7 @@ def crear_policy(
         valida_desde=valida_desde or datetime.utcnow(),
         valida_hasta=valida_hasta,
         estado=GovStatus.ACTIVO,
-        metadata=metadata,
+        metadata_json=metadata,  # Campo correcto del modelo
         created_at=datetime.utcnow()
     )
     
@@ -252,11 +252,11 @@ def revocar_policy(
     
     policy.estado = GovStatus.REVOCADO
     
-    if not policy.metadata:
-        policy.metadata = {}
-    policy.metadata["revoked_by"] = revocada_por
-    policy.metadata["revoked_reason"] = motivo
-    policy.metadata["revoked_at"] = datetime.utcnow().isoformat()
+    if not policy.metadata_json:
+        policy.metadata_json = {}
+    policy.metadata_json["revoked_by"] = revocada_por
+    policy.metadata_json["revoked_reason"] = motivo
+    policy.metadata_json["revoked_at"] = datetime.utcnow().isoformat()
     
     db.commit()
     db.refresh(policy)

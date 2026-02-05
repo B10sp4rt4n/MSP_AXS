@@ -50,7 +50,7 @@ from jose import JWTError, jwt
 # Configuración desde variables de entorno
 SECRET_KEY = os.getenv("SECRET_KEY", "CHANGE_ME_IN_PRODUCTION")
 ALGORITHM = "HS256"  # Simétrico, migrable a RS256 en el futuro
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))  # 8 horas por defecto
 
 
 def create_access_token(
@@ -108,9 +108,24 @@ def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
     AXIOMA APLICADO:
         Una AUP_SESSION expirada o inválida es equivalente a ausencia de sesión.
     """
+    import logging
+    logger = logging.getLogger("axs.jwt")
+    
     try:
+        logger.debug(f"🔍 Decodificando token: {token[:30]}...")
+        logger.debug(f"🔍 SECRET_KEY usado: {SECRET_KEY[:20]}... (primeros 20 chars)")
+        logger.debug(f"🔍 ALGORITHM: {ALGORITHM}")
+        
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        logger.info(f"✅ Token decodificado exitosamente. identity_id: {payload.get('sub')}")
         return payload
-    except JWTError:
+    except JWTError as e:
         # Token inválido, expirado o manipulado
+        logger.warning(f"❌ JWT Error al decodificar: {type(e).__name__}: {str(e)}")
+        logger.warning(f"   Token: {token[:50]}...")
+        logger.warning(f"   Error details: {repr(e)}")
         return None
+    except Exception as e:
+        logger.error(f"❌ Error inesperado en decode_access_token: {type(e).__name__}: {str(e)}")
+        return None
+

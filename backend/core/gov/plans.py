@@ -79,7 +79,8 @@ from typing import Optional
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from backend.db.models import Policy, PolicyScope, GovStatus, Usuario
+from backend.db.gov import Policy, PolicyScope, GovStatus
+from backend.db.core import Usuario
 from backend.core.gov.policy import crear_policy
 from backend.core.event.registry import registrar_evento
 from backend.core.event import EventEntity, EventAction, EventResult
@@ -295,10 +296,12 @@ def asignar_plan_con_evento(
     # 1. Revocar políticas anteriores con mismo target
     from backend.core.gov.policy import obtener_policies
     
-    politicas_anteriores = db.query(Policy).filter(
-        Policy.metadata["target_identity"].astext == target_user.usuario_id,
-        Policy.estado == GovStatus.ACTIVO
-    ).all()
+    # Obtener todas las policies activas y filtrar en Python (compatible SQLite/PostgreSQL)
+    todas_activas = db.query(Policy).filter(Policy.estado == GovStatus.ACTIVO).all()
+    politicas_anteriores = [
+        pol for pol in todas_activas
+        if pol.metadata_json and pol.metadata_json.get("target_identity") == target_user.usuario_id
+    ]
     
     plan_anterior = None
     for pol in politicas_anteriores:
@@ -368,11 +371,12 @@ def obtener_plan_actual(
     Returns:
         Diccionario con plan actual o None si no tiene plan
     """
-    # Buscar políticas activas del usuario
-    policies = db.query(Policy).filter(
-        Policy.metadata["target_identity"].astext == usuario_id,
-        Policy.estado == GovStatus.ACTIVO
-    ).all()
+    # Buscar políticas activas del usuario (compatible SQLite/PostgreSQL)
+    todas_activas = db.query(Policy).filter(Policy.estado == GovStatus.ACTIVO).all()
+    policies = [
+        pol for pol in todas_activas
+        if pol.metadata_json and pol.metadata_json.get("target_identity") == usuario_id
+    ]
     
     if not policies:
         return None
@@ -380,8 +384,8 @@ def obtener_plan_actual(
     # Extraer tipo de plan de metadata
     plan_type = None
     for pol in policies:
-        if pol.metadata and pol.metadata.get("plan_type"):
-            plan_type = pol.metadata["plan_type"]
+        if pol.metadata_json and pol.metadata_json.get("plan_type"):
+            plan_type = pol.metadata_json["plan_type"]
             break
     
     if not plan_type:

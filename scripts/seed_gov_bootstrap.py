@@ -26,15 +26,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy.orm import Session
-from backend.db.connection import SessionLocal
-from backend.db.models import Usuario, Authority, Policy, AuthorityType, PolicyScope, GovStatus
+# ✅ AUP_CORE y AUP_GOV separados
+from backend.db.core import SessionLocal_CORE, Usuario
+from backend.db.gov import SessionLocal_GOV, Authority, Policy, AuthorityType, PolicyScope, GovStatus
 from backend.core.gov.authority import crear_authority
 from backend.core.gov.policy import crear_policy
 from datetime import datetime
 import uuid
 
 
-def seed_authority_global(db: Session) -> Authority:
+def seed_authority_global(db_core: Session, db_gov: Session) -> Authority:
     """
     Crea AUP_AUTHORITY GLOBAL para el primer admin del sistema.
     
@@ -42,9 +43,9 @@ def seed_authority_global(db: Session) -> Authority:
     """
     print("\n[1] Creando AUTHORITY GLOBAL...")
     
-    # Buscar primer MSP_ADMIN
-    admin_global = db.query(Usuario).filter(
-        Usuario.rol_base == "MSP_ADMIN"
+    # Buscar primer MSP_ADMIN en CORE
+    admin_global = db_core.query(Usuario).filter(
+        Usuario.rol == "MSP_ADMIN"
     ).first()
     
     if not admin_global:
@@ -52,8 +53,8 @@ def seed_authority_global(db: Session) -> Authority:
         print("   Crear al menos un admin antes de ejecutar este seed.")
         sys.exit(1)
     
-    # Verificar si ya existe authority para este usuario
-    existing = db.query(Authority).filter(
+    # Verificar si ya existe authority en GOV
+    existing = db_gov.query(Authority).filter(
         Authority.identity_id == admin_global.usuario_id,
         Authority.tipo == AuthorityType.GLOBAL
     ).first()
@@ -62,9 +63,9 @@ def seed_authority_global(db: Session) -> Authority:
         print(f"✓ Authority GLOBAL ya existe para {admin_global.email}")
         return existing
     
-    # Crear authority
+    # Crear authority en GOV
     authority = crear_authority(
-        db=db,
+        db=db_gov,
         identity=admin_global,
         tipo=AuthorityType.GLOBAL,
         tenant_id=None,
@@ -138,7 +139,7 @@ def seed_policies_base(db: Session) -> list[Policy]:
     return policies
 
 
-def seed_first_tier_demo(db: Session, admin_global: Authority) -> Authority | None:
+def seed_first_tier_demo(db_core: Session, db_gov: Session, admin_global: Authority) -> Authority | None:
     """
     (OPCIONAL) Crea un first tier de demostración.
     
@@ -146,25 +147,25 @@ def seed_first_tier_demo(db: Session, admin_global: Authority) -> Authority | No
     """
     print("\n[3] Verificando posibilidad de first tier demo...")
     
-    # Buscar primer condominio
-    from backend.db.models import Condominio
-    condominio = db.query(Condominio).first()
+    # Buscar primer condominio en CORE
+    from backend.db.core import Condominio
+    condominio = db_core.query(Condominio).first()
     
     if not condominio:
         print("⚠ No hay condominios en la BD, omitiendo first tier demo")
         return None
     
-    # Buscar primer usuario no-admin
-    usuario = db.query(Usuario).filter(
-        Usuario.rol_base != "MSP_ADMIN"
+    # Buscar primer usuario no-admin en CORE
+    usuario = db_core.query(Usuario).filter(
+        Usuario.rol != "MSP_ADMIN"
     ).first()
     
     if not usuario:
         print("⚠ No hay usuarios no-admin, omitiendo first tier demo")
         return None
     
-    # Verificar si ya existe authority
-    existing = db.query(Authority).filter(
+    # Verificar si ya existe authority en GOV
+    existing = db_gov.query(Authority).filter(
         Authority.identity_id == usuario.usuario_id,
         Authority.tipo == AuthorityType.FIRST_TIER,
         Authority.tenant_id == condominio.condominio_id
@@ -174,9 +175,9 @@ def seed_first_tier_demo(db: Session, admin_global: Authority) -> Authority | No
         print(f"✓ First tier ya existe para {usuario.email} en {condominio.nombre}")
         return existing
     
-    # Crear first tier
+    # Crear first tier en GOV
     first_tier = crear_authority(
-        db=db,
+        db=db_gov,
         identity=usuario,
         tipo=AuthorityType.FIRST_TIER,
         tenant_id=condominio.condominio_id,
@@ -219,21 +220,23 @@ def main():
     print("SEED AUP_GOV: Bootstrap de Gobierno")
     print("═" * 80)
     
-    db = SessionLocal()
+    # ✅ Sesiones separadas por dominio
+    db_core = SessionLocal_CORE()
+    db_gov = SessionLocal_GOV()
     
     try:
-        # Verificar migración
-        if not verificar_migracion(db):
+        # Verificar migración GOV
+        if not verificar_migracion(db_gov):
             sys.exit(1)
         
-        # [1] Authority Global
-        admin_global = seed_authority_global(db)
+        # [1] Authority Global (necesita CORE para leer usuario)
+        admin_global = seed_authority_global(db_core, db_gov)
         
-        # [2] Políticas Base
-        policies = seed_policies_base(db)
+        # [2] Políticas Base (solo GOV)
+        policies = seed_policies_base(db_gov)
         
-        # [3] First Tier Demo (opcional)
-        first_tier = seed_first_tier_demo(db, admin_global)
+        # [3] First Tier Demo (necesita CORE y GOV)
+        first_tier = seed_first_tier_demo(db_core, db_gov, admin_global)
         
         # Resumen
         print("\n" + "═" * 80)
@@ -246,13 +249,15 @@ def main():
         
     except Exception as e:
         print(f"\n❌ ERROR durante seed: {str(e)}")
-        db.rollback()
+        db_core.rollback()
+        db_gov.rollback()
         import traceback
         traceback.print_exc()
         sys.exit(1)
         
     finally:
-        db.close()
+        db_core.close()
+        db_gov.close()
 
 
 if __name__ == "__main__":
