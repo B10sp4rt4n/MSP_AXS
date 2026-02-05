@@ -14,13 +14,14 @@ Día 0 (baseline):  14% ░░░░░░░░░░░░░░░░░░�
 Día 1 (JWT):       14% ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 Día 2 (Scope):     16% ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 Día 3 (Event):     20% ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+Día 4 (Gov):       25% ██████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 Meta:              60% ████████████████████████████████████████░░░░░░
 ```
 
-**Progreso:** 20% / 60% (33% del objetivo alcanzado)  
-**Incremento 72h:** +6%  
-**Velocidad:** ~2% coverage/día  
-**Días restantes:** 2-3 para alcanzar 60%
+**Progreso:** 25% / 60% (42% del objetivo alcanzado)  
+**Incremento 96h:** +11%  
+**Velocidad:** ~2.75% coverage/día  
+**Gap restante:** +35% para alcanzar meta (necesitamos routers/utils/dependencies)
 
 ---
 
@@ -138,11 +139,64 @@ Meta:              60% ███████████████████
 
 ---
 
+### Day 4: AUP_GOV (Governance Policies & Plans) ✅
+**Fecha:** 2025-02-05  
+**Commit:** `4a11985`
+
+**Tests Creados:**
+- `tests/test_aup_gov/test_policy_plans.py` (21 tests)
+
+**Funcionalidad Probada:**
+1. ✅ `test_crear_policy_global_valida` - Crear política GLOBAL
+2. ✅ `test_crear_policy_tenant_requiere_target_tenant_id` - Validación estructural
+3. ✅ `test_crear_policy_global_no_debe_tener_target_tenant_id` - Validación GLOBAL
+4. ✅ `test_crear_policy_tenant_valida` - Crear política TENANT
+5. ✅ `test_crear_policy_con_vigencia_temporal` - Vigencia limitada
+6. ✅ `test_obtener_policies_por_accion` - Query por acción
+7. ✅ `test_obtener_policies_por_tenant_incluye_global` - TENANT + GLOBAL
+8. ✅ `test_obtener_policies_solo_activas` - Filtro por estado
+9. ✅ `test_obtener_policies_respeta_vigencia_temporal` - Vigencia temporal
+10. ✅ `test_evaluar_politica_dentro_del_limite` - Evaluación permitida
+11. ✅ `test_evaluar_politica_limite_excedido` - Evaluación denegada
+12. ✅ `test_evaluar_politica_sin_politica_definida_deniega` - Axioma safe-by-default
+13. ✅ `test_evaluar_politica_tenant_especifica_tiene_prioridad` - Prioridad TENANT
+14. ✅ `test_plan_policies_definiciones` - PLAN_POLICIES FREE/PRO/ENTERPRISE
+15. ✅ `test_crear_politicas_para_plan_free` - Plan FREE (1 tenant, 20 users, sin delegación)
+16. ✅ `test_crear_politicas_para_plan_pro` - Plan PRO (5 tenants, 100 users, delegación 30d)
+17. ✅ `test_crear_politicas_para_plan_enterprise` - Plan ENTERPRISE (50 tenants, 1000 users)
+18. ✅ `test_crear_politicas_para_plan_metadata_correcta` - Metadata con plan_type
+19. ✅ `test_axioma_policy_first_sin_politica_deniega` - Axioma policy-first
+20. ✅ `test_axioma_planes_son_composiciones_de_politicas` - Planes = políticas
+21. ✅ `test_axioma_revocacion_inmediata` - Revocación sin cache
+
+**Coverage:**
+- `backend/core/gov/policy.py`: **62%**
+- `backend/core/gov/plans.py`: **37%**
+- `backend/core/gov/__init__.py`: **100%**
+- Total backend: **25%** (+5%)
+
+**Infraestructura Mejorada:**
+- Tests de evaluación de políticas (policy-first)
+- Tests de planes comerciales como composiciones
+- Validación de axiomas AUP_GOV
+- Fix: `metadata_json` en vez de `metadata` en crear_policy()
+
+**Duración:** ~3 horas
+
+**Lecciones:**
+- ✅ Política precede a operación (policy-first)
+- ✅ Sin política → denegado (safe by default)
+- ✅ Planes son composiciones de políticas (no código)
+- ✅ Revocación es inmediata (sin cache)
+- ⚠️ Coverage 25% vs meta 60% → necesitamos routers/utils/dependencies
+
+---
+
 ## 🔄 Próximos Pasos
 
-### Day 4: AUP_GOV (Governance Policies) - EN PLANIFICACIÓN  
-**Objetivo:** 50-60% total backend coverage ✅ META ALCANZADA  
-**Incremento esperado:** +30-40%
+### Day 5+: Coverage Adicional - EVALUAR PRIORIDADES  
+**Objetivo:** 60% total backend coverage ✅ META ORIGINAL  
+**Gap actual:** +35% necesarios (de 25% a 60%)
 
 **Tests a Crear:**
 - `tests/test_aup_gov/test_policy.py`
@@ -173,9 +227,9 @@ Meta:              60% ███████████████████
 | 1   | AUP_SESSION    | 14%            | 0% | 11    |
 | 2   | AUP_SCOPE      | 16%            | +2%| 22    |
 | 3   | AUP_EVENT      | 20%            | +4%| 37    |
-| 4   | AUP_GOV        | ~60%           | +40%| ~60   |
-| 5-6 | CI/CD          | 60%            | 0% | 60    |
-| 7   | Pre-commit     | 60%            | 0% | 60    |
+| 4   | AUP_GOV        | 25%            | +5%| 58    |
+| 5+  | Routers/Utils  | ~60%?          | +35%| ~100? |
+| CI/CD | GitHub Actions| 60%            | 0% | -    |
 
 **Nota:** Proyecciones basadas en tamaño de módulos y complejidad.
 
@@ -185,13 +239,15 @@ Meta:              60% ███████████████████
 
 - [x] Testing framework setup (pytest, pytest-cov, pytest-asyncio)
 - [x] Fixtures para arquitectura AUP (3 BDs)
-- [x] AUP_SESSION: 91% coverage
+- [x] AUP_SESSION: 91% coverage ⭐
 - [x] AUP_SCOPE: 58% coverage
-- [x] AUP_EVENT: 94% coverage
-- [ ] AUP_GOV: 60% coverage (Day 4)
-- [ ] Total backend: 60% coverage ✅ META
+- [x] AUP_EVENT: 94% coverage ⭐
+- [x] AUP_GOV (policy): 62% coverage
+- [x] AUP_GOV (plans): 37% coverage
+- [ ] Total backend: 60% coverage ✅ META (actualmente 25%)
+- [ ] Routers coverage (actualmente 0%)
+- [ ] Utils coverage (actualmente 0%)
 - [ ] GitHub Actions CI/CD
-- [ ] Pre-commit hooks
 - [ ] Coverage badge en README
 
 ---
@@ -267,4 +323,28 @@ open htmlcov/index.html
 
 ---
 
-**Última actualización:** Day 3 Complete (20% coverage, 37 tests passing, 1 skipped)
+## 📊 Análisis de Gap (25% → 60%)
+
+**Módulos AUP Core (completados):**
+- ✅ auth/jwt.py: 91%
+- ✅ event/registry.py: 94%  
+- ✅ gov/policy.py: 62%
+- ✅ scope/validator.py: 58%
+- ✅ models: 100%
+
+**Módulos Sin Coverage (bloquean meta 60%):**
+- ❌ routers/*.py: 0% (400+ líneas)
+- ❌ utils/*.py: 0% (150+ líneas)
+- ❌ auth/dependencies.py: 43%
+- ❌ main.py: 0%
+- ❌ gov/authority.py: 0%
+- ❌ gov/delegation.py: 0%
+
+**Recomendación:**
+1. **Opción A:** Continuar con routers (auth_router, visitas_router) → +15-20%
+2. **Opción B:** Declarar meta parcial cumplida (core AUP 75%+) y pasar a CI/CD
+3. **Opción C:** Priorizar integration tests end-to-end → +10%
+
+---
+
+**Última actualización:** Day 4 Complete (25% coverage, 58 tests passing, 1 skipped)
