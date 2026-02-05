@@ -679,3 +679,854 @@ def test_axioma_revocacion_inmediata(db_gov_session):
     # Assert: Debe denegar (revocada inmediatamente)
     assert permitido_despues is False
     assert "No hay política" in motivo  # Ya no hay política activa
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TEST: Evaluación de Políticas - Casos adicionales
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_evaluar_politica_max_dias_vigencia_permitido(db_gov_session):
+    """
+    Test: Evaluar política con max_dias_vigencia dentro del límite.
+    """
+    # Arrange
+    crear_policy(
+        db=db_gov_session,
+        nombre="Límite QR 7 días",
+        ambito=PolicyScope.GLOBAL,
+        accion_objetivo="generar_qr",
+        limites={"max_dias_vigencia": 7}
+    )
+    
+    # Act: Solicitar QR con 5 días de vigencia
+    permitido, motivo = evaluar_politica(
+        db=db_gov_session,
+        accion="generar_qr",
+        metadata={"dias_vigencia": 5}
+    )
+    
+    # Assert
+    assert permitido is True
+    assert "permitida" in motivo.lower()
+
+
+def test_evaluar_politica_max_dias_vigencia_excedido(db_gov_session):
+    """
+    Test: Evaluar política con max_dias_vigencia excedido.
+    """
+    # Arrange
+    crear_policy(
+        db=db_gov_session,
+        nombre="Límite QR 7 días",
+        ambito=PolicyScope.GLOBAL,
+        accion_objetivo="generar_qr",
+        limites={"max_dias_vigencia": 7}
+    )
+    
+    # Act: Solicitar QR con 10 días de vigencia (excede límite)
+    permitido, motivo = evaluar_politica(
+        db=db_gov_session,
+        accion="generar_qr",
+        metadata={"dias_vigencia": 10}
+    )
+    
+    # Assert
+    assert permitido is False
+    assert "Vigencia excedida" in motivo
+    assert "máximo 7 días" in motivo
+
+
+def test_evaluar_politica_max_usuarios_permitido(db_gov_session):
+    """
+    Test: Evaluar política con max_usuarios dentro del límite.
+    """
+    # Arrange
+    crear_policy(
+        db=db_gov_session,
+        nombre="Límite Usuarios Tenant",
+        ambito=PolicyScope.TENANT,
+        target_tenant_id="tenant_001",
+        accion_objetivo="crear_usuario",
+        limites={"max_usuarios": 50}
+    )
+    
+    # Act: Crear usuario cuando hay 30 actuales
+    permitido, motivo = evaluar_politica(
+        db=db_gov_session,
+        accion="crear_usuario",
+        tenant_id="tenant_001",
+        valor_actual=30
+    )
+    
+    # Assert
+    assert permitido is True
+    assert "permitida" in motivo.lower()
+
+
+def test_evaluar_politica_max_usuarios_excedido(db_gov_session):
+    """
+    Test: Evaluar política con max_usuarios excedido.
+    """
+    # Arrange
+    crear_policy(
+        db=db_gov_session,
+        nombre="Límite Usuarios Tenant",
+        ambito=PolicyScope.TENANT,
+        target_tenant_id="tenant_001",
+        accion_objetivo="crear_usuario",
+        limites={"max_usuarios": 50}
+    )
+    
+    # Act: Crear usuario cuando ya hay 50 (límite alcanzado)
+    permitido, motivo = evaluar_politica(
+        db=db_gov_session,
+        accion="crear_usuario",
+        tenant_id="tenant_001",
+        valor_actual=50
+    )
+    
+    # Assert
+    assert permitido is False
+    assert "Límite de usuarios excedido" in motivo
+    assert "máximo 50" in motivo
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TEST: Revocar Políticas
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_revocar_policy_exitoso(db_gov_session):
+    """
+    Test: Revocar una política existente y verificar estado REVOCADO.
+    """
+    from backend.core.gov.policy import revocar_policy
+    
+    # Arrange: Crear política activa
+    policy = crear_policy(
+        db=db_gov_session,
+        nombre="Política a Revocar",
+        ambito=PolicyScope.GLOBAL,
+        accion_objetivo="test_accion",
+        limites={"max_count": 10}
+    )
+    
+    assert policy.estado == GovStatus.ACTIVO
+    
+    # Act: Revocar política
+    policy_revocada = revocar_policy(
+        db=db_gov_session,
+        policy_id=policy.policy_id,
+        revocada_por="admin_001",
+        motivo="Cambio de plan comercial"
+    )
+    
+    # Assert
+    assert policy_revocada.estado == GovStatus.REVOCADO
+    assert policy_revocada.metadata_json["revoked_by"] == "admin_001"
+    assert policy_revocada.metadata_json["revoked_reason"] == "Cambio de plan comercial"
+    assert "revoked_at" in policy_revocada.metadata_json
+
+
+def test_revocar_policy_no_encontrada(db_gov_session):
+    """
+    Test: Revocar política que no existe debe lanzar HTTPException 404.
+    """
+    from backend.core.gov.policy import revocar_policy
+    from fastapi import HTTPException
+    
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc_info:
+        revocar_policy(
+            db=db_gov_session,
+            policy_id="pol_inexistente",
+            revocada_por="admin_001"
+        )
+    
+    assert exc_info.value.status_code == 404
+    assert "pol_inexistente" in str(exc_info.value.detail)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TEST: Listar Políticas
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_listar_policies_sin_filtros(db_gov_session):
+    """
+    Test: Listar todas las políticas activas sin filtros.
+    """
+    from backend.core.gov.policy import listar_policies
+    
+    # Arrange: Crear varias políticas
+    crear_policy(
+        db=db_gov_session,
+        nombre="Policy 1",
+        ambito=PolicyScope.GLOBAL,
+        accion_objetivo="accion_1",
+        limites={"max_count": 10}
+    )
+    crear_policy(
+        db=db_gov_session,
+        nombre="Policy 2",
+        ambito=PolicyScope.TENANT,
+        target_tenant_id="tenant_001",
+        accion_objetivo="accion_2",
+        limites={"max_count": 5}
+    )
+    
+    # Act: Listar todas las políticas activas
+    policies = listar_policies(db=db_gov_session)
+    
+    # Assert
+    assert len(policies) >= 2
+    assert all(p.estado == GovStatus.ACTIVO for p in policies)
+
+
+def test_listar_policies_filtro_ambito(db_gov_session):
+    """
+    Test: Listar políticas filtradas por ámbito.
+    """
+    from backend.core.gov.policy import listar_policies
+    
+    # Arrange
+    crear_policy(
+        db=db_gov_session,
+        nombre="Global Policy",
+        ambito=PolicyScope.GLOBAL,
+        accion_objetivo="accion_global",
+        limites={"max_count": 100}
+    )
+    crear_policy(
+        db=db_gov_session,
+        nombre="Tenant Policy",
+        ambito=PolicyScope.TENANT,
+        target_tenant_id="tenant_001",
+        accion_objetivo="accion_tenant",
+        limites={"max_count": 10}
+    )
+    
+    # Act: Listar solo políticas GLOBAL
+    policies_global = listar_policies(
+        db=db_gov_session,
+        ambito=PolicyScope.GLOBAL
+    )
+    
+    # Assert
+    assert len(policies_global) >= 1
+    assert all(p.ambito == PolicyScope.GLOBAL for p in policies_global)
+
+
+def test_listar_policies_filtro_accion_objetivo(db_gov_session):
+    """
+    Test: Listar políticas filtradas por acción objetivo.
+    """
+    from backend.core.gov.policy import listar_policies
+    
+    # Arrange
+    crear_policy(
+        db=db_gov_session,
+        nombre="Policy Accion X",
+        ambito=PolicyScope.GLOBAL,
+        accion_objetivo="accion_x",
+        limites={"max_count": 10}
+    )
+    crear_policy(
+        db=db_gov_session,
+        nombre="Policy Accion Y",
+        ambito=PolicyScope.GLOBAL,
+        accion_objetivo="accion_y",
+        limites={"max_count": 20}
+    )
+    
+    # Act: Listar solo políticas para accion_x
+    policies = listar_policies(
+        db=db_gov_session,
+        accion_objetivo="accion_x"
+    )
+    
+    # Assert
+    assert len(policies) >= 1
+    assert all(p.accion_objetivo == "accion_x" for p in policies)
+
+
+def test_obtener_policies_filtro_ambito(db_gov_session):
+    """
+    Test: obtener_policies con filtro por ámbito específico.
+    """
+    # Arrange
+    crear_policy(
+        db=db_gov_session,
+        nombre="Global Policy",
+        ambito=PolicyScope.GLOBAL,
+        accion_objetivo="test_accion",
+        limites={"max_count": 100}
+    )
+    crear_policy(
+        db=db_gov_session,
+        nombre="Tenant Policy",
+        ambito=PolicyScope.TENANT,
+        target_tenant_id="tenant_001",
+        accion_objetivo="test_accion",
+        limites={"max_count": 10}
+    )
+    
+    # Act: Obtener solo políticas TENANT
+    policies = obtener_policies(
+        db=db_gov_session,
+        accion_objetivo="test_accion",
+        ambito=PolicyScope.TENANT
+    )
+    
+    # Assert
+    assert len(policies) >= 1
+    assert all(p.ambito == PolicyScope.TENANT for p in policies)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TEST: Asignar Plan con Evento
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.skip(reason="Requiere fixture Usuario completo")
+def test_asignar_plan_con_evento_crea_evento(db_gov_session, db_session, db_event_session):
+    """
+    Test: asignar_plan_con_evento registra evento AUP_EVENT.
+    """
+    from backend.core.gov.plans import asignar_plan_con_evento
+    from backend.db.core.models import Usuario
+    from backend.db.event import Event
+    
+    # Arrange: Crear usuarios
+    admin = Usuario(
+        usuario_id="admin_001",
+        email="admin@test.com",
+        nombre="Admin",
+        apellido="Test",
+        rol="ADMIN",
+        hashed_password="hash"
+    )
+    target = Usuario(
+        usuario_id="user_001",
+        email="user@test.com",
+        nombre="User",
+        apellido="Test",
+        rol="RESIDENTE",
+        hashed_password="hash"
+    )
+    db_session.add_all([admin, target])
+    db_session.commit()
+    
+    # Act: Asignar plan con evento
+    policies, summary = asignar_plan_con_evento(
+        db=db_gov_session,
+        ejecutor=admin,
+        session_token="session_token_admin",
+        target_user=target,
+        plan_type=PlanType.PRO,
+        tenant_id="tenant_test"
+    )
+    
+    # Assert: Evento registrado
+    eventos = db_event_session.query(Event).filter(
+        Event.identity_id == admin.usuario_id
+    ).all()
+    
+    assert len(eventos) >= 1
+    evento = eventos[-1]  # Último evento
+    assert evento.accion == "asignar"
+    assert "plan_change" in evento.entidad_id
+    assert evento.resultado == "exito"
+
+
+@pytest.mark.skip(reason="Requiere fixture Usuario completo")
+def test_asignar_plan_con_evento_revoca_plan_anterior(db_gov_session, db_session, db_event_session):
+    """
+    Test: asignar_plan_con_evento revoca políticas del plan anterior.
+    """
+    from backend.core.gov.plans import asignar_plan_con_evento, crear_politicas_para_plan
+    from backend.db.core.models import Usuario
+    
+    # Arrange: Usuario con plan Free existente
+    user = Usuario(
+        usuario_id="user_002",
+        email="user2@test.com",
+        nombre="User",
+        apellido="Two",
+        rol="RESIDENTE",
+        hashed_password="hash"
+    )
+    admin = Usuario(
+        usuario_id="admin_002",
+        email="admin2@test.com",
+        nombre="Admin",
+        apellido="Two",
+        rol="ADMIN",
+        hashed_password="hash"
+    )
+    db_session.add_all([user, admin])
+    db_session.commit()
+    
+    # Crear plan Free inicial
+    policies_free = crear_politicas_para_plan(
+        db=db_gov_session,
+        plan_type=PlanType.FREE,
+        target_identity_id=user.usuario_id
+    )
+    assert all(p.estado == GovStatus.ACTIVO for p in policies_free)
+    
+    # Act: Cambiar a plan Pro
+    policies_pro, summary = asignar_plan_con_evento(
+        db=db_gov_session,
+        ejecutor=admin,
+        session_token="session_admin",
+        target_user=user,
+        plan_type=PlanType.PRO
+    )
+    
+    # Assert: Políticas Free revocadas
+    db_gov_session.refresh(policies_free[0])
+    assert all(p.estado == GovStatus.REVOCADO for p in policies_free)
+    
+    # Assert: Summary correcto
+    assert summary["plan_anterior"] == "free"
+    assert summary["plan_nuevo"] == "pro"
+    assert summary["politicas_revocadas"] >= 5
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TEST: Obtener Plan Actual
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_obtener_plan_actual_sin_plan(db_gov_session):
+    """
+    Test: obtener_plan_actual retorna None si usuario no tiene plan.
+    """
+    from backend.core.gov.plans import obtener_plan_actual
+    
+    # Act
+    plan = obtener_plan_actual(db=db_gov_session, usuario_id="usuario_sin_plan")
+    
+    # Assert
+    assert plan is None
+
+
+def test_obtener_plan_actual_con_plan_activo(db_gov_session):
+    """
+    Test: obtener_plan_actual retorna plan si usuario tiene políticas activas.
+    """
+    from backend.core.gov.plans import obtener_plan_actual, crear_politicas_para_plan
+    
+    # Arrange: Crear plan Pro para usuario
+    usuario_id = "user_plan_test"
+    crear_politicas_para_plan(
+        db=db_gov_session,
+        plan_type=PlanType.PRO,
+        target_identity_id=usuario_id
+    )
+    
+    # Act
+    plan = obtener_plan_actual(db=db_gov_session, usuario_id=usuario_id)
+    
+    # Assert
+    assert plan is not None
+    assert plan["plan_type"] == "pro"
+    assert plan["politicas_activas"] >= 5
+    assert "max_tenants" in plan["limites"]
+
+
+def test_obtener_plan_actual_extrae_limites_correctamente(db_gov_session):
+    """
+    Test: obtener_plan_actual extrae límites de políticas correctamente.
+    """
+    from backend.core.gov.plans import obtener_plan_actual, crear_politicas_para_plan
+    
+    # Arrange
+    usuario_id = "user_limites_test"
+    crear_politicas_para_plan(
+        db=db_gov_session,
+        plan_type=PlanType.ENTERPRISE,
+        target_identity_id=usuario_id
+    )
+    
+    # Act
+    plan = obtener_plan_actual(db=db_gov_session, usuario_id=usuario_id)
+    
+    # Assert
+    limites = plan["limites"]
+    assert limites["max_tenants"] == 50  # Enterprise
+    assert limites["max_usuarios"] == 1000
+    assert limites["max_qr_vigencia"] == 30
+    assert limites["max_visitas_mes"] == 10000
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TEST: Upgrade Plan
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.skip(reason="Requiere fixture Usuario completo")
+def test_upgrade_plan_de_free_a_pro(db_gov_session, db_session, db_event_session):
+    """
+    Test: upgrade_plan de FREE a PRO.
+    """
+    from backend.core.gov.plans import upgrade_plan, crear_politicas_para_plan
+    from backend.db.core.models import Usuario
+    
+    # Arrange: Usuario con plan Free
+    user = Usuario(
+        usuario_id="user_upgrade_1",
+        email="upgrade1@test.com",
+        nombre="Upgrade",
+        apellido="One",
+        rol="RESIDENTE",
+        hashed_password="hash"
+    )
+    admin = Usuario(
+        usuario_id="admin_upgrade_1",
+        email="admin_upgrade1@test.com",
+        nombre="Admin",
+        apellido="Upgrade",
+        rol="ADMIN",
+        hashed_password="hash"
+    )
+    db_session.add_all([user, admin])
+    db_session.commit()
+    
+    crear_politicas_para_plan(
+        db=db_gov_session,
+        plan_type=PlanType.FREE,
+        target_identity_id=user.usuario_id
+    )
+    
+    # Act: Upgrade
+    result = upgrade_plan(
+        db=db_gov_session,
+        ejecutor=admin,
+        session_token="session_admin",
+        target_user=user
+    )
+    
+    # Assert
+    assert result["status"] == "upgrade_exitoso"
+    assert result["plan_anterior"] == "free"
+    assert result["plan_nuevo"] == "pro"
+
+
+@pytest.mark.skip(reason="Requiere fixture Usuario completo")
+def test_upgrade_plan_de_pro_a_enterprise(db_gov_session, db_session, db_event_session):
+    """
+    Test: upgrade_plan de PRO a ENTERPRISE.
+    """
+    from backend.core.gov.plans import upgrade_plan, crear_politicas_para_plan
+    from backend.db.core.models import Usuario
+    
+    # Arrange
+    user = Usuario(
+        usuario_id="user_upgrade_2",
+        email="upgrade2@test.com",
+        nombre="Upgrade",
+        apellido="Two",
+        rol="RESIDENTE",
+        hashed_password="hash"
+    )
+    admin = Usuario(
+        usuario_id="admin_upgrade_2",
+        email="admin_upgrade2@test.com",
+        nombre="Admin",
+        apellido="Two",
+        rol="ADMIN",
+        hashed_password="hash"
+    )
+    db_session.add_all([user, admin])
+    db_session.commit()
+    
+    crear_politicas_para_plan(
+        db=db_gov_session,
+        plan_type=PlanType.PRO,
+        target_identity_id=user.usuario_id
+    )
+    
+    # Act
+    result = upgrade_plan(
+        db=db_gov_session,
+        ejecutor=admin,
+        session_token="session_admin",
+        target_user=user
+    )
+    
+    # Assert
+    assert result["status"] == "upgrade_exitoso"
+    assert result["plan_anterior"] == "pro"
+    assert result["plan_nuevo"] == "enterprise"
+
+
+@pytest.mark.skip(reason="Requiere fixture Usuario completo")
+def test_upgrade_plan_sin_plan_asigna_free(db_gov_session, db_session, db_event_session):
+    """
+    Test: upgrade_plan sin plan previo asigna FREE.
+    """
+    from backend.core.gov.plans import upgrade_plan
+    from backend.db.core.models import Usuario
+    
+    # Arrange: Usuario sin plan
+    user = Usuario(
+        usuario_id="user_upgrade_3",
+        email="upgrade3@test.com",
+        nombre="Upgrade",
+        apellido="Three",
+        rol="RESIDENTE",
+        hashed_password="hash"
+    )
+    admin = Usuario(
+        usuario_id="admin_upgrade_3",
+        email="admin_upgrade3@test.com",
+        nombre="Admin",
+        apellido="Three",
+        rol="ADMIN",
+        hashed_password="hash"
+    )
+    db_session.add_all([user, admin])
+    db_session.commit()
+    
+    # Act
+    result = upgrade_plan(
+        db=db_gov_session,
+        ejecutor=admin,
+        session_token="session_admin",
+        target_user=user
+    )
+    
+    # Assert
+    assert result["status"] == "upgrade_exitoso"
+    assert result["plan_nuevo"] == "free"
+
+
+@pytest.mark.skip(reason="Requiere fixture Usuario completo")
+def test_upgrade_plan_ya_en_enterprise(db_gov_session, db_session, db_event_session):
+    """
+    Test: upgrade_plan estando en ENTERPRISE no hace nada.
+    """
+    from backend.core.gov.plans import upgrade_plan, crear_politicas_para_plan
+    from backend.db.core.models import Usuario
+    
+    # Arrange: Usuario con Enterprise
+    user = Usuario(
+        usuario_id="user_upgrade_4",
+        email="upgrade4@test.com",
+        nombre="Upgrade",
+        apellido="Four",
+        rol="RESIDENTE",
+        hashed_password="hash"
+    )
+    admin = Usuario(
+        usuario_id="admin_upgrade_4",
+        email="admin_upgrade4@test.com",
+        nombre="Admin",
+        apellido="Four",
+        rol="ADMIN",
+        hashed_password="hash"
+    )
+    db_session.add_all([user, admin])
+    db_session.commit()
+    
+    crear_politicas_para_plan(
+        db=db_gov_session,
+        plan_type=PlanType.ENTERPRISE,
+        target_identity_id=user.usuario_id
+    )
+    
+    # Act
+    result = upgrade_plan(
+        db=db_gov_session,
+        ejecutor=admin,
+        session_token="session_admin",
+        target_user=user
+    )
+    
+    # Assert
+    assert result["status"] == "ya_en_plan_maximo"
+    assert result["plan_actual"] == "enterprise"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TEST: Downgrade Plan
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.skip(reason="Requiere fixture Usuario completo")
+def test_downgrade_plan_de_enterprise_a_pro(db_gov_session, db_session, db_event_session):
+    """
+    Test: downgrade_plan de ENTERPRISE a PRO.
+    """
+    from backend.core.gov.plans import downgrade_plan, crear_politicas_para_plan
+    from backend.db.core.models import Usuario
+    
+    # Arrange
+    user = Usuario(
+        usuario_id="user_downgrade_1",
+        email="downgrade1@test.com",
+        nombre="Downgrade",
+        apellido="One",
+        rol="RESIDENTE",
+        hashed_password="hash"
+    )
+    admin = Usuario(
+        usuario_id="admin_downgrade_1",
+        email="admin_downgrade1@test.com",
+        nombre="Admin",
+        apellido="One",
+        rol="ADMIN",
+        hashed_password="hash"
+    )
+    db_session.add_all([user, admin])
+    db_session.commit()
+    
+    crear_politicas_para_plan(
+        db=db_gov_session,
+        plan_type=PlanType.ENTERPRISE,
+        target_identity_id=user.usuario_id
+    )
+    
+    # Act
+    result = downgrade_plan(
+        db=db_gov_session,
+        ejecutor=admin,
+        session_token="session_admin",
+        target_user=user
+    )
+    
+    # Assert
+    assert result["status"] == "downgrade_inmediato"
+    assert result["plan_anterior"] == "enterprise"
+    assert result["plan_nuevo"] == "pro"
+
+
+@pytest.mark.skip(reason="Requiere fixture Usuario completo")
+def test_downgrade_plan_de_pro_a_free(db_gov_session, db_session, db_event_session):
+    """
+    Test: downgrade_plan de PRO a FREE.
+    """
+    from backend.core.gov.plans import downgrade_plan, crear_politicas_para_plan
+    from backend.db.core.models import Usuario
+    
+    # Arrange
+    user = Usuario(
+        usuario_id="user_downgrade_2",
+        email="downgrade2@test.com",
+        nombre="Downgrade",
+        apellido="Two",
+        rol="RESIDENTE",
+        hashed_password="hash"
+    )
+    admin = Usuario(
+        usuario_id="admin_downgrade_2",
+        email="admin_downgrade2@test.com",
+        nombre="Admin",
+        apellido="Two",
+        rol="ADMIN",
+        hashed_password="hash"
+    )
+    db_session.add_all([user, admin])
+    db_session.commit()
+    
+    crear_politicas_para_plan(
+        db=db_gov_session,
+        plan_type=PlanType.PRO,
+        target_identity_id=user.usuario_id
+    )
+    
+    # Act
+    result = downgrade_plan(
+        db=db_gov_session,
+        ejecutor=admin,
+        session_token="session_admin",
+        target_user=user
+    )
+    
+    # Assert
+    assert result["status"] == "downgrade_inmediato"
+    assert result["plan_anterior"] == "pro"
+    assert result["plan_nuevo"] == "free"
+
+
+@pytest.mark.skip(reason="Requiere fixture Usuario completo")
+def test_downgrade_plan_ya_en_free(db_gov_session, db_session, db_event_session):
+    """
+    Test: downgrade_plan estando en FREE no hace nada.
+    """
+    from backend.core.gov.plans import downgrade_plan, crear_politicas_para_plan
+    from backend.db.core.models import Usuario
+    
+    # Arrange
+    user = Usuario(
+        usuario_id="user_downgrade_3",
+        email="downgrade3@test.com",
+        nombre="Downgrade",
+        apellido="Three",
+        rol="RESIDENTE",
+        hashed_password="hash"
+    )
+    admin = Usuario(
+        usuario_id="admin_downgrade_3",
+        email="admin_downgrade3@test.com",
+        nombre="Admin",
+        apellido="Three",
+        rol="ADMIN",
+        hashed_password="hash"
+    )
+    db_session.add_all([user, admin])
+    db_session.commit()
+    
+    crear_politicas_para_plan(
+        db=db_gov_session,
+        plan_type=PlanType.FREE,
+        target_identity_id=user.usuario_id
+    )
+    
+    # Act
+    result = downgrade_plan(
+        db=db_gov_session,
+        ejecutor=admin,
+        session_token="session_admin",
+        target_user=user
+    )
+    
+    # Assert
+    assert result["status"] == "ya_en_plan_minimo"
+    assert result["plan_actual"] == "free"
+
+
+@pytest.mark.skip(reason="Requiere fixture Usuario completo")
+def test_downgrade_plan_sin_plan(db_gov_session, db_session, db_event_session):
+    """
+    Test: downgrade_plan sin plan previo retorna error.
+    """
+    from backend.core.gov.plans import downgrade_plan
+    from backend.db.core.models import Usuario
+    
+    # Arrange: Usuario sin plan
+    user = Usuario(
+        usuario_id="user_downgrade_4",
+        email="downgrade4@test.com",
+        nombre="Downgrade",
+        apellido="Four",
+        rol="RESIDENTE",
+        hashed_password="hash"
+    )
+    admin = Usuario(
+        usuario_id="admin_downgrade_4",
+        email="admin_downgrade4@test.com",
+        nombre="Admin",
+        apellido="Four",
+        rol="ADMIN",
+        hashed_password="hash"
+    )
+    db_session.add_all([user, admin])
+    db_session.commit()
+    
+    # Act
+    result = downgrade_plan(
+        db=db_gov_session,
+        ejecutor=admin,
+        session_token="session_admin",
+        target_user=user
+    )
+    
+    # Assert
+    assert result["status"] == "sin_plan"

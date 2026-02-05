@@ -154,9 +154,9 @@ def patch_get_event_db(monkeypatch, db_event_session):
 
 @pytest.fixture(scope="function")
 def db_engine():
-    """Motor de BD temporal en memoria (SQLite)."""
+    """Motor de BD temporal en memoria (SQLite) para backend.db.core."""
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    Base.metadata.create_all(bind=engine)
+    Base_CORE.metadata.create_all(bind=engine)
     yield engine
     engine.dispose()
 
