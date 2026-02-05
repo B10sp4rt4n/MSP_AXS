@@ -126,6 +126,29 @@ def setup_test_environment():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Monkeypatch for registrar_evento()
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(scope="function", autouse=True)
+def patch_get_event_db(monkeypatch, db_event_session):
+    """
+    Monkeypatch get_event_db() to return test DB session.
+    
+    This is necessary because registrar_evento() calls get_event_db()
+    internally, which would try to connect to the real database.
+    """
+    def mock_get_event_db():
+        """Return the test db_event_session as a generator."""
+        yield db_event_session
+    
+    # Patch backend.db.event.get_event_db
+    import backend.db.event
+    monkeypatch.setattr(backend.db.event, "get_event_db", mock_get_event_db)
+    
+    yield
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # DATABASE FIXTURES
 # ═══════════════════════════════════════════════════════════════════════════
 
