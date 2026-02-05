@@ -74,6 +74,7 @@ export CLOUDINARY_API_SECRET=tu-api-secret
 # 2. Instalar dependencia
 pip install cloudinary
 
+<<<<<<< HEAD
 # 3. Verificar configuración
 python scripts/verify_cloudinary.py
 
@@ -84,6 +85,20 @@ python test_cloudinary_upload.py
 **⏱️ Tiempo de configuración:** 30 minutos  
 **💰 Costo Año 1:** $0/mes (Free tier)  
 **🎯 Estado:** ✅ **COMPLETADO** - Operativo al 100% (30 Enero 2026)
+=======
+# 3. Probar conexión
+python -c "from backend.utils.cloudinary_service import CloudinaryService; CloudinaryService()"
+
+# 4. Subir evidencia de prueba
+curl -X POST http://localhost:8000/evidencias/entrada/test_123 \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "foto_visitante=@test.jpg"
+```
+
+**⏱️ Tiempo de configuración:** 30 minutos  
+**💰 Costo Año 1:** $5/mes  
+**🎯 Estado:** ✅ Implementación completa, pendiente configuración
+>>>>>>> main
 
 ---
 
@@ -107,6 +122,7 @@ cp .env.template .env
 openssl rand -hex 32
 ```
 
+<<<<<<< HEAD
 **🔴 CRÍTICO - Cloudinary (Sistema de Evidencias):**
 
 Para que el sistema de evidencias funcione, DEBES configurar Cloudinary:
@@ -130,6 +146,17 @@ python -c "from backend.utils.cloudinary_service import CloudinaryService; print
 
 📖 **Guía completa:** [docs/CLOUDINARY_SETUP.md](docs/CLOUDINARY_SETUP.md)
 
+=======
+**Opcional - Cloudinary (Fase 1):**
+```bash
+# Agregar al .env
+USE_CLOUDINARY=true
+CLOUDINARY_CLOUD_NAME=tu-cloud-name
+CLOUDINARY_API_KEY=tu-api-key
+CLOUDINARY_API_SECRET=tu-api-secret
+```
+
+>>>>>>> main
 ### 3. Ejecutar migraciones de BD
 
 ```bash

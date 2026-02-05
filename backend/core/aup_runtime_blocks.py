@@ -72,11 +72,15 @@ class AUPSessionGuard(BaseHTTPMiddleware):
         "/auth/login",  # Login es la ÚNICA forma de obtener SESSION
         "/api/auth/login",  # Login con prefijo /api (para proxy de Vite)
         "/auth/register",
+<<<<<<< HEAD
         "/api/auth/register",  # Register con prefijo /api
         "/login.html",  # Página de login
         "/admin.html",  # Panel de administración (valida token en cliente)
         "/guardia.html",  # Modo guardia (valida token en cliente)
         "/update_token.html",  # Página de actualización de token
+=======
+        "/admin.html",  # Panel de administración (valida token en cliente)
+>>>>>>> main
     }
     
     async def dispatch(self, request: Request, call_next: Callable):

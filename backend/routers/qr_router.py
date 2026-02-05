@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 from ..core.dependencies import get_db
 from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
+<<<<<<< HEAD
 from backend.db.core import Visita, Usuario, QRCode
+=======
+from backend.db.core import Visita, Usuario
+>>>>>>> main
 from ..services import qr_service, visita_service
 from ..services.qr_share_service import QRShareService
 from ..services.notification_service import notification_service

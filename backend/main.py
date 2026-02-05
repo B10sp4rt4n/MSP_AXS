@@ -52,7 +52,15 @@ from .routers import (
     auth_router,  # ← Router de autenticación AUP
     condominios_router,  # ← Router con gobierno integrado
     canario_router,  # ← 🐤 Router canario AUP
+<<<<<<< HEAD
     msp_router,  # ← Router de MSPs
+=======
+<<<<<<< HEAD
+    msp_router,  # ← Router de MSPs
+=======
+    # meta_router,  # ← Router meta-operativo v1.0 (CONGELADO) - DISABLED: archivo no existe
+>>>>>>> origin/main
+>>>>>>> main
 )
 
 from .core.config import settings
@@ -65,6 +73,19 @@ app = FastAPI(
     description="Sistema de gestión de accesos con arquitectura AUP completa (SESSION + SCOPE + EVENT + GOV)",
     version="3.0.0-aup-gov"
 )
+
+# ============================================================
+#   🌍 CORS: Permitir requests desde cualquier origen
+# ============================================================
+# Necesario para GitHub Codespaces y otros entornos de desarrollo
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # En producción, restringir a dominios conocidos
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+logger.info("🌍 CORS ACTIVADO: Requests desde cualquier origen permitidas")
 
 # ============================================================
 #   🔒 BLOQUEO AUP-01: No acción sin SESSION
@@ -121,6 +142,7 @@ app.include_router(canario_router.router)
 app.include_router(auth_router.router, prefix="/api")
 
 # Routers protegidos (requieren AUP_SESSION)
+<<<<<<< HEAD
 app.include_router(msp_router.router, prefix="/api")
 app.include_router(visitas_router.router, prefix="/api")
 app.include_router(qr_router.router, prefix="/api")
@@ -128,6 +150,18 @@ app.include_router(evidencias_router.router, prefix="/api")  # Router legacy
 app.include_router(evidencias_router_cloudinary.router, prefix="/api")  # ✨ Router con Cloudinary
 app.include_router(preregistro_router.router, prefix="/api")
 app.include_router(condominios_router.router, prefix="/api")
+=======
+app.include_router(msp_router.router)
+app.include_router(visitas_router.router)
+app.include_router(qr_router.router)
+app.include_router(evidencias_router.router)
+app.include_router(preregistro_router.router)
+app.include_router(condominios_router.router)
+>>>>>>> main
+
+# ✅ Router Meta-Operativo v1.0 (CONGELADO)
+# NO usa middleware de tenant (dominio separado)
+# app.include_router(meta_router.router)  # DISABLED: archivo no existe
 
 
 # ============================================================
@@ -162,6 +196,7 @@ if os.path.exists(static_dir):
     async def serve_admin():
         """Servir panel administrativo."""
         return FileResponse(os.path.join(static_dir, "admin.html"))
+<<<<<<< HEAD
     
     @app.get("/login.html")
     async def serve_login():
@@ -172,6 +207,8 @@ if os.path.exists(static_dir):
     async def serve_guardia():
         """Servir panel de guardia."""
         return FileResponse(os.path.join(static_dir, "guardia.html"))
+=======
+>>>>>>> main
 else:
     @app.get("/")
     def read_root():

@@ -132,10 +132,14 @@ def crear_condominio(
     OPERACIÓN CRÍTICA: Requiere evaluación de AUP_GOV
     ═══════════════════════════════════════════════════════════════════════
     """
+<<<<<<< HEAD
     logger.info(f"📝 Crear condominio solicitado por: {usuario.email} (rol: {usuario.rol})")
     
     if usuario.rol not in ["MSP_ADMIN", "ADMIN"]:
         logger.warning(f"🚫 Acceso denegado: usuario {usuario.email} tiene rol {usuario.rol}")
+=======
+    if usuario.rol not in ["MSP_ADMIN", "ADMIN"]:
+>>>>>>> main
         raise HTTPException(403, detail="Requiere rol MSP_ADMIN")
     
     # Validar que el MSP existe
@@ -231,14 +235,21 @@ def crear_casa(
         )
         
         db.add(nuevo_usuario)
+<<<<<<< HEAD
         db.flush()  # Asegurar que el usuario se inserte primero
+=======
+>>>>>>> main
         
         # Crear scope para el usuario
         scope = UserTenantScope(
             usuario_id=usuario_id,
             tenant_id=condominio_id,
             access_level=AccessLevel.RESIDENTE,
+<<<<<<< HEAD
             estado="ACTIVO"
+=======
+            estado="activo"
+>>>>>>> main
         )
         db.add(scope)
         db.commit()

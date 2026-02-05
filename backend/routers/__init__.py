@@ -7,6 +7,10 @@ from . import evidencias_router_cloudinary
 from . import preregistro_router
 from . import auth_router
 from . import canario_router
+<<<<<<< HEAD
+=======
+# from . import meta_router  # ← Dominio Meta-Operativo v1.0 (CONGELADO) - DISABLED: archivo no existe
+>>>>>>> main
 
 __all__ = [
     "msp_router",
@@ -18,4 +22,8 @@ __all__ = [
     "preregistro_router",
     "auth_router",
     "canario_router",
+<<<<<<< HEAD
+=======
+    # "meta_router",  # Disabled - archivo no existe
+>>>>>>> main
 ]

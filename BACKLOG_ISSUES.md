@@ -8,17 +8,25 @@
 
 ## 🔴 MUST HAVE (Semana 1-2) - MVP Funcional
 
+<<<<<<< HEAD
 ### ✅ Issue #1: Configurar Cloudinary en Producción [COMPLETADO]
 **Prioridad:** 🔴 P0 - CRÍTICO  
 **Estimación:** 2 horas  
 **Tiempo real:** 30 minutos
 **Bloqueante:** SÍ (bloquea evidencias fotográficas)
 **Completado:** 30 Enero 2026
+=======
+### Issue #1: Configurar Cloudinary en Producción
+**Prioridad:** 🔴 P0 - CRÍTICO  
+**Estimación:** 2 horas  
+**Bloqueante:** SÍ (bloquea evidencias fotográficas)
+>>>>>>> main
 
 **Descripción:**
 Sistema de evidencias implementado pero no configurado. Necesitamos credenciales y variables de entorno.
 
 **Tareas:**
+<<<<<<< HEAD
 - [x] Crear cuenta Cloudinary (free tier)
 - [x] Obtener credenciales (cloud_name, api_key, api_secret)
 - [x] Agregar a `.env` local
@@ -43,6 +51,20 @@ Sistema de evidencias implementado pero no configurado. Necesitamos credenciales
 - ✅ Transformaciones on-the-fly funcionando
 - ✅ URLs públicas accesibles vía CDN
 
+=======
+- [ ] Crear cuenta Cloudinary (free tier)
+- [ ] Obtener credenciales (cloud_name, api_key, api_secret)
+- [ ] Agregar a `.env` local
+- [ ] Agregar a Railway environment variables
+- [ ] Testing: Subir foto de prueba via Postman
+- [ ] Verificar foto en Cloudinary console
+
+**Criterio de aceptación:**
+- ✅ Foto subida exitosamente vía API
+- ✅ URL generada accesible desde navegador
+- ✅ Thumbnail de 200x200 generado automáticamente
+
+>>>>>>> main
 **Referencias:**
 - [CLOUDINARY_SETUP.md](/workspaces/MSP_AXS/docs/CLOUDINARY_SETUP.md)
 - [CloudinaryService](/workspaces/MSP_AXS/backend/utils/cloudinary_service.py)

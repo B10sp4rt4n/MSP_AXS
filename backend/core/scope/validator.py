@@ -28,7 +28,15 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 import logging
 
+<<<<<<< HEAD
 from backend.db.core import UserTenantScope, Usuario, AccessLevel, ScopeStatus
+=======
+<<<<<<< HEAD
+from backend.db.core import UserTenantScope, Usuario, AccessLevel, ScopeStatus
+=======
+from backend.db.models import UserTenantScope, Usuario, AccessLevel, ScopeStatus
+>>>>>>> origin/main
+>>>>>>> main
 
 logger = logging.getLogger("axs.scope")
 

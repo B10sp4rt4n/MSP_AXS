@@ -72,7 +72,7 @@ def crear_policy(
         valida_desde=valida_desde or datetime.utcnow(),
         valida_hasta=valida_hasta,
         estado=GovStatus.ACTIVO,
-        metadata=metadata,
+        metadata_json=metadata,  # Campo correcto del modelo
         created_at=datetime.utcnow()
     )
     

@@ -126,6 +126,7 @@
             margin-top: 20px;
         }
 
+<<<<<<< HEAD
         .flow-card {
             background: #f8f9fa;
             border-radius: 12px;
@@ -163,6 +164,8 @@
             font-weight: 500;
         }
 
+=======
+>>>>>>> main
         table {
             width: 100%;
             border-collapse: collapse;
@@ -278,10 +281,16 @@
     <div class="container">
         <button class="logout-btn" onclick="logout()">🚪 Cerrar Sesión</button>
         <button class="logout-btn" style="right: 200px; background: #17a2b8;" onclick="mostrarTokenDebug()" title="Ver token para debugging">🔐 Ver Token</button>
+<<<<<<< HEAD
         <a class="logout-btn" style="right: 380px; background: #10b981; text-decoration: none; display: inline-block;" href="/guardia.html">🛡️ Modo Guardia</a>
         
         <h1>🏢 Panel de Administración MSP</h1>
         <p class="subtitle">Gestión de MSPs, Condominios y Residentes • v2 Flujos & QR</p>
+=======
+        
+        <h1>🏢 Panel de Administración MSP</h1>
+        <p class="subtitle">Gestión de MSPs, Condominios y Residentes</p>
+>>>>>>> main
 
         <div id="stats" class="grid">
             <div class="card">
@@ -301,7 +310,10 @@
         <div class="tabs">
             <button class="tab active" onclick="showTab('msps')">📦 MSPs</button>
             <button class="tab" onclick="showTab('condominios')">🏘️ Estructura</button>
+<<<<<<< HEAD
             <button class="tab" onclick="showTab('qr')">🧾 Flujos & QR</button>
+=======
+>>>>>>> main
         </div>
 
         <!-- TAB: MSPs -->
@@ -353,6 +365,7 @@
             <div id="estructuraContainer"></div>
         </div>
 
+<<<<<<< HEAD
         <!-- TAB: Flujos & QR -->
         <div id="qr-tab" class="tab-content">
             <div class="flow-card">
@@ -420,6 +433,8 @@
             </div>
         </div>
 
+=======
+>>>>>>> main
         <div id="messages"></div>
     </div>
 
@@ -549,6 +564,7 @@
             setTimeout(() => messagesDiv.innerHTML = '', 5000);
         }
 
+<<<<<<< HEAD
         async function generarQRGobernado() {
             const visitante = document.getElementById('qrVisitante').value.trim();
             const tenantId = document.getElementById('qrTenant').value.trim() || 'default_tenant';
@@ -661,6 +677,8 @@
             }
         }
 
+=======
+>>>>>>> main
         async function cargarEstadisticas() {
             try {
                 const [mspsResp, condosResp] = await Promise.all([
