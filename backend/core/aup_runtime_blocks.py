@@ -30,7 +30,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.orm import Session
 import logging
 
-from backend.core.auth.jwt import decode_access_token
+from backend.core.auth.jwt import decode_access_token, verify_clerk_token
 from backend.db.event import get_event_db
 from backend.core.event.registry import registrar_evento
 from backend.core.event import EventEntity, EventAction, EventResult
@@ -121,9 +121,9 @@ class AUPSessionGuard(BaseHTTPMiddleware):
             token = auth_header.replace("Bearer ", "")
             logger.debug(f"🔍 Token extraído: {token[:30]}... (primeros 30 chars)")
             
-            payload = decode_access_token(token)
+            payload = verify_clerk_token(token) or decode_access_token(token)
             logger.debug(f"🔍 Payload después de decode: {payload}")
-            
+
             if not payload:
                 logger.warning(f"🚫 AUP-01 BLOQUEADO: Payload vacío/None después de decode")
                 logger.warning(f"   Token que se intentó: {token[:50]}...")
