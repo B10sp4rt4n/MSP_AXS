@@ -89,7 +89,7 @@ def validar_qr(
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
 ):
     logger = logging.getLogger("axs.qr")
-    verificar_rol(usuario, ["GUARDIA"])
+    verificar_rol(usuario, ["GUARDIA", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
 
     visita = db.query(Visita).filter(Visita.visita_id == visita_id).first()
     if not visita:
