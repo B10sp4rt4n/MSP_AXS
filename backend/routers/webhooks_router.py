@@ -37,11 +37,12 @@ async def clerk_webhook(
     """
     body = await request.body()
 
+    import json
     # Verificar firma del webhook
     if CLERK_WEBHOOK_SECRET:
         try:
             wh = Webhook(CLERK_WEBHOOK_SECRET)
-            payload = wh.verify(body, {
+            wh.verify(body, {
                 "svix-id": svix_id,
                 "svix-timestamp": svix_timestamp,
                 "svix-signature": svix_signature,
@@ -49,9 +50,10 @@ async def clerk_webhook(
         except WebhookVerificationError:
             raise HTTPException(status_code=400, detail="Firma de webhook inválida")
     else:
-        import json
-        payload = json.loads(body)
         logger.warning("CLERK_WEBHOOK_SECRET no configurado — webhook sin verificar")
+
+    # Parsear body independientemente del resultado de verify()
+    payload = json.loads(body)
 
     event_type = payload.get("type")
     data = payload.get("data", {})
