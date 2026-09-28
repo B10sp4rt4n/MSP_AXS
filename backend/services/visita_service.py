@@ -116,59 +116,50 @@ def crear_desde_preregistro(db: Session, data: Any, usuario: Any) -> Visita:
     vigencia = getattr(data, "fecha_visita", None)
 
     try:
-        # Transacción atómica
-        with db.begin():
+        visita_id = generar_visita_id()
+        visita = Visita(
+            visita_id=visita_id,
+            condominio_id=condominio_id,
+            nombre_visitante=nombre_visitante,
+            casa_unidad=casa_unidad,
+            tipo_visita=tipo_visita,
+            vigencia=vigencia,
+            estado="pendiente",
+        )
+        db.add(visita)
+        db.flush()  # Persist visita row so FK in evidencias resolves
 
-            visita_id = generar_visita_id()
-            visita = Visita(
-                visita_id=visita_id,
-                condominio_id=condominio_id,
-                nombre_visitante=nombre_visitante,
-                casa_unidad=casa_unidad,
-                tipo_visita=tipo_visita,
-                vigencia=vigencia,
-                estado="pendiente",
+        # Metadata opcional
+        metadata = {}
+        notas = _normalize_str(getattr(data, "notas", None))
+        placa = _normalize_str(getattr(data, "placa", None))
+        documento = _normalize_str(getattr(data, "documento", None))
+
+        if notas:
+            metadata["notas"] = notas
+        if placa:
+            metadata["placa"] = placa
+        if documento:
+            metadata["documento"] = documento
+
+        if metadata:
+            evidencia = Evidencia(
+                evidencia_id=str(uuid.uuid4()),
+                visita_id=visita.visita_id,
+                categoria="preregistro",
+                sub_tipo="preregistro_metadata",
+                archivo_url="",      # ⚠️ Nunca NULL
+                hash_sha256="",      # ⚠️ Nunca NULL
+                guardia_id=getattr(usuario, "usuario_id", None),
+                metadata_json={**metadata, "created_by": getattr(usuario, "usuario_id", None)},
             )
-            db.add(visita)
-            db.flush()  # Ensure visita_id is persisted before FK reference in evidencia
+            db.add(evidencia)
 
-            # Metadata opcional
-            metadata = {}
-            notas = _normalize_str(getattr(data, "notas", None))
-            placa = _normalize_str(getattr(data, "placa", None))
-            documento = _normalize_str(getattr(data, "documento", None))
-
-            if notas:
-                metadata["notas"] = notas
-            if placa:
-                metadata["placa"] = placa
-            if documento:
-                metadata["documento"] = documento
-
-            if metadata:
-                evidencia = Evidencia(
-                    evidencia_id=str(uuid.uuid4()),
-                    visita_id=visita.visita_id,
-                    categoria="preregistro",
-                    sub_tipo="preregistro_metadata",
-                    archivo_url="",      # ⚠️ Nunca NULL
-                    hash_sha256="",      # ⚠️ Nunca NULL
-                    guardia_id=getattr(usuario, "usuario_id", None),
-                    metadata_json={**metadata, "created_by": getattr(usuario, "usuario_id", None)},
-                )
-                db.add(evidencia)
-
-        # Refresh fuera de la transacción
-        try:
-            db.refresh(visita)
-        except Exception:
-            pass
+        db.commit()
+        db.refresh(visita)
 
     except SQLAlchemyError:
-        try:
-            db.rollback()
-        except Exception:
-            pass
+        db.rollback()
         raise
 
     return visita
