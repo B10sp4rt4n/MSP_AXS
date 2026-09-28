@@ -185,6 +185,7 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
 
   const crear = async () => {
     if (!form.casa_unidad.trim()) { setFormError("El número de casa es requerido"); return; }
+    if (!form.residente_email.trim()) { setFormError("El email del residente es requerido"); return; }
     setSaving(true);
     setFormError("");
     setFormOk("");
@@ -193,7 +194,7 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
       await api.post(`/condominios/${condominioId}/casas`, {
         casa_unidad: form.casa_unidad.trim(),
         residente_nombre: form.residente_nombre.trim() || undefined,
-        residente_email: form.residente_email.trim() || undefined,
+        residente_email: form.residente_email.trim(),
       }, token!);
       setFormOk("Casa creada correctamente");
       setForm({ casa_unidad: "", residente_nombre: "", residente_email: "" });
@@ -240,7 +241,7 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
           />
           <input
             type="email"
-            placeholder="Email del residente (opcional)"
+            placeholder="Email del residente *"
             value={form.residente_email}
             onChange={e => setForm(f => ({ ...f, residente_email: e.target.value }))}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500"
