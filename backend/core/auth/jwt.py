@@ -111,10 +111,16 @@ def verify_clerk_token(token: str) -> Optional[Dict[str, Any]]:
     if not jwks:
         return None
     try:
-        payload = jwt.decode(token, jwks, algorithms=["RS256"])
+        payload = jwt.decode(
+            token, jwks, algorithms=["RS256"],
+            options={"verify_aud": False}
+        )
         return payload
     except JWTError as e:
-        logger.debug(f"Token no es Clerk válido: {e}")
+        logger.warning(f"Clerk JWT error: {type(e).__name__}: {e}")
+        return None
+    except Exception as e:
+        logger.warning(f"Clerk verify error inesperado: {type(e).__name__}: {e}")
         return None
 
 
