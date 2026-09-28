@@ -57,20 +57,27 @@ def list_condominios(
     db: Session = Depends(get_core_db),
     usuario: Usuario = Depends(get_current_user)
 ):
-    """Lista condominios con sus casas anidadas."""
-    if usuario.rol not in ["MSP_ADMIN", "ADMIN", "ADMIN_CONDOMINIO"]:
-        raise HTTPException(403, detail="Acceso denegado")
-    
-    query = db.query(Condominio)
-    
-    # Filtrar por MSP si se especifica
-    if msp_id:
-        query = query.filter(Condominio.msp_id == msp_id)
-    elif usuario.rol == "ADMIN_CONDOMINIO":
-        # Ver solo su condominio
-        query = query.filter(Condominio.condominio_id == usuario.condominio_id)
-    
-    condominios = query.all()
+    """Lista condominios accesibles para el usuario autenticado."""
+    from backend.db.core.models import UserTenantScope
+
+    if usuario.rol in ["MSP_ADMIN", "ADMIN"]:
+        # Ve todos los condominios (filtrado opcional por MSP)
+        query = db.query(Condominio)
+        if msp_id:
+            query = query.filter(Condominio.msp_id == msp_id)
+        condominios = query.all()
+    else:
+        # Guardia, residente, admin_condominio: solo sus condominios asignados via scope
+        scopes = db.query(UserTenantScope).filter(
+            UserTenantScope.usuario_id == usuario.usuario_id,
+            UserTenantScope.estado == "activo",
+        ).all()
+        tenant_ids = [s.tenant_id for s in scopes]
+        if not tenant_ids:
+            return []
+        condominios = db.query(Condominio).filter(
+            Condominio.condominio_id.in_(tenant_ids)
+        ).all()
     
     resultado = []
     for c in condominios:
