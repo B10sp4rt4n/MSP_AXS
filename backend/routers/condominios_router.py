@@ -228,7 +228,8 @@ def crear_casa(
         )
         
         db.add(nuevo_usuario)
-        
+        db.flush()  # Persist usuario_id before FK reference in user_tenant_scope
+
         # Crear scope para el usuario
         scope = UserTenantScope(
             usuario_id=usuario_id,
