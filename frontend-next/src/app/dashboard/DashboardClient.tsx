@@ -28,6 +28,8 @@ export default function DashboardClient() {
             desc="Preregistrar visitas y generar QR de acceso" />
           <DashCard title="Panel Admin" href="/dashboard/admin" icon="⚙️"
             desc="Visitas, casas y usuarios del condominio" />
+          <DashCard title="Dashboard MSP" href="/dashboard/msp" icon="🏢"
+            desc="Vista global de condominios y usuarios del sistema" />
         </div>
       </main>
     </div>
