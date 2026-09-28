@@ -85,6 +85,10 @@ class AUPSessionGuard(BaseHTTPMiddleware):
         # ─────────────────────────────────────────────────────────────
         # 1. Permitir endpoints públicos
         # ─────────────────────────────────────────────────────────────
+        # Dejar pasar preflight CORS sin requerir SESSION
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         if path in self.PUBLIC_PATHS or path.startswith("/docs"):
             return await call_next(request)
         
