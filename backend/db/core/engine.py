@@ -16,11 +16,14 @@ DATABASE_CORE_URL = os.getenv(
 )
 
 # Motor SQLAlchemy para AUP_CORE
+_is_sqlite = "sqlite" in DATABASE_CORE_URL
 engine_core = create_engine(
     DATABASE_CORE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_CORE_URL else {},
-    poolclass=NullPool if "sqlite" in DATABASE_CORE_URL else None,
-    echo=False  # Cambiar a True para debug
+    connect_args={"check_same_thread": False} if _is_sqlite else {},
+    poolclass=NullPool if _is_sqlite else None,
+    pool_pre_ping=not _is_sqlite,
+    pool_recycle=300 if not _is_sqlite else -1,
+    echo=False
 )
 
 # Base declarativa para modelos CORE
