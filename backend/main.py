@@ -72,22 +72,19 @@ app = FastAPI(
 #   🌍 CORS: Permitir requests desde cualquier origen
 # ============================================================
 # Necesario para GitHub Codespaces y otros entornos de desarrollo
+# AUP-01 se agrega primero (será el middleware interno)
+# CORS se agrega después (será el más externo, envuelve todo incluyendo errores AUP)
+app.add_middleware(AUPSessionGuard)
+logger.info("🔒 AUP-01 ACTIVADO: Middleware de SESSION activo")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción, restringir a dominios conocidos
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 logger.info("🌍 CORS ACTIVADO: Requests desde cualquier origen permitidas")
-
-# ============================================================
-#   🔒 BLOQUEO AUP-01: No acción sin SESSION
-# ============================================================
-# Middleware que intercepta TODA request y valida SESSION
-# Axioma: Nada ocurre sin sesión
-app.add_middleware(AUPSessionGuard)
-logger.info("🔒 AUP-01 ACTIVADO: Middleware de SESSION activo")
 
 # ============================================================
 #   Inicialización de Bases de Datos (Separadas)
