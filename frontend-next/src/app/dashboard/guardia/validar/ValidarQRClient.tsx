@@ -43,7 +43,11 @@ export default function ValidarQRClient() {
     setLoading(true);
     try {
       const authToken = await getToken();
-      const res = await api.get<ResultadoQR>(`/qr/validar/${visita_id}/${token}`, authToken!);
+      if (!authToken) {
+        setError("Sesión expirada. Recarga la página e inicia sesión de nuevo.");
+        return;
+      }
+      const res = await api.get<ResultadoQR>(`/qr/validar/${visita_id}/${token}`, authToken);
       setResultado(res);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "";
@@ -51,6 +55,7 @@ export default function ValidarQRClient() {
       else if (msg.includes("ya utilizado")) setError("Este QR ya fue utilizado para registrar una entrada.");
       else if (msg.includes("inválido")) setError("QR inválido. No corresponde a esta visita.");
       else if (msg.includes("404")) setError("Visita no encontrada.");
+      else if (msg.includes("Failed to fetch")) setError("Sin conexión con el servidor. Verifica tu internet.");
       else setError(`Error: ${msg}`);
     } finally {
       setLoading(false);
