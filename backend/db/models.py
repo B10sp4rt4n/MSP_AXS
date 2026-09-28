@@ -209,7 +209,7 @@ class Event(Base):
     # -------------------------------------------------------------------------
     
     # AUP_IDENTITY: Quién actúa
-    identity_id = Column(String, ForeignKey("usuarios_exo.usuario_id"), nullable=False, index=True)
+    identity_id = Column(String, ForeignKey("usuarios.usuario_id"), nullable=False, index=True)
     
     # AUP_SESSION: Contexto temporal (hash del JWT)
     session_hash = Column(String, nullable=False, index=True)
@@ -305,7 +305,7 @@ class Authority(Base):
     authority_id = Column(String, primary_key=True, index=True)
     
     # AUP_IDENTITY que tiene la autoridad
-    identity_id = Column(String, ForeignKey("usuarios_exo.usuario_id"), nullable=False, index=True)
+    identity_id = Column(String, ForeignKey("usuarios.usuario_id"), nullable=False, index=True)
     
     # Tipo de autoridad
     tipo = Column(SQLEnum(AuthorityType), nullable=False, index=True)
@@ -400,7 +400,7 @@ class Delegation(Base):
     authority_id = Column(String, ForeignKey("authorities_gov.authority_id"), nullable=False, index=True)
     
     # A QUIÉN se delega (mutuamente excluyente)
-    target_identity_id = Column(String, ForeignKey("usuarios_exo.usuario_id"), nullable=True, index=True)
+    target_identity_id = Column(String, ForeignKey("usuarios.usuario_id"), nullable=True, index=True)
     target_scope_id = Column(String, ForeignKey("user_tenant_scope.id"), nullable=True, index=True)
     
     # QUÉ se delega (array de acciones: ["crear_tenant", "asignar_scope"])

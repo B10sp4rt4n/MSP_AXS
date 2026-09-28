@@ -451,4 +451,137 @@ def setup_test_data_with_assignment(db: Session, setup_test_data):
     return actor, assignment
 
 
-# Nota: Implementar fixtures restantes según necesidad de los tests
+@pytest.fixture
+def setup_test_data_multiple_assignments(db: Session, setup_test_data):
+    """Setup: actor GLOBAL + 3 asignaciones activas en condo_a."""
+    actor, _, condo_a = setup_test_data
+
+    users = []
+    for i in range(3):
+        u = Usuario(
+            usuario_id=f"user_multi_{i}",
+            nombre=f"Usuario Multi {i}",
+            email=f"multi{i}@test.com",
+            rol="RESIDENTE"
+        )
+        db.add(u)
+        users.append(u)
+    db.commit()
+
+    for u in users:
+        assign_identity_to_tenant(
+            db=db,
+            actor_identity_id=actor.usuario_id,
+            target_identity_id=u.usuario_id,
+            target_tenant_id=condo_a.condominio_id,
+            assignment_type=AssignmentType.REGULAR_ADMIN
+        )
+
+    return actor, condo_a
+
+
+@pytest.fixture
+def setup_test_data_multi_tenant(db: Session, setup_test_data):
+    """Setup: actor GLOBAL + user_1 con asignaciones en 2 tenants."""
+    actor, user_1, condo_a = setup_test_data
+
+    condo_b = Condominio(
+        condominio_id="condo_b_multi",
+        nombre="Condominio B Multi"
+    )
+    db.add(condo_b)
+    db.commit()
+
+    assign_identity_to_tenant(
+        db=db,
+        actor_identity_id=actor.usuario_id,
+        target_identity_id=user_1.usuario_id,
+        target_tenant_id=condo_a.condominio_id,
+        assignment_type=AssignmentType.REGULAR_ADMIN
+    )
+    assign_identity_to_tenant(
+        db=db,
+        actor_identity_id=actor.usuario_id,
+        target_identity_id=user_1.usuario_id,
+        target_tenant_id=condo_b.condominio_id,
+        assignment_type=AssignmentType.REGULAR_ADMIN
+    )
+
+    return actor, user_1
+
+
+@pytest.fixture
+def setup_test_data_no_global(db: Session):
+    """Setup: actor con FIRST_TIER authority solamente (sin GLOBAL)."""
+    condo_a = Condominio(
+        condominio_id="condo_a_no_global",
+        nombre="Condominio A No Global"
+    )
+    db.add(condo_a)
+
+    actor = Usuario(
+        usuario_id="actor_first_tier",
+        nombre="Actor First Tier",
+        email="first_tier@test.com",
+        rol="ADMIN_CONDOMINIO"
+    )
+    db.add(actor)
+
+    authority_first_tier = Authority(
+        authority_id="auth_first_tier_001",
+        identity_id=actor.usuario_id,
+        tipo=AuthorityType.FIRST_TIER,
+        tenant_id=condo_a.condominio_id,
+        estado=GovStatus.ACTIVO,
+        created_at=datetime.utcnow()
+    )
+    db.add(authority_first_tier)
+
+    user_1 = Usuario(
+        usuario_id="user_1_no_global",
+        nombre="Usuario 1 No Global",
+        email="user1_no_global@test.com",
+        rol="RESIDENTE"
+    )
+    db.add(user_1)
+    db.commit()
+
+    return actor, user_1, condo_a
+
+
+@pytest.fixture
+def setup_test_data_revoked_assignment(db: Session, setup_test_data):
+    """Setup: actor GLOBAL + asignación ya revocada."""
+    actor, user_1, condo_a = setup_test_data
+
+    assignment = assign_identity_to_tenant(
+        db=db,
+        actor_identity_id=actor.usuario_id,
+        target_identity_id=user_1.usuario_id,
+        target_tenant_id=condo_a.condominio_id,
+        assignment_type=AssignmentType.REGULAR_ADMIN
+    )
+
+    revoked = revoke_identity_from_tenant(
+        db=db,
+        actor_identity_id=actor.usuario_id,
+        assignment_id=assignment.assignment_id,
+        revocation_reason="Pre-revocado para test"
+    )
+
+    return actor, revoked
+
+
+@pytest.fixture
+def setup_test_data_two_tenants(db: Session, setup_test_data):
+    """Setup: actor GLOBAL + user_1 + condo_a + condo_b (sin asignaciones)."""
+    actor, user_1, condo_a = setup_test_data
+
+    condo_b = Condominio(
+        condominio_id="condo_b_two",
+        nombre="Condominio B Two"
+    )
+    db.add(condo_b)
+    db.commit()
+
+    return actor, user_1, condo_a, condo_b

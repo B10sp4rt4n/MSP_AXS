@@ -1,5 +1,9 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Cargar .env desde la raíz del proyecto (si existe)
+load_dotenv(Path(__file__).parents[2] / ".env")
 
 
 class Settings:

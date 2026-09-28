@@ -45,7 +45,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from backend.db.core import Usuario, get_core_db
-from .jwt import decode_access_token
+from .jwt import decode_access_token, verify_clerk_token
 
 # OAuth2PasswordBearer: extrae token desde header Authorization: Bearer <token>
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -96,19 +96,26 @@ def get_current_user(
         detail="No se pudo validar las credenciales",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
-    # Paso 1: Deserializar AUP_SESSION
-    session_payload = decode_access_token(token)
-    if session_payload is None:
-        raise credentials_exception
-    
-    # Paso 2: Extraer identity_id desde AUP_SESSION
-    identity_id: Optional[str] = session_payload.get("sub")
-    if identity_id is None:
-        raise credentials_exception
-    
-    # Paso 3: Reconstruir AUP_IDENTITY desde persistencia
-    usuario = db.query(Usuario).filter(Usuario.usuario_id == identity_id).first()
+
+    usuario: Optional[Usuario] = None
+
+    # Intentar primero como token Clerk (RS256)
+    clerk_payload = verify_clerk_token(token)
+    if clerk_payload:
+        clerk_id: Optional[str] = clerk_payload.get("sub")
+        if clerk_id:
+            usuario = db.query(Usuario).filter(Usuario.clerk_id == clerk_id).first()
+
+    # Fallback: token local HS256
+    if usuario is None:
+        session_payload = decode_access_token(token)
+        if session_payload is None:
+            raise credentials_exception
+        identity_id: Optional[str] = session_payload.get("sub")
+        if identity_id is None:
+            raise credentials_exception
+        usuario = db.query(Usuario).filter(Usuario.usuario_id == identity_id).first()
+
     if usuario is None:
         raise credentials_exception
     

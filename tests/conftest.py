@@ -149,6 +149,33 @@ def patch_get_event_db(monkeypatch, db_event_session):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# LEGACY BASE FIXTURE (usado por test_meta_operativo y smoke tests)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(scope="function")
+def db():
+    """
+    Sesión SQLite en memoria usando el Base legacy (backend.db.connection).
+    Requerido por test_meta_operativo.py y tests/smoke/.
+    """
+    from backend.db.connection import Base
+    import backend.db.models  # noqa: F401 — registra modelos en Base legacy
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = SessionLocal()
+    yield session
+    session.rollback()
+    session.close()
+    engine.dispose()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # DATABASE FIXTURES
 # ═══════════════════════════════════════════════════════════════════════════
 

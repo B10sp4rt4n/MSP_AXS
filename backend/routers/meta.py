@@ -20,8 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Header, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from backend.db.connection import get_db
-from backend.core.dependencies import get_current_user
+from backend.core.dependencies import get_db, get_current_user
 from backend.db.models import Usuario, IdentityTenantAssignment
 from backend.core.meta import AssignmentType
 from backend.core.meta.assignments import (

@@ -87,13 +87,14 @@ class Usuario(Base_CORE):
     
     id = Column(Integer, primary_key=True, index=True)
     usuario_id = Column(String, unique=True, index=True)
+    clerk_id = Column(String, unique=True, index=True, nullable=True)  # Clerk user_id
     msp_id = Column(String)
     condominio_id = Column(String)  # Tenant principal (legacy, usar scope)
     casa_unidad = Column(String)
     nombre = Column(String)
     email = Column(String, unique=True, index=True)
     rol = Column(String)  # MSP_ADMIN, ADMIN_CONDOMINIO, GUARDIA, RESIDENTE
-    password_hash = Column(Text)
+    password_hash = Column(Text, nullable=True)  # Nullable para usuarios Clerk
     creado = Column(DateTime, default=datetime.utcnow)
 
 
