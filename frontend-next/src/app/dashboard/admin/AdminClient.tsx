@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
-import type { Visita, Condominio, CasasResponse, ResidenteCasa } from "@/lib/types";
+import type { Visita, Condominio, CasasResponse, CasaItem, ResidenteCasa } from "@/lib/types";
 
 const CONDOMINIO_KEY = "axs_condominio_id";
 type Tab = "visitas" | "casas" | "usuarios";
@@ -266,14 +266,14 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
         </div>
       ) : (
         <div className="space-y-3">
-          {Object.entries(casasData.casas).map(([casa, residentes]) => (
-            <div key={casa} className="bg-gray-900 border border-gray-700 rounded-xl p-4">
+          {casasData.casas.map((item: CasaItem) => (
+            <div key={item.casa_unidad} className="bg-gray-900 border border-gray-700 rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="font-semibold text-white">Casa {casa}</p>
-                <span className="text-xs text-gray-500">{residentes.length} usuario(s)</span>
+                <p className="font-semibold text-white">Casa {item.casa_unidad}</p>
+                <span className="text-xs text-gray-500">{item.residentes.length} usuario(s)</span>
               </div>
               <div className="space-y-1">
-                {residentes.map(r => (
+                {item.residentes.map(r => (
                   <div key={r.usuario_id} className="flex items-center justify-between text-sm">
                     <span className="text-gray-300">{r.nombre}</span>
                     <div className="flex items-center gap-2">
@@ -308,9 +308,9 @@ function TabUsuarios({ condominioId, getToken }: { condominioId: string; getToke
   // Aplanar todos los usuarios de todas las casas
   const usuarios: (ResidenteCasa & { casa_unidad: string })[] = [];
   if (casasData) {
-    for (const [casa, residentes] of Object.entries(casasData.casas)) {
-      for (const r of residentes) {
-        usuarios.push({ ...r, casa_unidad: casa });
+    for (const item of casasData.casas) {
+      for (const r of item.residentes) {
+        usuarios.push({ ...r, casa_unidad: item.casa_unidad });
       }
     }
   }

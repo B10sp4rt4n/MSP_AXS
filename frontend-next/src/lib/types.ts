@@ -30,8 +30,13 @@ export interface ResidenteCasa {
   rol: string;
 }
 
+export interface CasaItem {
+  casa_unidad: string;
+  residentes: ResidenteCasa[];
+}
+
 export interface CasasResponse {
   condominio_id: string;
   total_casas: number;
-  casas: Record<string, ResidenteCasa[]>;
+  casas: CasaItem[];
 }
