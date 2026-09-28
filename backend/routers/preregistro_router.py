@@ -25,7 +25,7 @@ def crear_preregistro(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
 ):
-    verificar_rol(usuario, ["RESIDENTE"])
+    verificar_rol(usuario, ["RESIDENTE", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
 
     # ═══════════════════════════════════════════════════════════════════
     # AUP_GOV: Evaluar política ANTES de crear preregistro
@@ -73,7 +73,7 @@ def reenviar_qr(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
 ):
-    verificar_rol(usuario, ["RESIDENTE"])
+    verificar_rol(usuario, ["RESIDENTE", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
 
     from backend.db.core import Visita
 
