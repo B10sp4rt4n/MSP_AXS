@@ -13,6 +13,7 @@ from .models import (
     # Modelos
     MSP,
     Condominio,
+    Casa,
     Usuario,
     UserTenantScope,
     Caseta,
@@ -32,6 +33,7 @@ __all__ = [
     # Modelos
     "MSP",
     "Condominio",
+    "Casa",
     "Usuario",
     "UserTenantScope",
     "Caseta",

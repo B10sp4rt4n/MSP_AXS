@@ -168,10 +168,14 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
   const [casasData, setCasasData] = useState<CasasResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ casa_unidad: "", residente_nombre: "", residente_email: "" });
+  const [form, setForm] = useState({ numero: "", tipo: "casa" });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const [formOk, setFormOk] = useState("");
+  // Asignar residente por casa
+  const [asignando, setAsignando] = useState<string | null>(null); // casa_id
+  const [resForm, setResForm] = useState({ nombre: "", email: "" });
+  const [resSaving, setResSaving] = useState(false);
+  const [resError, setResError] = useState("");
 
   const cargar = () => {
     setLoading(true);
@@ -183,76 +187,66 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
 
   useEffect(() => { cargar(); }, [condominioId]);
 
-  const crear = async () => {
-    if (!form.casa_unidad.trim()) { setFormError("El número de casa es requerido"); return; }
-    if (!form.residente_email.trim()) { setFormError("El email del residente es requerido"); return; }
-    setSaving(true);
-    setFormError("");
-    setFormOk("");
+  const crearCasa = async () => {
+    if (!form.numero.trim()) { setFormError("El número es requerido"); return; }
+    setSaving(true); setFormError("");
     try {
       const token = await getToken();
-      await api.post(`/condominios/${condominioId}/casas`, {
-        casa_unidad: form.casa_unidad.trim(),
-        residente_nombre: form.residente_nombre.trim() || undefined,
-        residente_email: form.residente_email.trim(),
-      }, token!);
-      setFormOk("Casa creada correctamente");
-      setForm({ casa_unidad: "", residente_nombre: "", residente_email: "" });
+      await api.post(`/condominios/${condominioId}/casas`, { numero: form.numero.trim(), tipo: form.tipo }, token!);
       setShowForm(false);
+      setForm({ numero: "", tipo: "casa" });
       cargar();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Error al crear casa";
-      setFormError(msg);
-    } finally {
-      setSaving(false);
-    }
+      setFormError(e instanceof Error ? e.message : "Error al crear");
+    } finally { setSaving(false); }
   };
+
+  const asignarResidente = async (casaId: string) => {
+    if (!resForm.email.trim()) { setResError("Email requerido"); return; }
+    setResSaving(true); setResError("");
+    try {
+      const token = await getToken();
+      await api.post(`/condominios/${condominioId}/casas/${casaId}/residente`,
+        { nombre: resForm.nombre.trim() || "Residente", email: resForm.email.trim() }, token!);
+      setAsignando(null);
+      setResForm({ nombre: "", email: "" });
+      cargar();
+    } catch (e: unknown) {
+      setResError(e instanceof Error ? e.message : "Error al asignar");
+    } finally { setResSaving(false); }
+  };
+
+  const tipoLabel: Record<string, string> = { casa: "Casa", depto: "Depto", local: "Local" };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-400">
-          {casasData ? `${casasData.total_casas} casa(s) registrada(s)` : ""}
-        </p>
-        <button
-          onClick={() => { setShowForm(!showForm); setFormError(""); setFormOk(""); }}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg"
-        >
-          {showForm ? "Cancelar" : "+ Nueva Casa"}
+        <p className="text-sm text-gray-400">{casasData ? `${casasData.total_casas} unidad(es)` : ""}</p>
+        <button onClick={() => { setShowForm(!showForm); setFormError(""); }}
+          className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">
+          {showForm ? "Cancelar" : "+ Nueva Unidad"}
         </button>
       </div>
 
-      {formOk && <p className="text-green-400 text-sm mb-3">{formOk}</p>}
-
       {showForm && (
         <div className="bg-gray-900 border border-gray-700 rounded-xl p-4 mb-4 space-y-3">
-          <h3 className="text-sm font-semibold text-gray-200">Nueva casa / unidad</h3>
+          <h3 className="text-sm font-semibold text-gray-200">Nueva unidad</h3>
           <input
-            placeholder="Número o ID de casa (ej. A-12)"
-            value={form.casa_unidad}
-            onChange={e => setForm(f => ({ ...f, casa_unidad: e.target.value }))}
+            placeholder="Número (ej. A-12, 101, Local 3)"
+            value={form.numero}
+            onChange={e => setForm(f => ({ ...f, numero: e.target.value }))}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500"
           />
-          <input
-            placeholder="Nombre del residente (opcional)"
-            value={form.residente_nombre}
-            onChange={e => setForm(f => ({ ...f, residente_nombre: e.target.value }))}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500"
-          />
-          <input
-            type="email"
-            placeholder="Email del residente *"
-            value={form.residente_email}
-            onChange={e => setForm(f => ({ ...f, residente_email: e.target.value }))}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500"
-          />
+          <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm">
+            <option value="casa">Casa</option>
+            <option value="depto">Departamento</option>
+            <option value="local">Local comercial</option>
+          </select>
           {formError && <p className="text-red-400 text-xs">{formError}</p>}
-          <button
-            onClick={crear}
-            disabled={saving}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm"
-          >
-            {saving ? "Guardando..." : "Crear Casa"}
+          <button onClick={crearCasa} disabled={saving}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm">
+            {saving ? "Creando..." : "Crear Unidad"}
           </button>
         </div>
       )}
@@ -262,27 +256,56 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
       ) : !casasData || casasData.total_casas === 0 ? (
         <div className="text-center py-12 text-gray-600">
           <p className="text-4xl mb-3">🏠</p>
-          <p>Sin casas registradas</p>
+          <p>Sin unidades registradas</p>
         </div>
       ) : (
         <div className="space-y-3">
           {casasData.casas.map((item: CasaItem) => (
-            <div key={item.casa_unidad} className="bg-gray-900 border border-gray-700 rounded-xl p-4">
+            <div key={item.casa_id} className="bg-gray-900 border border-gray-700 rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="font-semibold text-white">Casa {item.casa_unidad}</p>
-                <span className="text-xs text-gray-500">{item.residentes.length} usuario(s)</span>
+                <div>
+                  <p className="font-semibold text-white">{item.numero}</p>
+                  <p className="text-xs text-gray-500">{tipoLabel[item.tipo] ?? item.tipo}</p>
+                </div>
+                {!item.residente && asignando !== item.casa_id && (
+                  <button
+                    onClick={() => { setAsignando(item.casa_id); setResForm({ nombre: "", email: "" }); setResError(""); }}
+                    className="text-xs bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg">
+                    + Residente
+                  </button>
+                )}
               </div>
-              <div className="space-y-1">
-                {item.residentes.map(r => (
-                  <div key={r.usuario_id} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-300">{r.nombre}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">{r.email}</span>
-                      <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">{r.rol}</span>
-                    </div>
+
+              {item.residente ? (
+                <div className="flex items-center justify-between text-sm mt-1">
+                  <span className="text-gray-300">{item.residente.nombre}</span>
+                  <span className="text-xs text-gray-500">{item.residente.email}</span>
+                </div>
+              ) : asignando === item.casa_id ? (
+                <div className="mt-2 space-y-2">
+                  <input placeholder="Nombre del residente"
+                    value={resForm.nombre}
+                    onChange={e => setResForm(f => ({ ...f, nombre: e.target.value }))}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm placeholder-gray-500" />
+                  <input type="email" placeholder="Email *"
+                    value={resForm.email}
+                    onChange={e => setResForm(f => ({ ...f, email: e.target.value }))}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm placeholder-gray-500" />
+                  {resError && <p className="text-red-400 text-xs">{resError}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={() => asignarResidente(item.casa_id)} disabled={resSaving}
+                      className="flex-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-semibold py-1.5 rounded-lg">
+                      {resSaving ? "Guardando..." : "Asignar"}
+                    </button>
+                    <button onClick={() => setAsignando(null)}
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold py-1.5 rounded-lg">
+                      Cancelar
+                    </button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-600 mt-1">Sin residente asignado</p>
+              )}
             </div>
           ))}
         </div>
@@ -305,15 +328,9 @@ function TabUsuarios({ condominioId, getToken }: { condominioId: string; getToke
       .finally(() => setLoading(false));
   }, [condominioId]);
 
-  // Aplanar todos los usuarios de todas las casas
-  const usuarios: (ResidenteCasa & { casa_unidad: string })[] = [];
-  if (casasData) {
-    for (const item of casasData.casas) {
-      for (const r of item.residentes) {
-        usuarios.push({ ...r, casa_unidad: item.casa_unidad });
-      }
-    }
-  }
+  const usuarios = casasData?.casas
+    .filter(c => c.residente)
+    .map(c => ({ ...c.residente!, numero: c.numero })) ?? [];
 
   const rolColor: Record<string, string> = {
     RESIDENTE:         "bg-blue-500/20 text-blue-300",
@@ -324,14 +341,13 @@ function TabUsuarios({ condominioId, getToken }: { condominioId: string; getToke
 
   return (
     <div>
-      <p className="text-sm text-gray-400 mb-4">{usuarios.length} usuario(s) en este condominio</p>
-
+      <p className="text-sm text-gray-400 mb-4">{usuarios.length} residente(s) asignado(s)</p>
       {loading ? (
         <p className="text-gray-500 text-sm">Cargando...</p>
       ) : usuarios.length === 0 ? (
         <div className="text-center py-12 text-gray-600">
           <p className="text-4xl mb-3">👥</p>
-          <p>Sin usuarios registrados</p>
+          <p>Sin residentes asignados</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -339,7 +355,7 @@ function TabUsuarios({ condominioId, getToken }: { condominioId: string; getToke
             <div key={u.usuario_id} className="bg-gray-900 border border-gray-700 rounded-xl p-4 flex items-center justify-between">
               <div>
                 <p className="font-medium text-white text-sm">{u.nombre}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{u.email} · Casa {u.casa_unidad}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{u.email} · Unidad {u.numero}</p>
               </div>
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${rolColor[u.rol] ?? "bg-gray-700 text-gray-300"}`}>
                 {u.rol}

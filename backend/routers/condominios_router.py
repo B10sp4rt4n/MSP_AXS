@@ -12,7 +12,7 @@ from typing import List, Optional
 from ..core.dependencies import get_db
 from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
-from backend.db.core import Usuario, Condominio, MSP, UserTenantScope, AccessLevel, get_core_db
+from backend.db.core import Usuario, Condominio, Casa, MSP, UserTenantScope, AccessLevel, get_core_db
 from ..core.gov.facade import puede_ejecutar_accion
 import uuid
 
@@ -26,9 +26,14 @@ class CondominioCreate(BaseModel):
 
 
 class CasaCreate(BaseModel):
-    casa_unidad: str
-    residente_nombre: Optional[str] = None
-    residente_email: Optional[str] = None
+    numero: str
+    tipo: Optional[str] = "casa"   # casa / depto / local
+    descripcion: Optional[str] = None
+
+
+class AsignarResidente(BaseModel):
+    nombre: str
+    email: str
 
 
 class ResidenteBasico(BaseModel):
@@ -40,6 +45,14 @@ class ResidenteBasico(BaseModel):
 
 class CasaResponse(BaseModel):
     casa_unidad: str
+    residente: Optional[ResidenteBasico] = None
+
+
+class CasaFullResponse(BaseModel):
+    casa_id: str
+    numero: str
+    tipo: str
+    descripcion: Optional[str] = None
     residente: Optional[ResidenteBasico] = None
 
 
@@ -186,73 +199,102 @@ def crear_condominio(
     )
 
 
-@router.post("/{condominio_id}/casas")
+@router.post("/{condominio_id}/casas", response_model=CasaFullResponse)
 def crear_casa(
     condominio_id: str,
     body: CasaCreate,
     db: Session = Depends(get_core_db),
     usuario: Usuario = Depends(get_current_user)
 ):
-    """Crea una casa/unidad en un condominio y opcionalmente asigna un residente."""
+    """Crea una casa/depto/local en un condominio (sin residente)."""
     if usuario.rol not in ["MSP_ADMIN", "ADMIN", "ADMIN_CONDOMINIO"]:
         raise HTTPException(403, detail="Acceso denegado")
-    
-    # Validar que el condominio existe
-    condo = db.query(Condominio).filter(
-        Condominio.condominio_id == condominio_id
-    ).first()
+
+    condo = db.query(Condominio).filter(Condominio.condominio_id == condominio_id).first()
     if not condo:
         raise HTTPException(404, detail="Condominio no encontrado")
-    
-    # Si se proporciona residente, crearlo
-    if body.residente_email:
-        # Verificar que no exista
-        existe = db.query(Usuario).filter(
-            Usuario.email == body.residente_email
-        ).first()
-        
-        if existe:
-            raise HTTPException(400, detail="Email ya registrado")
-        
-        # Crear usuario residente
-        usuario_id = f"user_{uuid.uuid4().hex[:12]}"
-        nuevo_usuario = Usuario(
-            usuario_id=usuario_id,
-            email=body.residente_email,
-            nombre=body.residente_nombre or "Residente",
-            rol="RESIDENTE",
-            condominio_id=condominio_id,
-            casa_unidad=body.casa_unidad,
-            msp_id=condo.msp_id,
-            password_hash="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5YQvR9Bc0IaXi"  # default: password123
-        )
-        
-        db.add(nuevo_usuario)
-        db.flush()  # Persist usuario_id before FK reference in user_tenant_scope
 
-        # Crear scope para el usuario
-        scope = UserTenantScope(
-            usuario_id=usuario_id,
-            tenant_id=condominio_id,
-            access_level=AccessLevel.RESIDENTE,
-            estado="activo"
-        )
-        db.add(scope)
-        db.commit()
-        
-        return {
-            "status": "ok",
-            "casa_unidad": body.casa_unidad,
-            "residente_creado": True,
-            "usuario_id": usuario_id,
-            "email": body.residente_email,
-            "password_temporal": "password123"
-        }
-    
+    # Evitar duplicados de número dentro del mismo condominio
+    existe = db.query(Casa).filter(
+        Casa.condominio_id == condominio_id,
+        Casa.numero == body.numero.strip()
+    ).first()
+    if existe:
+        raise HTTPException(400, detail=f"Ya existe la unidad '{body.numero}' en este condominio")
+
+    casa = Casa(
+        casa_id=f"casa_{uuid.uuid4().hex[:10]}",
+        condominio_id=condominio_id,
+        numero=body.numero.strip(),
+        tipo=body.tipo or "casa",
+        descripcion=body.descripcion,
+    )
+    db.add(casa)
+    db.commit()
+    db.refresh(casa)
+
+    return CasaFullResponse(
+        casa_id=casa.casa_id,
+        numero=casa.numero,
+        tipo=casa.tipo,
+        descripcion=casa.descripcion,
+        residente=None,
+    )
+
+
+@router.post("/{condominio_id}/casas/{casa_id}/residente")
+def asignar_residente(
+    condominio_id: str,
+    casa_id: str,
+    body: AsignarResidente,
+    db: Session = Depends(get_core_db),
+    usuario: Usuario = Depends(get_current_user)
+):
+    """Asigna un residente a una casa existente."""
+    if usuario.rol not in ["MSP_ADMIN", "ADMIN", "ADMIN_CONDOMINIO"]:
+        raise HTTPException(403, detail="Acceso denegado")
+
+    casa = db.query(Casa).filter(Casa.casa_id == casa_id, Casa.condominio_id == condominio_id).first()
+    if not casa:
+        raise HTTPException(404, detail="Casa no encontrada")
+
+    condo = db.query(Condominio).filter(Condominio.condominio_id == condominio_id).first()
+
+    # Verificar que el email no esté registrado
+    existe = db.query(Usuario).filter(Usuario.email == body.email.strip()).first()
+    if existe:
+        raise HTTPException(400, detail="Email ya registrado en el sistema")
+
+    usuario_id = f"user_{uuid.uuid4().hex[:12]}"
+    nuevo = Usuario(
+        usuario_id=usuario_id,
+        email=body.email.strip(),
+        nombre=body.nombre.strip() or "Residente",
+        rol="RESIDENTE",
+        condominio_id=condominio_id,
+        casa_id=casa_id,
+        casa_unidad=casa.numero,    # Denormalizado para compat legado
+        msp_id=condo.msp_id if condo else None,
+        password_hash=None,         # Auth via Clerk
+    )
+    db.add(nuevo)
+    db.flush()
+
+    scope = UserTenantScope(
+        usuario_id=usuario_id,
+        tenant_id=condominio_id,
+        access_level=AccessLevel.RESIDENTE,
+        estado="activo"
+    )
+    db.add(scope)
+    db.commit()
+
     return {
         "status": "ok",
-        "casa_unidad": body.casa_unidad,
-        "residente_creado": False
+        "usuario_id": usuario_id,
+        "email": body.email,
+        "casa_id": casa_id,
+        "numero": casa.numero,
     }
 
 
@@ -262,37 +304,34 @@ def listar_casas(
     db: Session = Depends(get_core_db),
     usuario: Usuario = Depends(get_current_user)
 ):
-    """Lista todas las casas/unidades de un condominio."""
+    """Lista todas las casas del condominio con su residente asignado."""
     if usuario.rol not in ["MSP_ADMIN", "ADMIN", "ADMIN_CONDOMINIO", "GUARDIA"]:
         raise HTTPException(403, detail="Acceso denegado")
-    
-    # Obtener usuarios del condominio agrupados por casa_unidad
-    usuarios = db.query(Usuario).filter(
-        Usuario.condominio_id == condominio_id
-    ).all()
-    
-    # Agrupar por casa
-    casas = {}
-    for u in usuarios:
-        if u.casa_unidad:
-            if u.casa_unidad not in casas:
-                casas[u.casa_unidad] = []
-            casas[u.casa_unidad].append({
-                "usuario_id": u.usuario_id,
-                "nombre": u.nombre,
-                "email": u.email,
-                "rol": u.rol
-            })
-    
+
+    casas = db.query(Casa).filter(Casa.condominio_id == condominio_id).order_by(Casa.numero).all()
+
+    resultado = []
+    for casa in casas:
+        residente = db.query(Usuario).filter(
+            Usuario.casa_id == casa.casa_id,
+            Usuario.rol == "RESIDENTE"
+        ).first()
+        resultado.append({
+            "casa_id": casa.casa_id,
+            "numero": casa.numero,
+            "tipo": casa.tipo,
+            "descripcion": casa.descripcion,
+            "residente": {
+                "usuario_id": residente.usuario_id,
+                "nombre": residente.nombre,
+                "email": residente.email,
+                "rol": residente.rol,
+            } if residente else None,
+        })
+
     return {
         "condominio_id": condominio_id,
-        "total_casas": len(casas),
-        "casas": [
-            {
-                "casa_unidad": casa,
-                "residentes": residentes
-            }
-            for casa, residentes in casas.items()
-        ]
+        "total_casas": len(resultado),
+        "casas": resultado,
     }
 

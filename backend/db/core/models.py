@@ -75,6 +75,23 @@ class Condominio(Base_CORE):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# CASA (Unidad dentro de un condominio)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class Casa(Base_CORE):
+    """Unidad habitacional dentro de un condominio (casa, depto, local)."""
+    __tablename__ = "casas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    casa_id = Column(String, unique=True, index=True)
+    condominio_id = Column(String, ForeignKey("condominios_exo.condominio_id"), nullable=False)
+    numero = Column(String, nullable=False)          # "A-12", "101", "Local 3"
+    tipo = Column(String, default="casa")            # casa / depto / local
+    descripcion = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # USUARIO (AUP_IDENTITY)
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -90,7 +107,8 @@ class Usuario(Base_CORE):
     clerk_id = Column(String, unique=True, index=True, nullable=True)  # Clerk user_id
     msp_id = Column(String)
     condominio_id = Column(String)  # Tenant principal (legacy, usar scope)
-    casa_unidad = Column(String)
+    casa_id = Column(String, ForeignKey("casas.casa_id"), nullable=True)
+    casa_unidad = Column(String)    # Denormalizado de casa.numero (compat legado)
     nombre = Column(String)
     email = Column(String, unique=True, index=True)
     rol = Column(String)  # MSP_ADMIN, ADMIN_CONDOMINIO, GUARDIA, RESIDENTE

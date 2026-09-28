@@ -31,8 +31,11 @@ export interface ResidenteCasa {
 }
 
 export interface CasaItem {
-  casa_unidad: string;
-  residentes: ResidenteCasa[];
+  casa_id: string;
+  numero: string;
+  tipo: string;
+  descripcion?: string;
+  residente: ResidenteCasa | null;
 }
 
 export interface CasasResponse {
