@@ -47,9 +47,11 @@ export default function ValidarQRClient() {
       setResultado(res);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "";
-      if (msg.includes("400")) setError("QR inválido, expirado o ya utilizado.");
+      if (msg.includes("QR expirado")) setError("QR expirado. El residente debe generar uno nuevo.");
+      else if (msg.includes("ya utilizado")) setError("Este QR ya fue utilizado para registrar una entrada.");
+      else if (msg.includes("inválido")) setError("QR inválido. No corresponde a esta visita.");
       else if (msg.includes("404")) setError("Visita no encontrada.");
-      else setError("Error al validar. Intenta de nuevo.");
+      else setError(`Error: ${msg}`);
     } finally {
       setLoading(false);
     }

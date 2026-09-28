@@ -109,83 +109,52 @@ def validar_qr(
         )
         raise HTTPException(404, "Visita no encontrada")
 
+    tenant_id = visita.condominio_id or usuario.condominio_id or "sistema"
+    session_token = request.headers.get("Authorization", "").replace("Bearer ", "")
+
     if visita.qr_token != token:
-        logger.warning("QR validation failed: token mismatch", extra={"visita_id": visita_id, "expected": visita.qr_token, "provided": token})
-        # AUP_EVENT: Validación fallida (token inválido)
-        session_token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        registrar_evento(
-            db=db,
-            identity=usuario,
-            session_token=session_token,
-            tenant_id=visita.condominio_id,
-            entidad=EventEntity.QR.value,
-            entidad_id=token,
-            accion=EventAction.VALIDAR.value,
-            resultado=EventResult.FALLO.value,
-            motivo="Token QR no coincide",
-            metadata={"visita_id": visita_id}
-        )
+        logger.warning("QR validation failed: token mismatch", extra={"visita_id": visita_id})
+        try:
+            registrar_evento(db=db, identity=usuario, session_token=session_token,
+                tenant_id=tenant_id, entidad=EventEntity.QR.value, entidad_id=token,
+                accion=EventAction.VALIDAR.value, resultado=EventResult.FALLO.value,
+                motivo="Token QR no coincide", metadata={"visita_id": visita_id})
+        except Exception:
+            pass
         raise HTTPException(400, "QR inválido")
 
     if not visita.qr_vigencia or visita.qr_vigencia < datetime.utcnow():
-        logger.info("QR expired", extra={"visita_id": visita_id, "qr_vigencia": visita.qr_vigencia})
-        # AUP_EVENT: Validación denegada (QR expirado)
-        session_token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        registrar_evento(
-            db=db,
-            identity=usuario,
-            session_token=session_token,
-            tenant_id=visita.condominio_id,
-            entidad=EventEntity.QR.value,
-            entidad_id=token,
-            accion=EventAction.VALIDAR.value,
-            resultado=EventResult.DENEGADO.value,
-            motivo="QR expirado",
-            metadata={
-                "visita_id": visita_id,
-                "qr_vigencia": str(visita.qr_vigencia)
-            }
-        )
+        logger.info("QR expired", extra={"visita_id": visita_id})
+        try:
+            registrar_evento(db=db, identity=usuario, session_token=session_token,
+                tenant_id=tenant_id, entidad=EventEntity.QR.value, entidad_id=token,
+                accion=EventAction.VALIDAR.value, resultado=EventResult.DENEGADO.value,
+                motivo="QR expirado", metadata={"visita_id": visita_id, "qr_vigencia": str(visita.qr_vigencia)})
+        except Exception:
+            pass
         raise HTTPException(400, "QR expirado")
 
     if visita.estado in ["entrada_registrada", "salida_registrada"]:
         logger.warning("QR already used", extra={"visita_id": visita_id, "estado": visita.estado})
-        # AUP_EVENT: Validación denegada (QR ya usado)
-        session_token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        registrar_evento(
-            db=db,
-            identity=usuario,
-            session_token=session_token,
-            tenant_id=visita.condominio_id,
-            entidad=EventEntity.QR.value,
-            entidad_id=token,
-            accion=EventAction.VALIDAR.value,
-            resultado=EventResult.DENEGADO.value,
-            motivo="QR ya utilizado",
-            metadata={"visita_id": visita_id, "estado": visita.estado}
-        )
+        try:
+            registrar_evento(db=db, identity=usuario, session_token=session_token,
+                tenant_id=tenant_id, entidad=EventEntity.QR.value, entidad_id=token,
+                accion=EventAction.VALIDAR.value, resultado=EventResult.DENEGADO.value,
+                motivo="QR ya utilizado", metadata={"visita_id": visita_id, "estado": visita.estado})
+        except Exception:
+            pass
         raise HTTPException(400, "QR ya utilizado")
 
     visita_service.registrar_entrada(db, visita_id)
-    
-    # AUP_EVENT: Validación exitosa y entrada registrada
-    session_token = request.headers.get("Authorization", "").replace("Bearer ", "")
-    registrar_evento(
-        db=db,
-        identity=usuario,
-        session_token=session_token,
-        tenant_id=visita.condominio_id,
-        entidad=EventEntity.QR.value,
-        entidad_id=token,
-        accion=EventAction.VALIDAR.value,
-        resultado=EventResult.EXITO.value,
-        motivo="QR validado y entrada registrada",
-        metadata={
-            "visita_id": visita_id,
-            "visitante": visita.nombre_visitante,
-            "casa_unidad": visita.casa_unidad
-        }
-    )
+
+    try:
+        registrar_evento(db=db, identity=usuario, session_token=session_token,
+            tenant_id=tenant_id, entidad=EventEntity.QR.value, entidad_id=token,
+            accion=EventAction.VALIDAR.value, resultado=EventResult.EXITO.value,
+            motivo="QR validado y entrada registrada",
+            metadata={"visita_id": visita_id, "visitante": visita.nombre_visitante, "casa_unidad": visita.casa_unidad})
+    except Exception:
+        pass
 
     return {
         "status": "aprobado",
