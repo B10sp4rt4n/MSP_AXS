@@ -3,7 +3,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 import logging
 from sqlalchemy.orm import Session
-from ..core.dependencies import get_db
+from backend.db.core import get_core_db, AccessLevel
+from backend.db.gov import get_gov_db
+from backend.core.scope.msp_boundary import require_visita
 from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
 from backend.db.core import Visita, Usuario
@@ -21,13 +23,14 @@ router = APIRouter(prefix="/qr", tags=["QR"])
 def generar_qr(
     visita_id: str,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
 ):
     verificar_rol(usuario, ["ADMIN_CONDOMINIO", "RESIDENTE"])
-    visita = db.query(Visita).filter(Visita.visita_id == visita_id).first()
-    if not visita:
-        raise HTTPException(404, "Visita no encontrada")
+    level = AccessLevel.RESIDENTE if usuario.rol == "RESIDENTE" else AccessLevel.ADMIN_CONDOMINIO
+    visita = require_visita(db, db_gov, usuario, visita_id, level,
+                           own_unit=usuario.rol == "RESIDENTE")
 
     # ═══════════════════════════════════════════════════════════════════
     # AUP_GOV: Evaluar política ANTES de generar QR
@@ -85,7 +88,8 @@ def validar_qr(
     visita_id: str,
     token: str,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
 ):
     logger = logging.getLogger("axs.qr")
@@ -108,6 +112,8 @@ def validar_qr(
             motivo="Visita no encontrada"
         )
         raise HTTPException(404, "Visita no encontrada")
+
+    require_visita(db, db_gov, usuario, visita_id, AccessLevel.GUARDIA)
 
     tenant_id = visita.condominio_id or usuario.condominio_id or "sistema"
     session_token = request.headers.get("Authorization", "").replace("Bearer ", "")

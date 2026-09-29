@@ -43,7 +43,9 @@ from backend.core.event.registry import registrar_evento
 from backend.core.event import EventEntity, EventAction, EventResult
 
 # Infraestructura
-from backend.core.dependencies import get_db
+from backend.db.core import get_core_db
+from backend.db.gov import get_gov_db
+from backend.core.scope.msp_boundary import require_visita
 from backend.services import visita_service
 from backend.schemas.visita import VisitaCreate, VisitaResponse
 
@@ -62,7 +64,7 @@ def crear_visita(
     condominio_id: str,                                          # PASO 2: tenant desde path
     data: VisitaCreate,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_core_db),
     current_user: Usuario = Depends(get_current_user),           # PASO 1: identidad
     _tenant: str = Depends(set_tenant_context),                  # PASO 3: SET app.tenant_id
 ):
@@ -185,7 +187,7 @@ def crear_visita(
 def crear_visita_legacy(
     data: VisitaCreate,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_core_db),
     usuario: Usuario = Depends(get_current_user),
 ):
     """
@@ -247,7 +249,7 @@ def crear_visita_legacy(
 @router.get("/mis-visitas/{condominio_id}", response_model=List[VisitaResponse])
 def mis_visitas(
     condominio_id: str,                                          # PASO 2: tenant desde path
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_core_db),
     current_user: Usuario = Depends(get_current_user),           # PASO 1: identidad
     _tenant: str = Depends(set_tenant_context),                  # PASO 3: SET app.tenant_id
 ):
@@ -287,7 +289,7 @@ def mis_visitas(
 @router.get("/condominio/{condominio_id}", response_model=List[VisitaResponse])
 def visitas_condominio(
     condominio_id: str,                                          # PASO 2: tenant desde path
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_core_db),
     current_user: Usuario = Depends(get_current_user),           # PASO 1: identidad
     _tenant: str = Depends(set_tenant_context),                  # PASO 3: SET app.tenant_id
 ):
@@ -320,13 +322,12 @@ def visitas_condominio(
 @router.patch("/{visita_id}/salida")
 def registrar_salida(
     visita_id: str,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),
 ):
     verificar_rol(usuario, ["GUARDIA", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
-    visita = visita_service.obtener_visita(db, visita_id)
-    if not visita:
-        raise HTTPException(404, "Visita no encontrada")
+    visita = require_visita(db, db_gov, usuario, visita_id, AccessLevel.GUARDIA)
     if visita.estado not in ["pendiente", "entrada_registrada", "activa"]:
         raise HTTPException(400, f"No se puede registrar salida en estado '{visita.estado}'")
     visita = visita_service.registrar_salida(db, visita_id)
@@ -339,17 +340,18 @@ def registrar_salida(
 @router.patch("/{visita_id}/cancelar")
 def cancelar_visita(
     visita_id: str,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),
 ):
-    visita = visita_service.obtener_visita(db, visita_id)
-    if not visita:
-        raise HTTPException(404, "Visita no encontrada")
+    if usuario.rol not in ["RESIDENTE", "MSP_ADMIN", "ADMIN_CONDOMINIO"]:
+        raise HTTPException(403, "No autorizado")
+    level = AccessLevel.RESIDENTE if usuario.rol == "RESIDENTE" else AccessLevel.ADMIN_CONDOMINIO
+    visita = require_visita(db, db_gov, usuario, visita_id, level,
+                           own_unit=usuario.rol == "RESIDENTE")
     if usuario.rol == "RESIDENTE":
         if visita.condominio_id != usuario.condominio_id or visita.casa_unidad != usuario.casa_unidad:
             raise HTTPException(403, "No autorizado para esta visita")
-    elif usuario.rol not in ["MSP_ADMIN", "ADMIN_CONDOMINIO"]:
-        raise HTTPException(403, "No autorizado")
     if visita.estado in ["cancelada", "salida_registrada"]:
         raise HTTPException(400, f"La visita ya está en estado '{visita.estado}'")
     visita.estado = "cancelada"
@@ -368,18 +370,9 @@ def cancelar_visita(
 @router.get("/{visita_id}", response_model=VisitaResponse)
 def obtener_visita(
     visita_id: str,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
 ):
-    visita = visita_service.obtener_visita(db, visita_id)
-    if not visita:
-        raise HTTPException(404, "Visita no encontrada")
-
-    # reglas de acceso
-    if usuario.rol == "RESIDENTE":
-        if (
-            visita.condominio_id != usuario.condominio_id
-            or visita.casa_unidad != usuario.casa_unidad
-        ):
-            raise HTTPException(403, "No autorizado")
-    return visita
+    return require_visita(db, db_gov, usuario, visita_id, AccessLevel.RESIDENTE,
+                          own_unit=usuario.rol == "RESIDENTE")

@@ -13,7 +13,7 @@ Contiene:
 - Evidencia (artefactos de operación)
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Enum as SQLEnum, UniqueConstraint
 from datetime import datetime
 import enum
 
@@ -114,6 +114,20 @@ class Usuario(Base_CORE):
     rol = Column(String)  # MSP_ADMIN, ADMIN_CONDOMINIO, GUARDIA, RESIDENTE
     password_hash = Column(Text, nullable=True)  # Nullable para usuarios Clerk
     creado = Column(DateTime, default=datetime.utcnow)
+
+
+class MSPMembership(Base_CORE):
+    """Membresía explícita del administrador en un proveedor de seguridad."""
+    __tablename__ = "msp_memberships"
+
+    id = Column(Integer, primary_key=True)
+    usuario_id = Column(String, ForeignKey("usuarios.usuario_id"), nullable=False, index=True)
+    msp_id = Column(String, ForeignKey("msps_exo.msp_id"), nullable=False, index=True)
+    estado = Column(String, nullable=False, default="activo")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    revoked_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (UniqueConstraint("usuario_id", "msp_id", name="uq_msp_membership"),)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
