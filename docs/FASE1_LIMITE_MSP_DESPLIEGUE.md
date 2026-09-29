@@ -21,6 +21,10 @@ La pertenencia no se infiere de `usuarios.msp_id`, `usuarios.rol` ni de un JWT. 
 5. Validar gobierno de `crear_tenant` y límites por proveedor. La política actual es global y cuenta todos los condominios; un cupo contractual por MSP requiere un diseño separado. Comprobar también registro EVENT de las altas y revocaciones de membresía antes de habilitar operación real.
 6. Solo después de estas verificaciones, desplegar de forma escalonada y repetir los casos de acceso cruzado en staging y producción controlada. Si falta la tabla o la autoridad, las nuevas rutas deniegan acceso.
 
+## Pruebas recuperadas y EVENT
+
+Las pruebas de sesión, planes y verificación de eventos ya se ejecutan en SQLite. El verificador de EVENT ahora conserva `event_uid` y `session_hash` para eventos nuevos. Antes de desplegar el código, aplicar `database/migration_07_event_integrity_inputs.sql` en EVENT, además de la migración de CORE; `create_all` no añade columnas a una tabla existente. Los eventos históricos carecen de esos insumos y el verificador responde `false` (no verificable); no rellenarlos con valores inventados. La prueba de `set_config` requiere una base PostgreSQL desechable mediante `AXS_TEST_POSTGRES_URL`. Esa prueba valida el contexto de transacción, pero todavía no comprueba políticas RLS ni el comportamiento después de `commit()` en el flujo real.
+
 ## Cobertura de este cambio
 
 Las rutas de catálogo, casas, visitas por ID, QR, preregistro y evidencias incorporan comprobaciones de alcance. Las rutas de visitas por `condominio_id` conservan su validador de scope original; no heredan automáticamente la membresía MSP. Se debe unificar ese contrato antes de declarar terminada la fase 1. Otras rutas (`meta`, `canario`, webhooks) requieren auditoría individual y el flujo de biometría Plus queda para una fase posterior, limitado a accesos privilegiados del residente.

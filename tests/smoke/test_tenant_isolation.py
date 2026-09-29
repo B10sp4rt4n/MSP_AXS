@@ -13,6 +13,7 @@ CRITERIO:
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
+import os
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text, create_engine
@@ -226,39 +227,32 @@ def test_usuario_ve_solo_su_tenant(client, db, setup_tenants_and_users):
 # TEST 3: SET app.tenant_id se ejecuta correctamente
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_set_app_tenant_id_funciona(db):
+@pytest.mark.integration
+def test_set_app_tenant_id_funciona():
     """
-    CRÍTICO: Verificar que SET app.tenant_id funciona en PostgreSQL.
+    CRÍTICO: Verificar que set_config(app.tenant_id) funciona en PostgreSQL.
     
     Si este test falla: RLS no funcionará.
     
-    NOTA: Este test asume PostgreSQL. En SQLite no aplica pero no debe romper.
+    Requiere una instancia PostgreSQL desechable configurada por variable.
     """
+    from sqlalchemy.orm import Session
+    from backend.core.tenant.context import _set_postgres_tenant
+
+    url = os.getenv("AXS_TEST_POSTGRES_URL")
+    if not url:
+        pytest.skip("Requiere AXS_TEST_POSTGRES_URL de una base PostgreSQL desechable")
+    engine_pg = create_engine(url)
+    if engine_pg.dialect.name != "postgresql":
+        engine_pg.dispose()
+        pytest.fail("AXS_TEST_POSTGRES_URL debe apuntar a PostgreSQL")
     try:
-        # Ejecutar SET
-        db.execute(text("SET app.tenant_id = 'test-tenant-123'"))
-        
-        # Leer valor (con fallback para SQLite)
-        result = db.execute(
-            text("SELECT current_setting('app.tenant_id', true)")
-        ).scalar()
-        
-        # En PostgreSQL debe retornar el valor
-        # En SQLite puede retornar None (no soporta SET)
-        if result is not None:
-            assert result == "test-tenant-123", \
-                f"SET no persistió correctamente. Esperado: test-tenant-123, Obtenido: {result}"
-        else:
-            # SQLite - marcar como skip implícito
-            pytest.skip("SQLite no soporta SET/current_setting - OK en tests")
-            
-    except Exception as e:
-        err = str(e).lower()
-        # SQLite no soporta SET ni current_setting — es esperado en tests locales
-        if "current_setting" in err or "syntax" in err or "no such" in err:
-            pytest.skip("SQLite no soporta SET/current_setting - OK en tests")
-        else:
-            pytest.fail(f"❌ SET app.tenant_id falló: {str(e)}")
+        with Session(engine_pg) as session:
+            _set_postgres_tenant(session, "test-tenant-123")
+            assert session.execute(text("SELECT current_setting('app.tenant_id', true)")).scalar() == "test-tenant-123"
+            session.rollback()
+    finally:
+        engine_pg.dispose()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -310,7 +310,7 @@ def test_registrar_evento_genera_hash_inmutable(db_core_session, db_event_sessio
     
     # Verificar que el hash es correcto
     hash_calculado = calcular_hash_evento(
-        event_id=f"evt_{evento.id}",
+        event_id=evento.event_uid,
         identity_id=evento.identity_id,
         session_hash=hash_session_token("Bearer token_abc"),
         tenant_id=evento.tenant_id,
@@ -321,61 +321,43 @@ def test_registrar_evento_genera_hash_inmutable(db_core_session, db_event_sessio
         timestamp=evento.timestamp
     )
     
-    # El hash debería coincidir
-    # Nota: Puede no coincidir exactamente por el event_id que se genera internamente
-    # Pero la estructura de hash es correcta
-    assert evento.hash_evento is not None
+    assert hash_calculado == evento.hash_evento
+    assert verificar_integridad_evento(evento)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TEST: Verificación de Integridad (Anti-Tampering)
 # ═══════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.skip(reason="verificar_integridad_evento() tiene limitación conocida en aproximación de session_hash")
-def test_verificar_integridad_evento_valido(db_event_session):
+def test_verificar_integridad_evento_valido(db_core_session, db_event_session):
     """
     Test: Evento sin alterar pasa verificación de integridad.
     
-    Nota: Este test está skippeado porque verificar_integridad_evento()
-    tiene una limitación (aproximación del session_hash) que causa falsos negativos.
-    
-    La función es útil para detectar alteraciones obvias, pero no es 100% precisa
-    sin acceso al token JWT original.
+    Un evento nuevo debe verificarse y una alteración debe fallar.
     """
-    # Arrange
-    timestamp = datetime(2025, 1, 1, 12, 0, 0)
-    event_id = "evt_test_integrity"
-    identity_id = "user_004"
-
-    
-    # Crear evento manualmente con hash correcto
-    evento = Event(
-        identity_id=identity_id,
-        tenant_id="tenant_004",
-        tipo_evento="crear",
-        entidad="visita",
-        entidad_id="visita_004",
-        accion="crear",
-        resultado="exito",
-        timestamp=timestamp,
-        hash_evento=calcular_hash_evento(
-            event_id=event_id,
-            identity_id=identity_id,
-            session_hash=hash_session_token(identity_id),
-            tenant_id="tenant_004",
-            entidad="visita",
-            entidad_id="visita_004",
-            accion="crear",
-            resultado="exito",
-            timestamp=timestamp
-        )
+    usuario = Usuario(usuario_id="user_004", email="user4@test.local", rol="RESIDENTE")
+    db_core_session.add(usuario)
+    db_core_session.commit()
+    evento = registrar_evento(
+        db=db_core_session, identity=usuario, session_token="jwt_original",
+        tenant_id="tenant_004", entidad="visita", entidad_id="visita_004",
+        accion="crear", resultado="exito",
     )
-    
-    # Act
-    es_integro = verificar_integridad_evento(evento)
-    
-    # Assert
-    assert es_integro is True
+    assert evento.session_hash == hash_session_token("jwt_original")
+    assert verificar_integridad_evento(evento)
+    evento.resultado = "denegado"
+    assert not verificar_integridad_evento(evento)
+    evento.session_hash = None
+    assert not verificar_integridad_evento(evento)
+
+
+def test_evento_historico_sin_insumos_no_se_declara_integro():
+    evento = Event(
+        identity_id="legacy", tenant_id="tenant", entidad="visita",
+        entidad_id="v1", accion="crear", resultado="exito",
+        timestamp=datetime(2025, 1, 1), hash_evento="legacy_hash",
+    )
+    assert not verificar_integridad_evento(evento)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

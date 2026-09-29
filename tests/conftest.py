@@ -144,6 +144,8 @@ def patch_get_event_db(monkeypatch, db_event_session):
     # Patch backend.db.event.get_event_db
     import backend.db.event
     monkeypatch.setattr(backend.db.event, "get_event_db", mock_get_event_db)
+    import backend.core.aup_runtime_blocks
+    monkeypatch.setattr(backend.core.aup_runtime_blocks, "get_event_db", mock_get_event_db)
     
     yield
 
@@ -182,7 +184,7 @@ def db():
 @pytest.fixture(scope="function")
 def db_engine():
     """Motor de BD temporal en memoria (SQLite) para backend.db.core."""
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base_CORE.metadata.create_all(bind=engine)
     yield engine
     engine.dispose()
@@ -198,25 +200,22 @@ def db_session(db_engine):
 
 
 @pytest.fixture(scope="function")
-def client(db_session):
-    """Cliente FastAPI con override de BD."""
-    # TODO: Re-enable cuando routers estén completamente funcionales
-    pytest.skip("Client fixture disabled - routers tienen imports rotos")
-    
-    # from fastapi.testclient import TestClient
-    # from backend.main import app
-    # from backend.db.connection import get_db
-    # 
-    # def override_get_db():
-    #     try:
-    #         yield db_session
-    #     finally:
-    #         pass
-    # 
-    # app.dependency_overrides[get_db] = override_get_db
-    # with TestClient(app) as test_client:
-    #     yield test_client
-    # app.dependency_overrides.clear()
+def client(db_session, db_event_session, db_gov_session):
+    """Cliente HTTP contra CORE, EVENT y GOV aislados de producción."""
+    from fastapi.testclient import TestClient
+    from backend.main import app
+    from backend.db.core import get_core_db
+    from backend.db.event import get_event_db
+    from backend.db.gov import get_gov_db
+
+    app.dependency_overrides[get_core_db] = lambda: db_session
+    app.dependency_overrides[get_event_db] = lambda: db_event_session
+    app.dependency_overrides[get_gov_db] = lambda: db_gov_session
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

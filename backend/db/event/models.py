@@ -45,6 +45,8 @@ class Event(Base_EVENT):
     # -------------------------------------------------------------------------
     
     id = Column(Integer, primary_key=True, index=True)
+    event_uid = Column(String, nullable=True, unique=True, index=True)
+    session_hash = Column(String, nullable=True)
     
     # Tipo de evento (sesion_iniciada, qr_generado, visita_creada, politica_evaluada)
     tipo_evento = Column(String, nullable=False, index=True)

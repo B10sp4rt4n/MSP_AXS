@@ -170,6 +170,8 @@ def registrar_evento(
     # -------------------------------------------------------------------------
     
     evento = Event(
+        event_uid=event_id,
+        session_hash=session_hash,
         identity_id=identity.usuario_id,
         tenant_id=tenant_id,
         tipo_evento=accion,
@@ -213,10 +215,14 @@ def verificar_integridad_evento(evento: Event) -> bool:
         True si el hash coincide (evento íntegro)
         False si el hash no coincide (evento alterado)
     """
+    # Los eventos previos no guardaron ambos insumos: no son verificables con
+    # este contrato y nunca deben declararse íntegros mediante una aproximación.
+    if not evento.event_uid or not evento.session_hash:
+        return False
     hash_calculado = calcular_hash_evento(
-        event_id=f"evt_{evento.id}",
+        event_id=evento.event_uid,
         identity_id=evento.identity_id,
-        session_hash=hash_session_token(evento.identity_id),  # Aproximación
+        session_hash=evento.session_hash,
         tenant_id=evento.tenant_id,
         entidad=evento.entidad,
         entidad_id=evento.entidad_id,

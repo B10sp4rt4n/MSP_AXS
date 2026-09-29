@@ -170,23 +170,23 @@ class AUPSessionGuard(BaseHTTPMiddleware):
             # Registrar evento sin identity (porque no hay SESSION)
             from backend.db.event import Event
             from datetime import datetime
-            import hashlib
+            import uuid
+            from backend.core.event.registry import calcular_hash_evento, hash_session_token
             
             timestamp = datetime.utcnow()
             
-            # Calcular hash sin event_id (usamos timestamp como parte del hash)
-            contenido = "|".join([
-                "NONE",  # identity
-                "NONE",  # tenant
-                EventEntity.SESSION.value,
-                "NONE",
-                EventAction.DENEGAR.value,
-                EventResult.DENEGADO.value,
-                timestamp.isoformat()
-            ])
-            hash_evento = hashlib.sha256(contenido.encode('utf-8')).hexdigest()
+            event_uid = f"evt_{uuid.uuid4().hex[:16]}"
+            session_hash = hash_session_token("")  # no se recibió sesión válida
+            hash_evento = calcular_hash_evento(
+                event_id=event_uid, identity_id="NONE", session_hash=session_hash,
+                tenant_id="NONE", entidad=EventEntity.SESSION.value,
+                entidad_id="NONE", accion=EventAction.DENEGAR.value,
+                resultado=EventResult.DENEGADO.value, timestamp=timestamp,
+            )
             
             evento = Event(
+                event_uid=event_uid,
+                session_hash=session_hash,
                 identity_id="NONE",  # No hay identidad sin SESSION
                 tenant_id="NONE",
                 tipo_evento=EventAction.DENEGAR.value,
