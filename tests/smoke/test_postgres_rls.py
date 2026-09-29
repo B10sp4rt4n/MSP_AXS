@@ -2,7 +2,7 @@
 
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -150,6 +150,9 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
             own = client.get("/visitas/v_a?condominio_id=a1", headers=headers["a"])
             assert own.status_code == 200, own.text
             assert own.json()["visita_id"] == "v_a"
+            assert datetime.fromisoformat(own.json()["created_at"]).utcoffset() == timedelta(0)
+            assert own.json()["entrada_registrada_en"] is None
+            assert own.json()["salida_registrada_en"] is None
             listing = client.get("/visitas/condominio/a1", headers=headers["a"])
             assert listing.status_code == 200, listing.text
             assert {v["visita_id"] for v in listing.json()} == {"v_a"}
@@ -171,7 +174,14 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
             changed = client.patch("/visitas/v_a/salida?condominio_id=a1", headers=headers["a"])
             assert changed.status_code == 200, changed.text
             assert changed.json()["estado"] == "salida_registrada"
-            assert client.get("/visitas/v_a?condominio_id=a1", headers=headers["a"]).json()["estado"] == "salida_registrada"
+            reloaded = client.get("/visitas/v_a?condominio_id=a1", headers=headers["a"]).json()
+            assert reloaded["estado"] == "salida_registrada"
+            persisted_exit = datetime.fromisoformat(reloaded["salida_registrada_en"])
+            assert persisted_exit.utcoffset() == timedelta(0)
+            with Session(scoped) as db:
+                _set_postgres_tenant(db, "a1")
+                saved_exit = db.query(Visita).filter_by(visita_id="v_a").one().salida_registrada_en
+                assert persisted_exit == saved_exit.replace(tzinfo=timezone.utc)
             other = client.get("/visitas/v_b?condominio_id=b1", headers=headers["b"])
             assert other.status_code == 200, other.text
             assert other.json()["estado"] == "pendiente"
