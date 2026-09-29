@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
@@ -41,12 +41,12 @@ export default function GuardiaClient() {
       .finally(() => setLoading(false));
   }, [condominioId, getToken]);
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     if (!condominioId) return;
     getToken().then(token =>
       api.get<Visita[]>(`/visitas/condominio/${condominioId}`, token!)
     ).then(setVisitas).catch(() => {});
-  };
+  }, [condominioId, getToken]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -111,7 +111,7 @@ export default function GuardiaClient() {
         ) : (
           <div className="space-y-3">
             {visitas.map((v) => (
-              <VisitaCard key={v.visita_id} visita={v} />
+              <VisitaCard key={v.visita_id} visita={v} onRefresh={refresh} getToken={getToken} />
             ))}
           </div>
         )}
@@ -120,16 +120,45 @@ export default function GuardiaClient() {
   );
 }
 
-function VisitaCard({ visita }: { visita: Visita }) {
+function VisitaCard({
+  visita,
+  onRefresh,
+  getToken,
+}: {
+  visita: Visita;
+  onRefresh: () => void;
+  getToken: () => Promise<string | null>;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
   const estadoColor: Record<string, string> = {
-    pendiente: "bg-yellow-500/20 text-yellow-300",
-    activa:    "bg-green-500/20 text-green-300",
-    completada:"bg-gray-500/20 text-gray-400",
-    cancelada: "bg-red-500/20 text-red-400",
+    pendiente:           "bg-yellow-500/20 text-yellow-300",
+    activa:              "bg-green-500/20 text-green-300",
+    entrada_registrada:  "bg-blue-500/20 text-blue-300",
+    salida_registrada:   "bg-gray-500/20 text-gray-400",
+    completada:          "bg-gray-500/20 text-gray-400",
+    cancelada:           "bg-red-500/20 text-red-400",
   };
 
   const hora = (dt: string | null) =>
     dt ? new Date(dt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) : "—";
+
+  const canExit = ["pendiente", "entrada_registrada", "activa"].includes(visita.estado);
+
+  const registrarSalida = async () => {
+    setLoading(true);
+    setErr("");
+    try {
+      const token = await getToken();
+      await api.patch(`/visitas/${visita.visita_id}/salida`, {}, token!);
+      onRefresh();
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Error al registrar salida");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-4">
@@ -146,6 +175,16 @@ function VisitaCard({ visita }: { visita: Visita }) {
         <span>Entrada: {hora(visita.entrada_registrada_en)}</span>
         <span>Salida: {hora(visita.salida_registrada_en)}</span>
       </div>
+      {err && <p className="text-red-400 text-xs mt-2">{err}</p>}
+      {canExit && (
+        <button
+          onClick={registrarSalida}
+          disabled={loading}
+          className="mt-3 w-full bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-lg"
+        >
+          {loading ? "Registrando..." : "Registrar Salida"}
+        </button>
+      )}
     </div>
   );
 }

@@ -40,12 +40,54 @@ MIGRACIÓN FUTURA:
 """
 
 from typing import Optional
+import os
+import logging
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from backend.db.core import Usuario, get_core_db
 from .jwt import decode_access_token, verify_clerk_token
+
+logger = logging.getLogger("axs.auth")
+
+
+def _link_clerk_user_by_email(db: Session, clerk_id: str) -> Optional[Usuario]:
+    """
+    Fallback: si el usuario se autenticó con Clerk pero no tiene clerk_id en la DB,
+    consulta la Clerk API para obtener el email y vincula el registro existente.
+    Solo ejecuta una vez; en requests posteriores la búsqueda por clerk_id ya funcionará.
+    """
+    secret_key = os.getenv("CLERK_SECRET_KEY")
+    if not secret_key:
+        return None
+    try:
+        import httpx
+        resp = httpx.get(
+            f"https://api.clerk.com/v1/users/{clerk_id}",
+            headers={"Authorization": f"Bearer {secret_key}"},
+            timeout=5.0,
+        )
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        emails = data.get("email_addresses", [])
+        email = emails[0].get("email_address") if emails else None
+        if not email:
+            return None
+        usuario = db.query(Usuario).filter(
+            Usuario.email == email,
+            Usuario.clerk_id.is_(None),
+        ).first()
+        if usuario:
+            usuario.clerk_id = clerk_id
+            db.commit()
+            logger.info(f"clerk_id auto-vinculado: {email} → {clerk_id}")
+            return usuario
+        return None
+    except Exception as exc:
+        logger.warning(f"No se pudo vincular clerk_id via API: {exc}")
+        return None
 
 # OAuth2PasswordBearer: extrae token desde header Authorization: Bearer <token>
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -105,6 +147,9 @@ def get_current_user(
         clerk_id: Optional[str] = clerk_payload.get("sub")
         if clerk_id:
             usuario = db.query(Usuario).filter(Usuario.clerk_id == clerk_id).first()
+            # Si el token es válido pero clerk_id no está en la DB, intentar vincular
+            if usuario is None:
+                usuario = _link_clerk_user_by_email(db, clerk_id)
 
     # Fallback: token local HS256
     if usuario is None:

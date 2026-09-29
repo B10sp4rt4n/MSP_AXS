@@ -39,6 +39,7 @@ from backend.db.event import get_event_db
 from backend.core.auth.schemas import LoginRequest, TokenResponse
 from backend.core.auth.password import verify_password
 from backend.core.auth.jwt import create_access_token
+from backend.core.auth.dependencies import get_current_user
 from ..core.event.registry import registrar_evento
 from ..core.event import EventEntity, EventAction, EventResult
 
@@ -144,3 +145,16 @@ def login(
         access_token=access_token,
         token_type="bearer"
     )
+
+
+@router.get("/me")
+def me(usuario: Usuario = Depends(get_current_user)):
+    """Devuelve el perfil básico del usuario autenticado (rol, condominio)."""
+    return {
+        "usuario_id": usuario.usuario_id,
+        "nombre": usuario.nombre,
+        "email": usuario.email,
+        "rol": usuario.rol,
+        "condominio_id": getattr(usuario, "condominio_id", None),
+        "casa_unidad": getattr(usuario, "casa_unidad", None),
+    }

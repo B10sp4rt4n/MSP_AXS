@@ -315,6 +315,54 @@ def visitas_condominio(
 
 
 # ---------------------------------------------------------
+# Registrar salida (guardia / admin)
+# ---------------------------------------------------------
+@router.patch("/{visita_id}/salida")
+def registrar_salida(
+    visita_id: str,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    verificar_rol(usuario, ["GUARDIA", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
+    visita = visita_service.obtener_visita(db, visita_id)
+    if not visita:
+        raise HTTPException(404, "Visita no encontrada")
+    if visita.estado not in ["pendiente", "entrada_registrada", "activa"]:
+        raise HTTPException(400, f"No se puede registrar salida en estado '{visita.estado}'")
+    visita = visita_service.registrar_salida(db, visita_id)
+    return {"status": "ok", "visita_id": visita_id, "estado": visita.estado}
+
+
+# ---------------------------------------------------------
+# Cancelar visita (residente / admin)
+# ---------------------------------------------------------
+@router.patch("/{visita_id}/cancelar")
+def cancelar_visita(
+    visita_id: str,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    visita = visita_service.obtener_visita(db, visita_id)
+    if not visita:
+        raise HTTPException(404, "Visita no encontrada")
+    if usuario.rol == "RESIDENTE":
+        if visita.condominio_id != usuario.condominio_id or visita.casa_unidad != usuario.casa_unidad:
+            raise HTTPException(403, "No autorizado para esta visita")
+    elif usuario.rol not in ["MSP_ADMIN", "ADMIN_CONDOMINIO"]:
+        raise HTTPException(403, "No autorizado")
+    if visita.estado in ["cancelada", "salida_registrada"]:
+        raise HTTPException(400, f"La visita ya está en estado '{visita.estado}'")
+    visita.estado = "cancelada"
+    try:
+        db.commit()
+        db.refresh(visita)
+    except Exception:
+        db.rollback()
+        raise
+    return {"status": "ok", "visita_id": visita_id, "estado": "cancelada"}
+
+
+# ---------------------------------------------------------
 # Obtener visita individual por ID
 # ---------------------------------------------------------
 @router.get("/{visita_id}", response_model=VisitaResponse)

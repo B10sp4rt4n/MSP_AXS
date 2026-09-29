@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Optional
 from datetime import datetime
 
@@ -10,6 +10,17 @@ class PreregistroCreate(BaseModel):
     notas: Optional[str] = None
     placa: Optional[str] = None
     documento: Optional[str] = None
+
+    @validator("fecha_visita")
+    def fecha_debe_ser_futura(cls, v):
+        if v.tzinfo is not None:
+            from datetime import timezone
+            now = datetime.now(timezone.utc)
+        else:
+            now = datetime.utcnow()
+        if v <= now:
+            raise ValueError("La fecha de visita debe ser en el futuro")
+        return v
 
     class Config:
         schema_extra = {

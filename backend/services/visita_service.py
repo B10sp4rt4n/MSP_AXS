@@ -105,6 +105,13 @@ def crear_desde_preregistro(db: Session, data: Any, usuario: Any) -> Visita:
     condominio_id = getattr(usuario, "condominio_id", None)
     casa_unidad = getattr(usuario, "casa_unidad", None)
 
+    if not condominio_id:
+        from fastapi import HTTPException
+        raise HTTPException(400, detail="El residente no tiene condominio asignado")
+    if not casa_unidad:
+        from fastapi import HTTPException
+        raise HTTPException(400, detail="El residente no tiene casa asignada. Contacta al administrador.")
+
     def _normalize_str(val: Optional[str]) -> Optional[str]:
         if val is None:
             return None

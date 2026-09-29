@@ -1,11 +1,14 @@
 import qrcode
 import io
 import uuid
+import os
 from datetime import datetime, timedelta
 from ..core.config import settings
 
+_QR_VIGENCIA_DEFAULT = int(os.getenv("QR_VIGENCIA_MINUTOS", "60"))
 
-def generar_qr_para_visita(visita_id: str, minutos_vigencia: int = 60):
+
+def generar_qr_para_visita(visita_id: str, minutos_vigencia: int = _QR_VIGENCIA_DEFAULT):
     # normalize inputs
     visita_id = str(visita_id).strip()
     # cap vigencia to a reasonable maximum (e.g., 7 days)
