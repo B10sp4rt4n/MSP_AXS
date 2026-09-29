@@ -29,9 +29,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 import os
 
-# ✅ Configurar logging a nivel DEBUG para ver TODO
+_log_level = logging.DEBUG if os.getenv("ENVIRONMENT") != "production" else logging.INFO
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=_log_level,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
@@ -77,14 +77,19 @@ app = FastAPI(
 app.add_middleware(AUPSessionGuard)
 logger.info("🔒 AUP-01 ACTIVADO: Middleware de SESSION activo")
 
+_allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "https://frontend-next-psi-ashen.vercel.app,https://frontend-next-salvador-ruiz-esparzas-projects.vercel.app"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-logger.info("🌍 CORS ACTIVADO: Requests desde cualquier origen permitidas")
+logger.info(f"🌍 CORS ACTIVADO: {_allowed_origins}")
 
 # ============================================================
 #   Inicialización de Bases de Datos (Separadas)
@@ -137,14 +142,14 @@ app.include_router(webhooks_router.router)
 #   Debug Endpoint
 # ============================================================
 
-@app.get("/debug/db")
-def debug_db():
-    """Revisar si el backend sí está leyendo .env y qué DB está usando."""
-    return {
-        "db_url_from_env": os.getenv("DATABASE_URL", "(NO ENV FOUND)"),
-        "db_url_from_settings": getattr(settings, "DATABASE_URL", "(NO SETTINGS LOADED)"),
-        "env_file_loaded": "YES" if os.getenv("DATABASE_URL") else "NO"
-    }
+if os.getenv("ENVIRONMENT") != "production":
+    @app.get("/debug/db")
+    def debug_db():
+        """Solo disponible fuera de producción."""
+        return {
+            "db_url_from_env": os.getenv("DATABASE_URL", "(NO ENV FOUND)"),
+            "env_file_loaded": "YES" if os.getenv("DATABASE_URL") else "NO"
+        }
 
 
 # ============================================================
