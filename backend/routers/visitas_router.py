@@ -325,9 +325,11 @@ def registrar_salida(
     db: Session = Depends(get_core_db),
     db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),
+    condominio_id: str | None = None,
 ):
     verificar_rol(usuario, ["GUARDIA", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
-    visita = require_visita(db, db_gov, usuario, visita_id, AccessLevel.GUARDIA)
+    visita = require_visita(db, db_gov, usuario, visita_id, AccessLevel.GUARDIA,
+                           condominio_id=condominio_id)
     if visita.estado not in ["pendiente", "entrada_registrada", "activa"]:
         raise HTTPException(400, f"No se puede registrar salida en estado '{visita.estado}'")
     visita = visita_service.registrar_salida(db, visita_id)
@@ -343,12 +345,13 @@ def cancelar_visita(
     db: Session = Depends(get_core_db),
     db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),
+    condominio_id: str | None = None,
 ):
     if usuario.rol not in ["RESIDENTE", "MSP_ADMIN", "ADMIN_CONDOMINIO"]:
         raise HTTPException(403, "No autorizado")
     level = AccessLevel.RESIDENTE if usuario.rol == "RESIDENTE" else AccessLevel.ADMIN_CONDOMINIO
     visita = require_visita(db, db_gov, usuario, visita_id, level,
-                           own_unit=usuario.rol == "RESIDENTE")
+                           own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
     if usuario.rol == "RESIDENTE":
         if visita.condominio_id != usuario.condominio_id or visita.casa_unidad != usuario.casa_unidad:
             raise HTTPException(403, "No autorizado para esta visita")
@@ -373,6 +376,7 @@ def obtener_visita(
     db: Session = Depends(get_core_db),
     db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
+    condominio_id: str | None = None,
 ):
     return require_visita(db, db_gov, usuario, visita_id, AccessLevel.RESIDENTE,
-                          own_unit=usuario.rol == "RESIDENTE")
+                          own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)

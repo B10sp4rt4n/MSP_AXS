@@ -79,12 +79,13 @@ def reenviar_qr(
     db: Session = Depends(get_core_db),
     db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
+    condominio_id: str | None = None,
 ):
     verificar_rol(usuario, ["RESIDENTE", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
 
     level = AccessLevel.RESIDENTE if usuario.rol == "RESIDENTE" else AccessLevel.ADMIN_CONDOMINIO
     visita = require_visita(db, db_gov, usuario, visita_id, level,
-                           own_unit=usuario.rol == "RESIDENTE")
+                           own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
 
     # Si el QR no existe o está expirado, regenerar
     if not visita.qr_token or not visita.qr_vigencia or visita.qr_vigencia < datetime.utcnow():

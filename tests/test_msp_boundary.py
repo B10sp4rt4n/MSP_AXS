@@ -1,5 +1,7 @@
 """Cruces de dos proveedores y dos condominios por proveedor."""
 
+from datetime import datetime, timedelta
+
 import pytest
 from fastapi import HTTPException
 
@@ -49,9 +51,12 @@ def tenants(db_core_session, db_gov_session):
                         access_level=AccessLevel.RESIDENTE, estado=ScopeStatus.ACTIVO),
         UserTenantScope(usuario_id="resident_a2", tenant_id="a2",
                         access_level=AccessLevel.RESIDENTE, estado=ScopeStatus.ACTIVO),
-        Visita(visita_id="v_a1_101", condominio_id="a1", casa_unidad="101", estado="pendiente"),
-        Visita(visita_id="v_a1_102", condominio_id="a1", casa_unidad="102", estado="pendiente"),
-        Visita(visita_id="v_b1", condominio_id="b1", casa_unidad="101", estado="pendiente"),
+        Visita(visita_id="v_a1_101", condominio_id="a1", casa_unidad="101", estado="pendiente",
+               nombre_visitante="Visitante A", tipo_visita="eventual", vigencia=datetime.utcnow() + timedelta(days=1)),
+        Visita(visita_id="v_a1_102", condominio_id="a1", casa_unidad="102", estado="pendiente",
+               nombre_visitante="Visitante A2", tipo_visita="eventual", vigencia=datetime.utcnow() + timedelta(days=1)),
+        Visita(visita_id="v_b1", condominio_id="b1", casa_unidad="101", estado="pendiente",
+               nombre_visitante="Visitante B", tipo_visita="eventual", vigencia=datetime.utcnow() + timedelta(days=1)),
     ])
     db.commit()
     db_gov_session.add(Authority(authority_id="global_operator", identity_id="operator",
@@ -89,10 +94,18 @@ def test_condominium_and_home_boundaries(tenants, db_core_session, db_gov_sessio
     denied(lambda: require_condominio(db, gov, tenants["resident_a1"], "a1", AccessLevel.GUARDIA))
     require_visita(db, gov, tenants["resident_a1"], "v_a1_101", AccessLevel.RESIDENTE, own_unit=True)
     denied(lambda: require_visita(db, gov, tenants["resident_a1"], "v_a1_102", AccessLevel.RESIDENTE, own_unit=True))
-    denied(lambda: require_visita(db, gov, tenants["resident_a1"], "v_b1", AccessLevel.RESIDENTE, own_unit=True))
-    denied(lambda: require_visita(db, gov, tenants["admin_b"], "v_a1_101", AccessLevel.GUARDIA))
+    denied(lambda: require_visita(db, gov, tenants["resident_a1"], "v_b1", AccessLevel.RESIDENTE,
+                                  own_unit=True, condominio_id="b1"))
+    denied(lambda: require_visita(db, gov, tenants["admin_b"], "v_a1_101", AccessLevel.GUARDIA,
+                                  condominio_id="a1"))
     require_visita(db, gov, tenants["guard_a1"], "v_a1_102", AccessLevel.GUARDIA)
-    denied(lambda: require_visita(db, gov, tenants["guard_a1"], "v_b1", AccessLevel.GUARDIA))
+    denied(lambda: require_visita(db, gov, tenants["guard_a1"], "v_b1", AccessLevel.GUARDIA,
+                                  condominio_id="b1"))
+    assert require_visita(db, gov, tenants["admin_a"], "v_a1_101", AccessLevel.GUARDIA,
+                          condominio_id="a1").visita_id == "v_a1_101"
+    with pytest.raises(HTTPException) as exc:
+        require_visita(db, gov, tenants["admin_a"], "v_a1_101", AccessLevel.GUARDIA)
+    assert exc.value.status_code == 400
 
 
 def test_no_msp_grant_from_legacy_role_alone(tenants, db_core_session, db_gov_session):
@@ -116,7 +129,30 @@ def test_member_grant_and_revocation_only_by_operator(tenants, db_core_session, 
 
 def test_visit_routes_apply_boundary_before_mutation(tenants, db_core_session, db_gov_session):
     db, gov = db_core_session, db_gov_session
-    denied(lambda: registrar_salida("v_a1_101", db, gov, tenants["admin_b"]))
+    denied(lambda: registrar_salida("v_a1_101", db, gov, tenants["admin_b"], condominio_id="a1"))
     denied(lambda: obtener_visita("v_a1_102", db, gov, tenants["resident_a1"]))
     denied(lambda: reenviar_qr("v_a1_102", db, gov, tenants["resident_a1"]))
     assert db.query(Visita).filter_by(visita_id="v_a1_101").one().estado == "pendiente"
+
+
+def test_http_visita_resuelve_tenant_antes_de_buscar(tenants, db_core_session, db_gov_session, db_event_session):
+    from fastapi.testclient import TestClient
+    from backend.main import app
+    from backend.db.core import get_core_db
+    from backend.db.event import get_event_db
+    from backend.db.gov import get_gov_db
+    from backend.core.auth.jwt import create_access_token
+
+    app.dependency_overrides[get_core_db] = lambda: db_core_session
+    app.dependency_overrides[get_event_db] = lambda: db_event_session
+    app.dependency_overrides[get_gov_db] = lambda: db_gov_session
+    try:
+        with TestClient(app) as client:
+            headers = {"Authorization": f"Bearer {create_access_token('admin_a', 'MSP_ADMIN')}"}
+            assert client.get("/visitas/v_a1_101", headers=headers).status_code == 400
+            own = client.get("/visitas/v_a1_101?condominio_id=a1", headers=headers)
+            assert own.status_code == 200
+            assert own.json()["visita_id"] == "v_a1_101"
+            assert client.get("/visitas/v_b1?condominio_id=b1", headers=headers).status_code == 403
+    finally:
+        app.dependency_overrides.clear()

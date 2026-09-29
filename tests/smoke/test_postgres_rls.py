@@ -23,6 +23,14 @@ def test_visitas_aisladas_tras_commit_y_refresh():
         engine.dispose()
         pytest.fail("AXS_TEST_POSTGRES_URL debe apuntar a PostgreSQL")
 
+    with engine.connect() as connection:
+        bypass = connection.execute(text(
+            "SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname = current_user"
+        )).scalar_one()
+    if bypass:
+        engine.dispose()
+        pytest.fail("El rol de la prueba tiene BYPASSRLS o SUPERUSER; usar un rol sin bypass")
+
     schema = f"axs_rls_{uuid.uuid4().hex[:12]}"
     try:
         with engine.begin() as connection:

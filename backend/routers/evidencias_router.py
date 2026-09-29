@@ -25,9 +25,11 @@ def evidencias_entrada(
     db: Session = Depends(get_core_db),
     db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
+    condominio_id: str | None = None,
 ):
     verificar_rol(usuario, ["GUARDIA"])
-    require_visita(db, db_gov, usuario, visita_id, AccessLevel.GUARDIA)
+    require_visita(db, db_gov, usuario, visita_id, AccessLevel.GUARDIA,
+                   condominio_id=condominio_id)
 
     archivos = {
         "visitante": foto_visitante,

@@ -65,11 +65,21 @@ def require_condominio(
 def require_visita(
     db: Session, db_gov: Session, usuario: Usuario, visita_id: str,
     level: AccessLevel, *, own_unit: bool = False,
+    condominio_id: str | None = None,
 ) -> Visita:
-    visita = db.query(Visita).filter(Visita.visita_id == visita_id).first()
+    # RLS impide descubrir el tenant leyendo la visita sin contexto. El tenant
+    # proviene del usuario o de un parámetro explícito previamente autorizado.
+    tenant_id = condominio_id or usuario.condominio_id
+    if not tenant_id:
+        raise HTTPException(400, "condominio_id requerido para esta operación")
+    require_condominio(db, db_gov, usuario, tenant_id, level)
+    from backend.core.tenant.context import _set_postgres_tenant
+    _set_postgres_tenant(db, tenant_id)
+    visita = db.query(Visita).filter(
+        Visita.visita_id == visita_id, Visita.condominio_id == tenant_id,
+    ).first()
     if not visita:
         raise HTTPException(404, "Visita no encontrada")
-    require_condominio(db, db_gov, usuario, visita.condominio_id, level)
     if own_unit and not (is_platform_operator(db_gov, usuario) or
                          visita.condominio_id in _admin_condominios(db, usuario) or
                          _is_msp_admin_for(db, usuario, visita.condominio_id)):
