@@ -93,6 +93,7 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
     from backend.core.auth.jwt import create_access_token
     from backend.db.core import get_core_db, Usuario, MSPMembership
     from backend.db.gov import get_gov_db
+    from backend.db.gov import Policy, PolicyScope, GovStatus
     from backend.db.event import get_event_db
 
     url = os.getenv("AXS_TEST_POSTGRES_URL")
@@ -139,6 +140,9 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
         app.dependency_overrides[get_core_db] = core_db
         app.dependency_overrides[get_gov_db] = lambda: db_gov_session
         app.dependency_overrides[get_event_db] = lambda: db_event_session
+        db_gov_session.add(Policy(policy_id="http_create", nombre="Create visits", ambito=PolicyScope.GLOBAL,
+                                  accion_objetivo="crear_visita", limites={}, estado=GovStatus.ACTIVO))
+        db_gov_session.commit()
         headers = {m: {"Authorization": f"Bearer {create_access_token(f'admin_{m}', 'MSP_ADMIN')}"} for m in ("a", "b")}
         with TestClient(app) as client:
             assert client.get("/visitas/v_a?condominio_id=a1").status_code == 401
@@ -146,6 +150,21 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
             own = client.get("/visitas/v_a?condominio_id=a1", headers=headers["a"])
             assert own.status_code == 200, own.text
             assert own.json()["visita_id"] == "v_a"
+            listing = client.get("/visitas/condominio/a1", headers=headers["a"])
+            assert listing.status_code == 200, listing.text
+            assert {v["visita_id"] for v in listing.json()} == {"v_a"}
+            assert client.get("/visitas/condominio/b1", headers=headers["a"]).status_code == 403
+            data = {"condominio_id": "a1", "casa_unidad": "101", "nombre_visitante": "Nuevo",
+                    "tipo_visita": "eventual", "vigencia": (datetime.utcnow() + timedelta(days=1)).isoformat()}
+            created = client.post("/visitas/a1", headers=headers["a"], json=data)
+            assert created.status_code == 200, created.text
+            assert created.json()["condominio_id"] == "a1"
+            assert client.post("/visitas/b1", headers=headers["a"], json={**data, "condominio_id": "b1"}).status_code == 403
+            assert client.post("/visitas/a1", headers=headers["a"], json={**data, "condominio_id": "b1"}).status_code == 400
+            legacy = client.post("/visitas/", headers=headers["a"], json=data)
+            assert legacy.status_code == 200, legacy.text
+            assert legacy.json()["condominio_id"] == "a1"
+            assert client.post("/visitas/", headers=headers["a"], json={**data, "condominio_id": "b1"}).status_code == 403
             assert client.get("/visitas/v_b?condominio_id=b1", headers=headers["a"]).status_code == 403
             assert client.get("/visitas/v_b?condominio_id=a1", headers=headers["a"]).status_code == 404
             assert client.patch("/visitas/v_b/salida?condominio_id=b1", headers=headers["a"]).status_code == 403

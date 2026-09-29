@@ -1,6 +1,6 @@
 """Autorización por proveedor y condominio para las rutas operativas."""
 
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.db.core import (
@@ -60,6 +60,29 @@ def require_condominio(
     if not any(nivel_suficiente(scope.access_level, level) for scope in scopes):
         raise HTTPException(403, "Sin acceso al condominio")
     return condo
+
+
+def authorized_tenant_context(level: AccessLevel):
+    """Una autoridad efectiva (GLOBAL, membresía MSP o scope) fija el tenant."""
+    from backend.db.core import get_core_db
+    from backend.db.gov import get_gov_db
+    from backend.core.auth.dependencies import get_current_user
+
+    def dependency(
+        condominio_id: str,
+        db: Session = Depends(get_core_db),
+        db_gov: Session = Depends(get_gov_db),
+        usuario: Usuario = Depends(get_current_user),
+    ) -> str:
+        tenant_id = condominio_id.strip()
+        if not tenant_id:
+            raise HTTPException(400, "condominio_id requerido")
+        require_condominio(db, db_gov, usuario, tenant_id, level)
+        from backend.core.tenant.context import _set_postgres_tenant
+        _set_postgres_tenant(db, tenant_id)
+        return tenant_id
+
+    return dependency
 
 
 def require_visita(
