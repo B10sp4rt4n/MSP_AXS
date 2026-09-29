@@ -24,7 +24,7 @@ AXIOMA:
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import event, text
 import logging
 
 from backend.db.core import Usuario, get_core_db
@@ -126,6 +126,9 @@ def _set_postgres_tenant(db: Session, tenant_id: str) -> None:
     if db.get_bind().dialect.name == "sqlite":
         return
     try:
+        # El servicio puede hacer commit y refresh dentro de la petición.
+        # La siguiente transacción de la misma sesión debe restaurar el tenant.
+        db.info["app_tenant_id"] = tenant_id
         db.execute(
             text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
             {"tenant_id": tenant_id},
@@ -136,6 +139,16 @@ def _set_postgres_tenant(db: Session, tenant_id: str) -> None:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="No se pudo establecer el contexto de tenant",
         ) from exc
+
+
+@event.listens_for(Session, "after_begin")
+def _restore_tenant_after_commit(session: Session, transaction, connection) -> None:
+    tenant_id = session.info.get("app_tenant_id")
+    if tenant_id and connection.dialect.name == "postgresql":
+        connection.execute(
+            text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+            {"tenant_id": tenant_id},
+        )
 
 
 def get_tenant_from_request(
