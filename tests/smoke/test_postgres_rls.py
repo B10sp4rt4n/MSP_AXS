@@ -43,12 +43,14 @@ def test_visitas_aisladas_tras_commit_y_refresh():
             MSP.__table__, Condominio.__table__, Visita.__table__,
         ])
         with Session(tenant_engine) as db:
+            db.add_all([MSP(msp_id="a", nombre="A"), MSP(msp_id="b", nombre="B")])
+            db.flush()
             db.add_all([
-                MSP(msp_id="a", nombre="A"), MSP(msp_id="b", nombre="B"),
                 Condominio(condominio_id="a1", msp_id="a", nombre="A1"),
                 Condominio(condominio_id="b1", msp_id="b", nombre="B1"),
-                Visita(visita_id="vb", condominio_id="b1", nombre_visitante="B", estado="pendiente"),
             ])
+            db.flush()
+            db.add(Visita(visita_id="vb", condominio_id="b1", nombre_visitante="B", estado="pendiente"))
             db.commit()
 
         with engine.begin() as connection:
