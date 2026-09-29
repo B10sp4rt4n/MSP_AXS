@@ -29,17 +29,31 @@ export default function MSPClient() {
 
   const cargar = () => {
     setLoading(true);
-    getToken().then(token =>
-      Promise.all([
-        api.get<Condominio[]>("/condominios/", token!),
-        api.get<MSP[]>("/msps/", token!),
-      ])
-    ).then(([c, m]) => { setCondominios(c); setMsps(m); })
-      .catch(() => setError("Error cargando datos"))
-      .finally(() => setLoading(false));
+    setError("");
+    getToken().then(async (token) => {
+      if (!token) { setError("Sin sesión — recarga la página"); setLoading(false); return; }
+      const [condosResult, mspsResult] = await Promise.allSettled([
+        api.get<Condominio[]>("/condominios/", token),
+        api.get<MSP[]>("/msps/", token),
+      ]);
+      if (condosResult.status === "fulfilled") {
+        setCondominios(condosResult.value);
+      } else {
+        const msg = condosResult.reason instanceof Error ? condosResult.reason.message : String(condosResult.reason);
+        setError(`Condominios: ${msg}`);
+      }
+      if (mspsResult.status === "fulfilled") {
+        setMsps(mspsResult.value);
+      }
+      // MSPs fallback silencioso si 403 (no MSP_ADMIN) — los condominios aún se muestran
+      setLoading(false);
+    }).catch((e: unknown) => {
+      setError(e instanceof Error ? e.message : "Error de red");
+      setLoading(false);
+    });
   };
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); }, [getToken]);
 
   // Todos los usuarios aplanados de todos los condominios
   const todosUsuarios = condominios.flatMap(c =>
