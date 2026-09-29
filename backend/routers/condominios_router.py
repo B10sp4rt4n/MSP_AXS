@@ -9,10 +9,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
-from ..core.dependencies import get_db
 from ..core.auth.dependencies import get_current_user
-from ..core.security import verificar_rol
 from backend.db.core import Usuario, Condominio, Casa, MSP, UserTenantScope, AccessLevel, get_core_db
+from backend.db.core import ScopeStatus
+from backend.db.gov import get_gov_db
+from backend.core.scope.msp_boundary import (
+    active_msp_ids, is_platform_operator, require_condominio, require_msp_admin,
+)
 from ..core.gov.facade import puede_ejecutar_accion
 import uuid
 
@@ -68,29 +71,29 @@ class CondominioResponse(BaseModel):
 def list_condominios(
     msp_id: Optional[str] = None,
     db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user)
 ):
     """Lista condominios accesibles para el usuario autenticado."""
-    from backend.db.core.models import UserTenantScope
-
-    if usuario.rol in ["MSP_ADMIN", "ADMIN"]:
-        # Ve todos los condominios (filtrado opcional por MSP)
-        query = db.query(Condominio)
-        if msp_id:
-            query = query.filter(Condominio.msp_id == msp_id)
-        condominios = query.all()
-    else:
-        # Guardia, residente, admin_condominio: solo sus condominios asignados via scope
-        scopes = db.query(UserTenantScope).filter(
-            UserTenantScope.usuario_id == usuario.usuario_id,
-            UserTenantScope.estado == "activo",
-        ).all()
-        tenant_ids = [s.tenant_id for s in scopes]
-        if not tenant_ids:
+    query = db.query(Condominio)
+    if msp_id:
+        query = query.filter(Condominio.msp_id == msp_id)
+    if not is_platform_operator(db_gov, usuario):
+        msp_ids = active_msp_ids(db, usuario)
+        scoped_tenants = [
+            row[0] for row in db.query(UserTenantScope.tenant_id).filter(
+                UserTenantScope.usuario_id == usuario.usuario_id,
+                UserTenantScope.estado == ScopeStatus.ACTIVO,
+            ).all()
+        ]
+        if not msp_ids and not scoped_tenants:
             return []
-        condominios = db.query(Condominio).filter(
-            Condominio.condominio_id.in_(tenant_ids)
-        ).all()
+        from sqlalchemy import or_
+        query = query.filter(or_(
+            Condominio.msp_id.in_(msp_ids),
+            Condominio.condominio_id.in_(scoped_tenants),
+        ))
+    condominios = query.all()
     
     resultado = []
     for c in condominios:
@@ -141,6 +144,7 @@ def crear_condominio(
     body: CondominioCreate,
     request: Request,
     db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user)
 ):
     """
@@ -150,8 +154,7 @@ def crear_condominio(
     OPERACIÓN CRÍTICA: Requiere evaluación de AUP_GOV
     ═══════════════════════════════════════════════════════════════════════
     """
-    if usuario.rol not in ["MSP_ADMIN", "ADMIN"]:
-        raise HTTPException(403, detail="Requiere rol MSP_ADMIN")
+    require_msp_admin(db, db_gov, usuario, body.msp_id)
     
     # Validar que el MSP existe
     msp = db.query(MSP).filter(MSP.msp_id == body.msp_id).first()
@@ -165,6 +168,8 @@ def crear_condominio(
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     
     # Contar tenants actuales
+    # La política actual crear_tenant es global; el cupo por MSP requiere
+    # una política de proveedor explícita en una migración posterior.
     tenants_count = db.query(Condominio).count()
     
     permitido, motivo = puede_ejecutar_accion(
@@ -172,7 +177,8 @@ def crear_condominio(
         usuario=usuario,
         session_token=token,
         accion="crear_tenant",
-        valor_actual=tenants_count
+        valor_actual=tenants_count,
+        db_gov=db_gov,
     )
     
     if not permitido:
@@ -204,15 +210,11 @@ def crear_casa(
     condominio_id: str,
     body: CasaCreate,
     db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user)
 ):
     """Crea una casa/depto/local en un condominio (sin residente)."""
-    if usuario.rol not in ["MSP_ADMIN", "ADMIN", "ADMIN_CONDOMINIO"]:
-        raise HTTPException(403, detail="Acceso denegado")
-
-    condo = db.query(Condominio).filter(Condominio.condominio_id == condominio_id).first()
-    if not condo:
-        raise HTTPException(404, detail="Condominio no encontrado")
+    require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
 
     # Evitar duplicados de número dentro del mismo condominio
     existe = db.query(Casa).filter(
@@ -248,17 +250,15 @@ def asignar_residente(
     casa_id: str,
     body: AsignarResidente,
     db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user)
 ):
     """Asigna un residente a una casa existente."""
-    if usuario.rol not in ["MSP_ADMIN", "ADMIN", "ADMIN_CONDOMINIO"]:
-        raise HTTPException(403, detail="Acceso denegado")
+    condo = require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
 
     casa = db.query(Casa).filter(Casa.casa_id == casa_id, Casa.condominio_id == condominio_id).first()
     if not casa:
         raise HTTPException(404, detail="Casa no encontrada")
-
-    condo = db.query(Condominio).filter(Condominio.condominio_id == condominio_id).first()
 
     # Verificar que el email no esté registrado
     existe = db.query(Usuario).filter(Usuario.email == body.email.strip()).first()
@@ -284,7 +284,7 @@ def asignar_residente(
         usuario_id=usuario_id,
         tenant_id=condominio_id,
         access_level=AccessLevel.RESIDENTE,
-        estado="activo"
+        estado=ScopeStatus.ACTIVO
     )
     db.add(scope)
     db.commit()
@@ -302,11 +302,11 @@ def asignar_residente(
 def listar_casas(
     condominio_id: str,
     db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user)
 ):
     """Lista todas las casas del condominio con su residente asignado."""
-    if usuario.rol not in ["MSP_ADMIN", "ADMIN", "ADMIN_CONDOMINIO", "GUARDIA"]:
-        raise HTTPException(403, detail="Acceso denegado")
+    require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.GUARDIA)
 
     casas = db.query(Casa).filter(Casa.condominio_id == condominio_id).order_by(Casa.numero).all()
 
@@ -334,4 +334,3 @@ def listar_casas(
         "total_casas": len(resultado),
         "casas": resultado,
     }
-

@@ -199,6 +199,7 @@ class EventEntity(str, Enum):
     CONDOMINIO = "condominio"
     SCOPE = "scope"
     SESSION = "session"
+    POLICY = "policy"
 
 class EventAction(str, Enum):
     """Tipos de acción ejecutada"""

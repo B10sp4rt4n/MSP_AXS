@@ -3,7 +3,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 import logging
 from sqlalchemy.orm import Session
-from ..core.dependencies import get_db
+from backend.db.core import get_core_db, AccessLevel
+from backend.db.gov import get_gov_db
+from backend.core.scope.msp_boundary import require_visita
 from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
 from backend.db.core import Visita, Usuario
@@ -21,13 +23,15 @@ router = APIRouter(prefix="/qr", tags=["QR"])
 def generar_qr(
     visita_id: str,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
+    condominio_id: str | None = None,
 ):
     verificar_rol(usuario, ["ADMIN_CONDOMINIO", "RESIDENTE"])
-    visita = db.query(Visita).filter(Visita.visita_id == visita_id).first()
-    if not visita:
-        raise HTTPException(404, "Visita no encontrada")
+    level = AccessLevel.RESIDENTE if usuario.rol == "RESIDENTE" else AccessLevel.ADMIN_CONDOMINIO
+    visita = require_visita(db, db_gov, usuario, visita_id, level,
+                           own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
 
     # ═══════════════════════════════════════════════════════════════════
     # AUP_GOV: Evaluar política ANTES de generar QR
@@ -85,14 +89,20 @@ def validar_qr(
     visita_id: str,
     token: str,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
+    condominio_id: str | None = None,
 ):
     logger = logging.getLogger("axs.qr")
     verificar_rol(usuario, ["GUARDIA", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
 
-    visita = db.query(Visita).filter(Visita.visita_id == visita_id).first()
-    if not visita:
+    try:
+        visita = require_visita(db, db_gov, usuario, visita_id, AccessLevel.GUARDIA,
+                               condominio_id=condominio_id)
+    except HTTPException as exc:
+        if exc.status_code != 404:
+            raise
         logger.warning("QR validation failed: visita no encontrada", extra={"visita_id": visita_id, "user": getattr(usuario, "usuario_id", None)})
         # AUP_EVENT: Validación fallida (visita no encontrada)
         session_token = request.headers.get("Authorization", "").replace("Bearer ", "")
@@ -100,14 +110,14 @@ def validar_qr(
             db=db,
             identity=usuario,
             session_token=session_token,
-            tenant_id=usuario.condominio_id or "sistema",
+            tenant_id=condominio_id or usuario.condominio_id or "sistema",
             entidad=EventEntity.QR.value,
             entidad_id=token,
             accion=EventAction.VALIDAR.value,
             resultado=EventResult.FALLO.value,
             motivo="Visita no encontrada"
         )
-        raise HTTPException(404, "Visita no encontrada")
+        raise
 
     tenant_id = visita.condominio_id or usuario.condominio_id or "sistema"
     session_token = request.headers.get("Authorization", "").replace("Bearer ", "")

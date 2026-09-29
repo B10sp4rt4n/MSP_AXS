@@ -40,7 +40,7 @@ class TestSession:
         # 3. Decodificar token y validar claims esenciales
         # ⚠️ AJUSTE AUP: No acoplar scope_id en JWT (se resuelve en runtime desde BD)
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        assert payload["sub"] == "test@example.com"  # Identity
+        assert payload["sub"] == usuario_base.usuario_id  # Identity
         assert "exp" in payload  # Expiration timestamp
         assert "role" in payload  # Role base
         assert payload["method"] == "local"  # Authentication method
@@ -68,15 +68,15 @@ class TestSession:
         
         # 2. Intentar acceder a endpoint protegido
         response = client.get(
-            "/visitas/mis-visitas",
+            "/auth/me",
             headers={"Authorization": f"Bearer {expired_token}"}
         )
         
         # 3. Validar rechazo
         assert response.status_code == 401
         detail = response.json().get("detail", "").lower()
-        # Puede ser "token expired" o "could not validate credentials"
-        assert "token" in detail or "credential" in detail or "expired" in detail
+        # El middleware AUP-01 responde con su contrato de sesión inválida.
+        assert "invalid session" in detail
         
         print(f"✅ Token expirado rechazado correctamente: {response.json()['detail']}")
     
@@ -101,7 +101,7 @@ class TestSession:
         
         print(f"✅ Contraseña incorrecta rechazada: {response.json()['detail']}")
     
-    def test_endpoint_protegido_sin_token_rechaza(self, client):
+    def test_endpoint_protegido_sin_token_rechaza(self, client, db_event_session):
         """
         TEST 1.4 — Endpoint protegido sin token rechaza
         
@@ -109,12 +109,16 @@ class TestSession:
         
         Axioma AUP: Sin AUP_SESSION válida, no hay operación.
         """
-        # 1. GET /visitas/mis-visitas SIN header Authorization
-        response = client.get("/visitas/mis-visitas")
+        # 1. GET /auth/me SIN header Authorization
+        response = client.get("/auth/me")
         
         # 2. Validar rechazo
         assert response.status_code == 401
         detail = response.json().get("detail", "").lower()
-        assert "not authenticated" in detail or "credential" in detail
+        assert "no session" in detail
+        from backend.db.event import Event
+        from backend.core.event.registry import verificar_integridad_evento
+        evento = db_event_session.query(Event).filter_by(accion="denegar").one()
+        assert verificar_integridad_evento(evento)
         
         print(f"✅ Acceso sin token rechazado: {response.json()['detail']}")

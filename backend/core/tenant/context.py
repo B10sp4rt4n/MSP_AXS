@@ -24,13 +24,13 @@ AXIOMA:
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import event, text
 import logging
 
 from backend.db.core import Usuario, get_core_db
 from backend.core.auth.dependencies import get_current_user
 from backend.core.scope.validator import validar_scope
-from backend.db.models import AccessLevel
+from backend.db.core import AccessLevel
 
 logger = logging.getLogger("aup.tenant")
 
@@ -115,22 +115,40 @@ def set_tenant_context(
         )
 
     # ─────────────────────────────────────────────────────────────────────
-    # PASO 3: Ejecutar SET app.tenant_id (solo PostgreSQL; SQLite lo ignora)
-    # ─────────────────────────────────────────────────────────────────────
-    try:
-        db.execute(text("SET app.tenant_id = :tenant_id"), {"tenant_id": tenant_id})
-        logger.info(
-            f"TENANT-CONTEXT: SET exitoso - usuario={current_user.usuario_id} "
-            f"tenant={tenant_id}"
-        )
-    except Exception as e:
-        # SQLite no soporta SET — no es un error en entornos locales
-        logger.debug(
-            f"TENANT-CONTEXT: SET ignorado (SQLite?) - "
-            f"usuario={current_user.usuario_id} tenant={tenant_id} error={str(e)}"
-        )
+    # El contexto pertenece a la transacción de esta misma sesión ORM.
+    # Ningún error de PostgreSQL puede convertirse en un bypass silencioso.
+    _set_postgres_tenant(db, tenant_id)
 
     return tenant_id
+
+
+def _set_postgres_tenant(db: Session, tenant_id: str) -> None:
+    if db.get_bind().dialect.name == "sqlite":
+        return
+    try:
+        # El servicio puede hacer commit y refresh dentro de la petición.
+        # La siguiente transacción de la misma sesión debe restaurar el tenant.
+        db.info["app_tenant_id"] = tenant_id
+        db.execute(
+            text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+            {"tenant_id": tenant_id},
+        )
+    except Exception as exc:
+        logger.exception("No se pudo establecer el contexto de tenant")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No se pudo establecer el contexto de tenant",
+        ) from exc
+
+
+@event.listens_for(Session, "after_begin")
+def _restore_tenant_after_commit(session: Session, transaction, connection) -> None:
+    tenant_id = session.info.get("app_tenant_id")
+    if tenant_id and connection.dialect.name == "postgresql":
+        connection.execute(
+            text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+            {"tenant_id": tenant_id},
+        )
 
 
 def get_tenant_from_request(
@@ -182,10 +200,7 @@ def require_tenant_context(required_level: AccessLevel = AccessLevel.LECTURA):
                 detail=f"Requiere nivel {required_level.value} en tenant {tenant_id}"
             )
 
-        try:
-            db.execute(text("SET app.tenant_id = :tenant_id"), {"tenant_id": tenant_id})
-        except Exception:
-            pass  # SQLite no soporta SET
+        _set_postgres_tenant(db, tenant_id)
 
         return tenant_id
     

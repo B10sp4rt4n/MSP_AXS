@@ -985,7 +985,6 @@ def test_obtener_policies_filtro_ambito(db_gov_session):
 # TEST: Asignar Plan con Evento
 # ═══════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.skip(reason="Requiere fixture Usuario completo")
 def test_asignar_plan_con_evento_crea_evento(db_gov_session, db_session, db_event_session):
     """
     Test: asignar_plan_con_evento registra evento AUP_EVENT.
@@ -999,17 +998,15 @@ def test_asignar_plan_con_evento_crea_evento(db_gov_session, db_session, db_even
         usuario_id="admin_001",
         email="admin@test.com",
         nombre="Admin",
-        apellido="Test",
         rol="ADMIN",
-        hashed_password="hash"
+        password_hash="hash"
     )
     target = Usuario(
         usuario_id="user_001",
         email="user@test.com",
         nombre="User",
-        apellido="Test",
         rol="RESIDENTE",
-        hashed_password="hash"
+        password_hash="hash"
     )
     db_session.add_all([admin, target])
     db_session.commit()
@@ -1036,7 +1033,6 @@ def test_asignar_plan_con_evento_crea_evento(db_gov_session, db_session, db_even
     assert evento.resultado == "exito"
 
 
-@pytest.mark.skip(reason="Requiere fixture Usuario completo")
 def test_asignar_plan_con_evento_revoca_plan_anterior(db_gov_session, db_session, db_event_session):
     """
     Test: asignar_plan_con_evento revoca políticas del plan anterior.
@@ -1049,17 +1045,15 @@ def test_asignar_plan_con_evento_revoca_plan_anterior(db_gov_session, db_session
         usuario_id="user_002",
         email="user2@test.com",
         nombre="User",
-        apellido="Two",
         rol="RESIDENTE",
-        hashed_password="hash"
+        password_hash="hash"
     )
     admin = Usuario(
         usuario_id="admin_002",
         email="admin2@test.com",
         nombre="Admin",
-        apellido="Two",
         rol="ADMIN",
-        hashed_password="hash"
+        password_hash="hash"
     )
     db_session.add_all([user, admin])
     db_session.commit()
@@ -1161,7 +1155,6 @@ def test_obtener_plan_actual_extrae_limites_correctamente(db_gov_session):
 # TEST: Upgrade Plan
 # ═══════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.skip(reason="Requiere fixture Usuario completo")
 def test_upgrade_plan_de_free_a_pro(db_gov_session, db_session, db_event_session):
     """
     Test: upgrade_plan de FREE a PRO.
@@ -1174,17 +1167,15 @@ def test_upgrade_plan_de_free_a_pro(db_gov_session, db_session, db_event_session
         usuario_id="user_upgrade_1",
         email="upgrade1@test.com",
         nombre="Upgrade",
-        apellido="One",
         rol="RESIDENTE",
-        hashed_password="hash"
+        password_hash="hash"
     )
     admin = Usuario(
         usuario_id="admin_upgrade_1",
         email="admin_upgrade1@test.com",
         nombre="Admin",
-        apellido="Upgrade",
         rol="ADMIN",
-        hashed_password="hash"
+        password_hash="hash"
     )
     db_session.add_all([user, admin])
     db_session.commit()
@@ -1209,7 +1200,6 @@ def test_upgrade_plan_de_free_a_pro(db_gov_session, db_session, db_event_session
     assert result["plan_nuevo"] == "pro"
 
 
-@pytest.mark.skip(reason="Requiere fixture Usuario completo")
 def test_upgrade_plan_de_pro_a_enterprise(db_gov_session, db_session, db_event_session):
     """
     Test: upgrade_plan de PRO a ENTERPRISE.
@@ -1222,17 +1212,15 @@ def test_upgrade_plan_de_pro_a_enterprise(db_gov_session, db_session, db_event_s
         usuario_id="user_upgrade_2",
         email="upgrade2@test.com",
         nombre="Upgrade",
-        apellido="Two",
         rol="RESIDENTE",
-        hashed_password="hash"
+        password_hash="hash"
     )
     admin = Usuario(
         usuario_id="admin_upgrade_2",
         email="admin_upgrade2@test.com",
         nombre="Admin",
-        apellido="Two",
         rol="ADMIN",
-        hashed_password="hash"
+        password_hash="hash"
     )
     db_session.add_all([user, admin])
     db_session.commit()
@@ -1257,7 +1245,6 @@ def test_upgrade_plan_de_pro_a_enterprise(db_gov_session, db_session, db_event_s
     assert result["plan_nuevo"] == "enterprise"
 
 
-@pytest.mark.skip(reason="Requiere fixture Usuario completo")
 def test_upgrade_plan_sin_plan_asigna_free(db_gov_session, db_session, db_event_session):
     """
     Test: upgrade_plan sin plan previo asigna FREE.
@@ -1270,17 +1257,15 @@ def test_upgrade_plan_sin_plan_asigna_free(db_gov_session, db_session, db_event_
         usuario_id="user_upgrade_3",
         email="upgrade3@test.com",
         nombre="Upgrade",
-        apellido="Three",
         rol="RESIDENTE",
-        hashed_password="hash"
+        password_hash="hash"
     )
     admin = Usuario(
         usuario_id="admin_upgrade_3",
         email="admin_upgrade3@test.com",
         nombre="Admin",
-        apellido="Three",
         rol="ADMIN",
-        hashed_password="hash"
+        password_hash="hash"
     )
     db_session.add_all([user, admin])
     db_session.commit()
@@ -1298,7 +1283,6 @@ def test_upgrade_plan_sin_plan_asigna_free(db_gov_session, db_session, db_event_
     assert result["plan_nuevo"] == "free"
 
 
-@pytest.mark.skip(reason="Requiere fixture Usuario completo")
 def test_upgrade_plan_ya_en_enterprise(db_gov_session, db_session, db_event_session):
     """
     Test: upgrade_plan estando en ENTERPRISE no hace nada.
@@ -1311,17 +1295,15 @@ def test_upgrade_plan_ya_en_enterprise(db_gov_session, db_session, db_event_sess
         usuario_id="user_upgrade_4",
         email="upgrade4@test.com",
         nombre="Upgrade",
-        apellido="Four",
         rol="RESIDENTE",
-        hashed_password="hash"
+        password_hash="hash"
     )
     admin = Usuario(
         usuario_id="admin_upgrade_4",
         email="admin_upgrade4@test.com",
         nombre="Admin",
-        apellido="Four",
         rol="ADMIN",
-        hashed_password="hash"
+        password_hash="hash"
     )
     db_session.add_all([user, admin])
     db_session.commit()
@@ -1349,7 +1331,6 @@ def test_upgrade_plan_ya_en_enterprise(db_gov_session, db_session, db_event_sess
 # TEST: Downgrade Plan
 # ═══════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.skip(reason="Requiere fixture Usuario completo")
 def test_downgrade_plan_de_enterprise_a_pro(db_gov_session, db_session, db_event_session):
     """
     Test: downgrade_plan de ENTERPRISE a PRO.
@@ -1362,17 +1343,15 @@ def test_downgrade_plan_de_enterprise_a_pro(db_gov_session, db_session, db_event
         usuario_id="user_downgrade_1",
         email="downgrade1@test.com",
         nombre="Downgrade",
-        apellido="One",
         rol="RESIDENTE",
-        hashed_password="hash"
+        password_hash="hash"
     )
     admin = Usuario(
         usuario_id="admin_downgrade_1",
         email="admin_downgrade1@test.com",
         nombre="Admin",
-        apellido="One",
         rol="ADMIN",
-        hashed_password="hash"
+        password_hash="hash"
     )
     db_session.add_all([user, admin])
     db_session.commit()
@@ -1397,7 +1376,6 @@ def test_downgrade_plan_de_enterprise_a_pro(db_gov_session, db_session, db_event
     assert result["plan_nuevo"] == "pro"
 
 
-@pytest.mark.skip(reason="Requiere fixture Usuario completo")
 def test_downgrade_plan_de_pro_a_free(db_gov_session, db_session, db_event_session):
     """
     Test: downgrade_plan de PRO a FREE.
@@ -1410,17 +1388,15 @@ def test_downgrade_plan_de_pro_a_free(db_gov_session, db_session, db_event_sessi
         usuario_id="user_downgrade_2",
         email="downgrade2@test.com",
         nombre="Downgrade",
-        apellido="Two",
         rol="RESIDENTE",
-        hashed_password="hash"
+        password_hash="hash"
     )
     admin = Usuario(
         usuario_id="admin_downgrade_2",
         email="admin_downgrade2@test.com",
         nombre="Admin",
-        apellido="Two",
         rol="ADMIN",
-        hashed_password="hash"
+        password_hash="hash"
     )
     db_session.add_all([user, admin])
     db_session.commit()
@@ -1445,7 +1421,6 @@ def test_downgrade_plan_de_pro_a_free(db_gov_session, db_session, db_event_sessi
     assert result["plan_nuevo"] == "free"
 
 
-@pytest.mark.skip(reason="Requiere fixture Usuario completo")
 def test_downgrade_plan_ya_en_free(db_gov_session, db_session, db_event_session):
     """
     Test: downgrade_plan estando en FREE no hace nada.
@@ -1458,17 +1433,15 @@ def test_downgrade_plan_ya_en_free(db_gov_session, db_session, db_event_session)
         usuario_id="user_downgrade_3",
         email="downgrade3@test.com",
         nombre="Downgrade",
-        apellido="Three",
         rol="RESIDENTE",
-        hashed_password="hash"
+        password_hash="hash"
     )
     admin = Usuario(
         usuario_id="admin_downgrade_3",
         email="admin_downgrade3@test.com",
         nombre="Admin",
-        apellido="Three",
         rol="ADMIN",
-        hashed_password="hash"
+        password_hash="hash"
     )
     db_session.add_all([user, admin])
     db_session.commit()
@@ -1492,7 +1465,6 @@ def test_downgrade_plan_ya_en_free(db_gov_session, db_session, db_event_session)
     assert result["plan_actual"] == "free"
 
 
-@pytest.mark.skip(reason="Requiere fixture Usuario completo")
 def test_downgrade_plan_sin_plan(db_gov_session, db_session, db_event_session):
     """
     Test: downgrade_plan sin plan previo retorna error.
@@ -1505,17 +1477,15 @@ def test_downgrade_plan_sin_plan(db_gov_session, db_session, db_event_session):
         usuario_id="user_downgrade_4",
         email="downgrade4@test.com",
         nombre="Downgrade",
-        apellido="Four",
         rol="RESIDENTE",
-        hashed_password="hash"
+        password_hash="hash"
     )
     admin = Usuario(
         usuario_id="admin_downgrade_4",
         email="admin_downgrade4@test.com",
         nombre="Admin",
-        apellido="Four",
         rol="ADMIN",
-        hashed_password="hash"
+        password_hash="hash"
     )
     db_session.add_all([user, admin])
     db_session.commit()

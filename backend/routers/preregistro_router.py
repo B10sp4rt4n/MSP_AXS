@@ -2,7 +2,9 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from ..core.dependencies import get_db
+from backend.db.core import get_core_db, AccessLevel
+from backend.db.gov import get_gov_db
+from backend.core.scope.msp_boundary import require_condominio, require_visita
 from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
 from ..services import visita_service, qr_service
@@ -22,10 +24,14 @@ router = APIRouter(prefix="/preregistro", tags=["Preregistro"])
 def crear_preregistro(
     data: PreregistroCreate,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
 ):
     verificar_rol(usuario, ["RESIDENTE", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
+    if not usuario.condominio_id or not usuario.casa_unidad:
+        raise HTTPException(400, "Se requiere vivienda asignada")
+    require_condominio(db, db_gov, usuario, usuario.condominio_id, AccessLevel.RESIDENTE)
 
     # ═══════════════════════════════════════════════════════════════════
     # AUP_GOV: Evaluar política ANTES de crear preregistro
@@ -70,20 +76,16 @@ def crear_preregistro(
 @router.get("/qr/{visita_id}")
 def reenviar_qr(
     visita_id: str,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
+    condominio_id: str | None = None,
 ):
     verificar_rol(usuario, ["RESIDENTE", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
 
-    from backend.db.core import Visita
-
-    visita = db.query(Visita).filter(Visita.visita_id == visita_id).first()
-    if not visita:
-        raise HTTPException(404, "Visita no encontrada")
-
-    # Solo el residente que creó la visita (o del mismo condominio) puede pedir reenvío
-    if getattr(usuario, "condominio_id", None) != visita.condominio_id:
-        raise HTTPException(403, "No autorizado para esta visita")
+    level = AccessLevel.RESIDENTE if usuario.rol == "RESIDENTE" else AccessLevel.ADMIN_CONDOMINIO
+    visita = require_visita(db, db_gov, usuario, visita_id, level,
+                           own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
 
     # Si el QR no existe o está expirado, regenerar
     if not visita.qr_token or not visita.qr_vigencia or visita.qr_vigencia < datetime.utcnow():

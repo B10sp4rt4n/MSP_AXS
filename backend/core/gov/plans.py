@@ -305,12 +305,14 @@ def asignar_plan_con_evento(
     
     plan_anterior = None
     for pol in politicas_anteriores:
-        if pol.metadata and pol.metadata.get("plan_type"):
-            plan_anterior = pol.metadata.get("plan_type")
+        if pol.metadata_json and pol.metadata_json.get("plan_type"):
+            plan_anterior = pol.metadata_json["plan_type"]
         pol.estado = GovStatus.REVOCADO
-        pol.metadata = pol.metadata or {}
-        pol.metadata["revoked_at"] = datetime.utcnow().isoformat()
-        pol.metadata["revoked_by"] = ejecutor.usuario_id
+        pol.metadata_json = {
+            **(pol.metadata_json or {}),
+            "revoked_at": datetime.utcnow().isoformat(),
+            "revoked_by": ejecutor.usuario_id,
+        }
     
     db.commit()
     
