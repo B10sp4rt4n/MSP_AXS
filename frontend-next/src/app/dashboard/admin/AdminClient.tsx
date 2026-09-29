@@ -152,7 +152,7 @@ function TabVisitas({ condominioId, getToken }: { condominioId: string; getToken
               <div className="mt-3 flex gap-4 text-xs text-gray-500">
                 <span>Entrada: {hora(v.entrada_registrada_en)}</span>
                 <span>Salida: {hora(v.salida_registrada_en)}</span>
-                <span className="ml-auto">{new Date(v.created_at).toLocaleDateString("es-MX")}</span>
+                <span className="ml-auto">{v.created_at ? new Date(v.created_at).toLocaleDateString("es-MX") : "Sin fecha"}</span>
               </div>
             </div>
           ))}
