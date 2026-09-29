@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from datetime import datetime
+from pydantic import BaseModel, ConfigDict, field_validator
+from datetime import datetime, timezone
 
 
 class VisitaBase(BaseModel):
@@ -20,9 +20,20 @@ class VisitaResponse(VisitaBase):
     estado: str
     qr_token: str | None
     qr_vigencia: datetime | None
+    entrada_registrada_en: datetime | None = None
+    salida_registrada_en: datetime | None = None
+    created_at: datetime | None = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("entrada_registrada_en", "salida_registrada_en", "created_at")
+    @classmethod
+    def audit_timestamp_utc(cls, value: datetime | None) -> datetime | None:
+        # CORE persists audit timestamps with datetime.utcnow() in naive columns.
+        # Declare that offset so browsers do not interpret them as local time.
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
 
 
 class PreregistroCreate(BaseModel):
