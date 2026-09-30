@@ -10,7 +10,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from backend.core.tenant.context import _set_postgres_tenant
-from backend.db.core import Base_CORE, Condominio, MSP, Visita
+from backend.db.core import Base_CORE, Condominio, MSP, Visita, Casa
 from backend.services import visita_service
 
 
@@ -41,7 +41,7 @@ def test_visitas_aisladas_tras_commit_y_refresh():
         with engine.begin() as connection:
             connection.execute(text(f"CREATE SCHEMA {schema}"))
         Base_CORE.metadata.create_all(tenant_engine, tables=[
-            MSP.__table__, Condominio.__table__, Visita.__table__,
+            MSP.__table__, Condominio.__table__, Casa.__table__, Visita.__table__,
         ])
         with Session(tenant_engine) as db:
             db.add_all([MSP(msp_id="a", nombre="A"), MSP(msp_id="b", nombre="B")])
@@ -121,6 +121,8 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
             db.add_all([MSP(msp_id=m, nombre=m) for m in ("a", "b")])
             db.flush()
             db.add_all([Condominio(condominio_id=f"{m}1", msp_id=m, nombre=m) for m in ("a", "b")])
+            db.flush()
+            db.add_all([Casa(casa_id=f"home_{m}", condominio_id=f"{m}1", numero="101", tipo="casa") for m in ("a", "b")])
             db.flush()
             db.add_all([Usuario(usuario_id=f"admin_{m}", email=f"{m}@test.local", rol="MSP_ADMIN") for m in ("a", "b")])
             db.flush()
