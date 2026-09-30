@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from backend.db.core import get_core_db, AccessLevel
 from backend.db.gov import get_gov_db
 from backend.core.scope.msp_boundary import require_condominio, require_visita
+from backend.core.tenant.context import _set_postgres_tenant
 from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
 from ..services import visita_service, qr_service
@@ -32,6 +33,7 @@ def crear_preregistro(
     if not usuario.condominio_id or not usuario.casa_unidad:
         raise HTTPException(400, "Se requiere vivienda asignada")
     require_condominio(db, db_gov, usuario, usuario.condominio_id, AccessLevel.RESIDENTE)
+    _set_postgres_tenant(db, usuario.condominio_id)
 
     # ═══════════════════════════════════════════════════════════════════
     # AUP_GOV: Evaluar política ANTES de crear preregistro
@@ -47,7 +49,8 @@ def crear_preregistro(
         session_token=token,
         accion="generar_qr",
         tenant_id=usuario.condominio_id,
-        metadata={"dias_vigencia": dias_vigencia}
+        metadata={"dias_vigencia": dias_vigencia},
+        db_gov=db_gov,
     )
     
     if not permitido:
