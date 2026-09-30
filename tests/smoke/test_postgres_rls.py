@@ -91,7 +91,7 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
     from fastapi.testclient import TestClient
     from backend.main import app
     from backend.core.auth.jwt import create_access_token
-    from backend.db.core import get_core_db, Usuario, MSPMembership
+    from backend.db.core import get_core_db, Usuario, MSPMembership, UserTenantScope, AccessLevel, ScopeStatus, Evidencia
     from backend.db.gov import get_gov_db
     from backend.db.gov import Policy, PolicyScope, GovStatus
     from backend.db.event import get_event_db
@@ -124,6 +124,11 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
             db.flush()
             db.add_all([Usuario(usuario_id=f"admin_{m}", email=f"{m}@test.local", rol="MSP_ADMIN") for m in ("a", "b")])
             db.flush()
+            db.add(Usuario(usuario_id="resident_a", email="resident@test.local", rol="RESIDENTE",
+                           condominio_id="a1", casa_unidad="101"))
+            db.flush()
+            db.add(UserTenantScope(usuario_id="resident_a", tenant_id="a1",
+                                   access_level=AccessLevel.RESIDENTE, estado=ScopeStatus.ACTIVO))
             db.add_all([MSPMembership(usuario_id=f"admin_{m}", msp_id=m) for m in ("a", "b")])
             db.add_all([Visita(visita_id=f"v_{m}", condominio_id=f"{m}1", casa_unidad="101", nombre_visitante=m,
                                tipo_visita="eventual", estado="pendiente",
@@ -137,14 +142,46 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
                 "USING (condominio_id = current_setting('app.tenant_id', true)) "
                 "WITH CHECK (condominio_id = current_setting('app.tenant_id', true))"
             ))
+        with engine.begin() as connection:
+            connection.execute(text(f"ALTER TABLE {schema}.evidencias ENABLE ROW LEVEL SECURITY"))
+            connection.execute(text(f"ALTER TABLE {schema}.evidencias FORCE ROW LEVEL SECURITY"))
+            connection.execute(text(
+                f"CREATE POLICY tenant_evidencias ON {schema}.evidencias "
+                f"USING (EXISTS (SELECT 1 FROM {schema}.visitas v WHERE v.visita_id = evidencias.visita_id "
+                "AND v.condominio_id = current_setting('app.tenant_id', true))) "
+                f"WITH CHECK (EXISTS (SELECT 1 FROM {schema}.visitas v WHERE v.visita_id = evidencias.visita_id "
+                "AND v.condominio_id = current_setting('app.tenant_id', true)))"
+            ))
         app.dependency_overrides[get_core_db] = core_db
         app.dependency_overrides[get_gov_db] = lambda: db_gov_session
         app.dependency_overrides[get_event_db] = lambda: db_event_session
         db_gov_session.add(Policy(policy_id="http_create", nombre="Create visits", ambito=PolicyScope.GLOBAL,
                                   accion_objetivo="crear_visita", limites={}, estado=GovStatus.ACTIVO))
+        db_gov_session.add(Policy(policy_id="http_qr", nombre="Generate QR", ambito=PolicyScope.GLOBAL,
+                                  accion_objetivo="generar_qr", limites={}, estado=GovStatus.ACTIVO))
         db_gov_session.commit()
         headers = {m: {"Authorization": f"Bearer {create_access_token(f'admin_{m}', 'MSP_ADMIN')}"} for m in ("a", "b")}
         with TestClient(app) as client:
+            resident_headers = {"Authorization": f"Bearer {create_access_token('resident_a', 'RESIDENTE')}"}
+            prereg_data = {"nombre_visitante": "RLS resident visitor", "tipo_visita": "proveedor",
+                          "fecha_visita": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+                          "placa": "TEST-123", "notas": "RLS metadata"}
+            prereg = client.post("/preregistro/crear", headers=resident_headers, json=prereg_data)
+            assert prereg.status_code == 200, prereg.text
+            prereg_id = prereg.json()["visita_id"]
+            assert prereg.json()["qr_base64"]
+            with Session(scoped) as db:
+                _set_postgres_tenant(db, "a1")
+                saved = db.query(Visita).filter_by(visita_id=prereg_id).one()
+                assert saved.casa_unidad == "101"
+                assert saved.qr_token and saved.qr_vigencia
+                assert db.query(Evidencia).filter_by(visita_id=prereg_id).one().metadata_json["placa"] == "TEST-123"
+            assert client.get(f"/visitas/{prereg_id}?condominio_id=b1", headers=headers["b"]).status_code == 404
+            with Session(scoped) as db:
+                scope = db.query(UserTenantScope).filter_by(usuario_id="resident_a").one()
+                scope.estado = ScopeStatus.REVOCADO
+                db.commit()
+            assert client.post("/preregistro/crear", headers=resident_headers, json=prereg_data).status_code == 403
             assert client.get("/visitas/v_a?condominio_id=a1").status_code == 401
             assert client.get("/visitas/v_a", headers=headers["a"]).status_code == 400
             own = client.get("/visitas/v_a?condominio_id=a1", headers=headers["a"])
@@ -155,7 +192,7 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
             assert own.json()["salida_registrada_en"] is None
             listing = client.get("/visitas/condominio/a1", headers=headers["a"])
             assert listing.status_code == 200, listing.text
-            assert {v["visita_id"] for v in listing.json()} == {"v_a"}
+            assert {v["visita_id"] for v in listing.json()} == {"v_a", prereg_id}
             assert client.get("/visitas/condominio/b1", headers=headers["a"]).status_code == 403
             data = {"condominio_id": "a1", "casa_unidad": "101", "nombre_visitante": "Nuevo",
                     "tipo_visita": "eventual", "vigencia": (datetime.utcnow() + timedelta(days=1)).isoformat()}
