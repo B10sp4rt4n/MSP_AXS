@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from backend.core.security_denial import SecurityDenial
 from passlib.context import CryptContext
 import warnings
 
@@ -47,4 +48,4 @@ def verificar_rol(usuario, roles_permitidos: list[str]):
         stacklevel=2
     )
     if usuario.rol not in roles_permitidos:
-        raise HTTPException(status_code=403, detail="Acceso denegado")
+        raise SecurityDenial(status_code=403, detail="Acceso denegado", reason="ROLE_DENIED")
