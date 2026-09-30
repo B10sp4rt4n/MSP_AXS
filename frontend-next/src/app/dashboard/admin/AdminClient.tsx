@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
+import UsuariosCondominio from "@/components/UsuariosCondominio";
 import type { Visita, Condominio, CasasResponse, CasaItem, ResidenteCasa } from "@/lib/types";
 
 const CONDOMINIO_KEY = "axs_condominio_id";
@@ -22,7 +23,7 @@ export default function AdminClient() {
     getToken().then(token => api.get<Condominio[]>("/condominios/", token!))
       .then(data => {
         setCondominios(data);
-        setCondominioId(stored || data[0]?.condominio_id || "");
+        setCondominioId(data.find(c => c.condominio_id === stored)?.condominio_id || data[0]?.condominio_id || "");
       })
       .catch(() => setError("No se pudieron cargar los condominios"));
   }, [getToken]);
@@ -69,7 +70,7 @@ export default function AdminClient() {
       <main className="p-4 max-w-3xl mx-auto">
         {condominioId && tab === "visitas" && <TabVisitas condominioId={condominioId} getToken={getToken} />}
         {condominioId && tab === "casas"   && <TabCasas   condominioId={condominioId} getToken={getToken} />}
-        {condominioId && tab === "usuarios"&& <TabUsuarios condominioId={condominioId} getToken={getToken} />}
+        {condominioId && tab === "usuarios"&& <UsuariosCondominio key={condominioId} condominioId={condominioId} getToken={getToken} />}
       </main>
     </div>
   );
@@ -314,56 +315,3 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
   );
 }
 
-// ─── Tab Usuarios ────────────────────────────────────────────────────────────
-
-function TabUsuarios({ condominioId, getToken }: { condominioId: string; getToken: () => Promise<string | null> }) {
-  const [casasData, setCasasData] = useState<CasasResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    getToken().then(token =>
-      api.get<CasasResponse>(`/condominios/${condominioId}/casas`, token!)
-    ).then(setCasasData).catch(() => setCasasData(null))
-      .finally(() => setLoading(false));
-  }, [condominioId]);
-
-  const usuarios = casasData?.casas
-    .filter(c => c.residente)
-    .map(c => ({ ...c.residente!, numero: c.numero })) ?? [];
-
-  const rolColor: Record<string, string> = {
-    RESIDENTE:         "bg-blue-500/20 text-blue-300",
-    GUARDIA:           "bg-orange-500/20 text-orange-300",
-    ADMIN_CONDOMINIO:  "bg-purple-500/20 text-purple-300",
-    MSP_ADMIN:         "bg-red-500/20 text-red-300",
-  };
-
-  return (
-    <div>
-      <p className="text-sm text-gray-400 mb-4">{usuarios.length} residente(s) asignado(s)</p>
-      {loading ? (
-        <p className="text-gray-500 text-sm">Cargando...</p>
-      ) : usuarios.length === 0 ? (
-        <div className="text-center py-12 text-gray-600">
-          <p className="text-4xl mb-3">👥</p>
-          <p>Sin residentes asignados</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {usuarios.map(u => (
-            <div key={u.usuario_id} className="bg-gray-900 border border-gray-700 rounded-xl p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium text-white text-sm">{u.nombre}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{u.email} · Unidad {u.numero}</p>
-              </div>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${rolColor[u.rol] ?? "bg-gray-700 text-gray-300"}`}>
-                {u.rol}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
