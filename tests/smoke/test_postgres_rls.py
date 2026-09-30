@@ -126,7 +126,9 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
             db.flush()
             db.add(Usuario(usuario_id="resident_a", email="resident@test.local", rol="RESIDENTE",
                            condominio_id="a1", casa_unidad="101"))
+            db.add(Usuario(usuario_id="guard_a", email="guard@test.local", rol="GUARDIA", condominio_id="a1"))
             db.flush()
+            db.add(UserTenantScope(usuario_id="guard_a", tenant_id="a1", access_level=AccessLevel.GUARDIA, estado=ScopeStatus.ACTIVO))
             db.add(UserTenantScope(usuario_id="resident_a", tenant_id="a1",
                                    access_level=AccessLevel.RESIDENTE, estado=ScopeStatus.ACTIVO))
             db.add_all([MSPMembership(usuario_id=f"admin_{m}", msp_id=m) for m in ("a", "b")])
@@ -240,6 +242,22 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
             assert client.get("/visitas/condominio/b1", headers=headers["a"]).status_code == 403
             data = {"condominio_id": "a1", "casa_unidad": "101", "nombre_visitante": "Nuevo",
                     "tipo_visita": "eventual", "vigencia": (datetime.utcnow() + timedelta(days=1)).isoformat()}
+            assert client.patch("/visitas/v_a/salida?condominio_id=a1", headers=headers["a"]).status_code == 400
+            guard_headers = {"Authorization": f"Bearer {create_access_token('guard_a', 'GUARDIA')}"}
+            manual = client.post("/visitas/entrada/a1", headers=guard_headers, json=data)
+            assert manual.status_code == 200, manual.text
+            manual_id = manual.json()["visita_id"]
+            manual_time = manual.json()["entrada_registrada_en"]
+            assert manual.json()["estado"] == "entrada_registrada"
+            assert datetime.fromisoformat(manual_time).utcoffset() == timedelta(0)
+            assert client.get(f"/visitas/{manual_id}?condominio_id=a1", headers=guard_headers).json()["entrada_registrada_en"] == manual_time
+            assert client.patch(f"/visitas/{manual_id}/entrada?condominio_id=a1", headers=guard_headers).status_code == 400
+            assert client.post("/visitas/entrada/b1", headers=guard_headers, json={**data, "condominio_id": "b1"}).status_code == 403
+            assert client.post("/visitas/entrada/a1", headers=guard_headers, json={**data, "condominio_id": "b1"}).status_code == 400
+            assert client.post("/visitas/entrada/a1", headers=resident_headers, json=data).status_code == 403
+            assert client.patch(f"/visitas/{future_id}/entrada?condominio_id=a1", headers=guard_headers).status_code == 400
+            assert client.patch(f"/visitas/{manual_id}/salida?condominio_id=a1", headers=guard_headers).status_code == 200
+            assert client.patch(f"/visitas/{manual_id}/salida?condominio_id=a1", headers=guard_headers).status_code == 400
             created = client.post("/visitas/a1", headers=headers["a"], json=data)
             assert created.status_code == 200, created.text
             assert created.json()["condominio_id"] == "a1"
@@ -252,6 +270,11 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
             assert client.get("/visitas/v_b?condominio_id=b1", headers=headers["a"]).status_code == 403
             assert client.get("/visitas/v_b?condominio_id=a1", headers=headers["a"]).status_code == 404
             assert client.patch("/visitas/v_b/salida?condominio_id=b1", headers=headers["a"]).status_code == 403
+            assert client.patch("/visitas/v_b/entrada?condominio_id=b1", headers=guard_headers).status_code == 403
+            assert client.patch("/visitas/v_a/entrada?condominio_id=a1", headers=resident_headers).status_code == 403
+            entered = client.patch("/visitas/v_a/entrada?condominio_id=a1", headers=guard_headers)
+            assert entered.status_code == 200, entered.text
+            assert entered.json()["entrada_registrada_en"]
             changed = client.patch("/visitas/v_a/salida?condominio_id=a1", headers=headers["a"])
             assert changed.status_code == 200, changed.text
             assert changed.json()["estado"] == "salida_registrada"
