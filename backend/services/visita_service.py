@@ -20,7 +20,7 @@ def generar_visita_id() -> str:
 # ---------------------------------------------------------
 # Crear visita (ADMIN_CONDOMINIO)
 # ---------------------------------------------------------
-def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Optional[str] = None) -> Visita:
+def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Optional[str] = None, *, entrada_inmediata: bool = False) -> Visita:
     visita_id = generar_visita_id()
     visita = Visita(
         visita_id=visita_id,
@@ -29,7 +29,8 @@ def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Option
         casa_unidad=casa_unidad,
         tipo_visita=getattr(data, "tipo_visita", None),
         vigencia=getattr(data, "vigencia", None),
-        estado="pendiente",
+        estado="entrada_registrada" if entrada_inmediata else "pendiente",
+        entrada_registrada_en=datetime.utcnow() if entrada_inmediata else None,
     )
     try:
         db.add(visita)

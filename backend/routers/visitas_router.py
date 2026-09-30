@@ -40,6 +40,21 @@ router = APIRouter(prefix="/visitas", tags=["Visitas"])
 # ENDPOINT MIGRADO FASE 6: POST /visitas/
 # ═══════════════════════════════════════════════════════════════════════════
 
+@router.post("/entrada/{condominio_id}", response_model=VisitaResponse)
+def crear_visita_con_entrada(
+    condominio_id: str,
+    data: VisitaCreate,
+    request: Request,
+    db: Session = Depends(get_core_db),
+    current_user: Usuario = Depends(get_current_user),
+    db_gov: Session = Depends(get_gov_db),
+    _tenant: str = Depends(authorized_tenant_context(AccessLevel.GUARDIA)),
+):
+    verificar_rol(current_user, ["GUARDIA", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
+    return crear_visita(condominio_id, data, request, db, current_user, db_gov, _tenant,
+                        entrada_inmediata=True)
+
+
 @router.post("/{condominio_id}", response_model=VisitaResponse)
 def crear_visita(
     condominio_id: str,                                          # PASO 2: tenant desde path
@@ -49,6 +64,7 @@ def crear_visita(
     current_user: Usuario = Depends(get_current_user),           # PASO 1: identidad
     db_gov: Session = Depends(get_gov_db),
     _tenant: str = Depends(authorized_tenant_context(AccessLevel.ADMIN_CONDOMINIO)),                  # PASO 3: SET app.tenant_id
+    entrada_inmediata: bool = False,
 ):
     """Crea dentro del condominio autorizado por GLOBAL, membresía MSP o scope.
 
@@ -98,6 +114,7 @@ def crear_visita(
         data,
         condominio_id=condominio_id,
         casa_unidad=data.casa_unidad,
+        entrada_inmediata=entrada_inmediata,
     )
     
     # ─────────────────────────────────────────────────────────────────────────
@@ -117,7 +134,8 @@ def crear_visita(
         metadata={
             "visitante": data.nombre_visitante,
             "casa_unidad": data.casa_unidad,
-            "vigencia": str(data.vigencia)
+            "vigencia": str(data.vigencia),
+            "entrada_registrada_en": str(visita.entrada_registrada_en) if visita.entrada_registrada_en else None
         }
     )
     
@@ -211,6 +229,24 @@ def visitas_condominio(
 # ---------------------------------------------------------
 # Registrar salida (guardia / admin)
 # ---------------------------------------------------------
+@router.patch("/{visita_id}/entrada", response_model=VisitaResponse)
+def registrar_entrada_manual(
+    visita_id: str,
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
+    usuario: Usuario = Depends(get_current_user),
+    condominio_id: str | None = None,
+):
+    verificar_rol(usuario, ["GUARDIA", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
+    visita = require_visita(db, db_gov, usuario, visita_id, AccessLevel.GUARDIA,
+                           condominio_id=condominio_id)
+    if visita.estado not in ["pendiente", "activa"] or visita.entrada_registrada_en:
+        raise HTTPException(400, "La visita ya tiene entrada o está finalizada")
+    if visita.qr_token:
+        raise HTTPException(400, "Esta visita requiere validar su QR")
+    return visita_service.registrar_entrada(db, visita_id)
+
+
 @router.patch("/{visita_id}/salida")
 def registrar_salida(
     visita_id: str,
@@ -222,7 +258,7 @@ def registrar_salida(
     verificar_rol(usuario, ["GUARDIA", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
     visita = require_visita(db, db_gov, usuario, visita_id, AccessLevel.GUARDIA,
                            condominio_id=condominio_id)
-    if visita.estado not in ["pendiente", "entrada_registrada", "activa"]:
+    if visita.estado != "entrada_registrada" or not visita.entrada_registrada_en:
         raise HTTPException(400, f"No se puede registrar salida en estado '{visita.estado}'")
     visita = visita_service.registrar_salida(db, visita_id)
     return {"status": "ok", "visita_id": visita_id, "estado": visita.estado}

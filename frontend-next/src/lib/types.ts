@@ -5,6 +5,7 @@ export interface Visita {
   casa_unidad: string;
   tipo_visita: string;
   estado: string; // pendiente | activa | completada | cancelada
+  qr_token: string | null;
   entrada_registrada_en: string | null;
   salida_registrada_en: string | null;
   created_at: string;
