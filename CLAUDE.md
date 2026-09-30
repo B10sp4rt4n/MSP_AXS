@@ -196,6 +196,16 @@ en el código — no inventado). Resumen de las que importan para arrancar:
 
 Formato: `fecha — decisión — motivo`.
 
+- **2026-09-30** — Los rechazos de validación QR y las denegaciones de estado
+  en entrada, salida, cancelación y generación QR usan la bandeja CORE.
+  Se descartan cambios pendientes antes de confirmar sólo el intento rechazado.
+  Visita inexistente se audita únicamente tras autorizar el condominio; no se
+  escribe en tenants ajenos ni inventados. Cada solicitud es un intento nuevo,
+  mientras que el worker reenvía el mismo UID. No se guardan tokens de QR/JWT.
+  Si CORE no conserva el rechazo, se responde 503 y el acceso sigue bloqueado.
+  Sin sesión o sin autoridad de tenant se conserva el rechazo existente; esos
+  eventos requieren una bandeja de seguridad global independiente de la operativa.
+
 - **2026-09-30** — Auditoría de operaciones exitosas de visitas mediante
   transactional outbox en CORE, confirmado junto con la operación. EVENT recibe
   eventos con UID estable y verifica conflictos sin sobrescribir hechos. Worker
@@ -270,4 +280,3 @@ Formato: `fecha — decisión — motivo`.
 <!-- Regla permanente: toda decisión de arquitectura tomada en esta o futuras
      sesiones se agrega arriba (fecha, decisión, motivo) ANTES de cerrar la
      tarea. -->
-
