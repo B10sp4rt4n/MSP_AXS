@@ -172,7 +172,7 @@ def validar_qr(
     if window_start is not None and now < window_start:
         raise HTTPException(400, "QR aún no vigente; acceso desde 30 minutos antes de la visita")
 
-    visita_service.registrar_entrada(db, visita_id)
+    visita = visita_service.registrar_entrada(db, visita_id, qr_token=token)
 
     try:
         registrar_evento(db=db, identity=usuario, session_token=session_token,

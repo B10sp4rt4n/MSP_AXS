@@ -293,13 +293,7 @@ def cancelar_visita(
             raise HTTPException(403, "No autorizado para esta visita")
     if visita.estado in ["cancelada", "salida_registrada"]:
         raise HTTPException(400, f"La visita ya está en estado '{visita.estado}'")
-    visita.estado = "cancelada"
-    try:
-        db.commit()
-        db.refresh(visita)
-    except Exception:
-        db.rollback()
-        raise
+    visita_service.cancelar_visita(db, visita_id, estado_esperado=visita.estado)
     return {"status": "ok", "visita_id": visita_id, "estado": "cancelada"}
 
 

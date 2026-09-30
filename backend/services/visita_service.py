@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional
 import uuid
 
@@ -49,51 +49,87 @@ def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Option
 # Actualizar QR
 # ---------------------------------------------------------
 def actualizar_qr(db: Session, visita_id: str, token: str, qr_vigencia: datetime) -> Optional[Visita]:
-    visita = db.query(Visita).filter(Visita.visita_id == visita_id).first()
-    if visita:
-        visita.qr_token = token
-        visita.qr_vigencia = qr_vigencia
-        try:
-            db.commit()
-            db.refresh(visita)
-        except Exception:
-            db.rollback()
-            raise
-    return visita
+    query = db.query(Visita).filter(
+        Visita.visita_id == visita_id,
+        Visita.estado.in_(["pendiente", "activa"]),
+        Visita.entrada_registrada_en.is_(None),
+        Visita.salida_registrada_en.is_(None),
+    )
+    return _guardar_transicion(db, visita_id, query,
+        {Visita.qr_token: token, Visita.qr_vigencia: qr_vigencia},
+        "La visita cambió de estado; no se puede actualizar su QR")
+
+
+def _guardar_transicion(db, visita_id, query, values, conflict):
+    """Compare-and-set: el estado se comprueba dentro del UPDATE, no en Python.
+
+    Un reintento o una solicitud con una instancia ORM vieja nunca sobrescribe
+    el primer registro. El contexto RLS de la sesión sigue siendo obligatorio.
+    """
+    try:
+        changed = query.update(values, synchronize_session=False)
+        if changed != 1:
+            raise HTTPException(400, conflict)
+        db.commit()
+        return db.query(Visita).populate_existing().filter(
+            Visita.visita_id == visita_id,
+        ).one()
+    except Exception:
+        db.rollback()
+        raise
 
 
 # ---------------------------------------------------------
 # Registrar entrada
 # ---------------------------------------------------------
-def registrar_entrada(db: Session, visita_id: str) -> Optional[Visita]:
-    visita = db.query(Visita).filter(Visita.visita_id == visita_id).first()
-    if visita:
-        visita.estado = "entrada_registrada"
-        visita.entrada_registrada_en = datetime.utcnow()
-        try:
-            db.commit()
-            db.refresh(visita)
-        except Exception:
-            db.rollback()
-            raise
-    return visita
+def registrar_entrada(db: Session, visita_id: str, *, qr_token: str | None = None) -> Visita:
+    now = datetime.utcnow()
+    query = db.query(Visita).filter(
+        Visita.visita_id == visita_id,
+        Visita.estado.in_(["pendiente", "activa"]),
+        Visita.entrada_registrada_en.is_(None),
+        Visita.salida_registrada_en.is_(None),
+    )
+    if qr_token is None:
+        query = query.filter(Visita.qr_token.is_(None))
+        conflict = "La visita ya tiene entrada, requiere QR o está finalizada"
+    else:
+        # Revalidar token y ventana en el UPDATE evita usar un QR que fue
+        # sustituido, cancelado o expiró después de las comprobaciones HTTP.
+        query = query.filter(
+            Visita.qr_token == qr_token,
+            Visita.qr_vigencia > now,
+            or_(Visita.vigencia.is_(None), Visita.vigencia > now - timedelta(minutes=60)),
+            or_(Visita.vigencia.is_(None), Visita.vigencia <= now + timedelta(minutes=30)),
+        )
+        conflict = "QR ya utilizado o sin autorización vigente"
+    return _guardar_transicion(db, visita_id, query,
+        {Visita.estado: "entrada_registrada", Visita.entrada_registrada_en: now}, conflict)
 
 
 # ---------------------------------------------------------
 # Registrar salida
 # ---------------------------------------------------------
-def registrar_salida(db: Session, visita_id: str) -> Optional[Visita]:
-    visita = db.query(Visita).filter(Visita.visita_id == visita_id).first()
-    if visita:
-        visita.estado = "salida_registrada"
-        visita.salida_registrada_en = datetime.utcnow()
-        try:
-            db.commit()
-            db.refresh(visita)
-        except Exception:
-            db.rollback()
-            raise
-    return visita
+def registrar_salida(db: Session, visita_id: str) -> Visita:
+    query = db.query(Visita).filter(
+        Visita.visita_id == visita_id,
+        Visita.estado == "entrada_registrada",
+        Visita.entrada_registrada_en.is_not(None),
+        Visita.salida_registrada_en.is_(None),
+    )
+    return _guardar_transicion(db, visita_id, query,
+        {Visita.estado: "salida_registrada", Visita.salida_registrada_en: datetime.utcnow()},
+        "La visita no tiene entrada, ya tiene salida o cambió de estado")
+
+
+def cancelar_visita(db: Session, visita_id: str, *, estado_esperado: str) -> Visita:
+    if estado_esperado in ["cancelada", "salida_registrada"]:
+        raise HTTPException(400, "La visita ya está finalizada")
+    query = db.query(Visita).filter(
+        Visita.visita_id == visita_id, Visita.estado == estado_esperado,
+    )
+    return _guardar_transicion(db, visita_id, query, {Visita.estado: "cancelada"},
+        "La visita cambió de estado; vuelve a consultar antes de cancelar")
 
 
 # ---------------------------------------------------------
