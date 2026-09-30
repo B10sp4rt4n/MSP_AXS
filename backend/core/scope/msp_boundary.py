@@ -1,6 +1,7 @@
 """Autorización por proveedor y condominio para las rutas operativas."""
 
 from fastapi import Depends, HTTPException
+from backend.core.security_denial import SecurityDenial
 from sqlalchemy.orm import Session
 
 from backend.db.core import (
@@ -29,14 +30,14 @@ def active_msp_ids(db: Session, usuario: Usuario) -> list[str]:
 
 def require_platform_operator(db_gov: Session, usuario: Usuario) -> None:
     if not is_platform_operator(db_gov, usuario):
-        raise HTTPException(403, "Requiere autoridad de operador AX-S")
+        raise SecurityDenial(403, "Requiere autoridad de operador AX-S", reason="PLATFORM_DENIED")
 
 
 def require_msp_admin(db: Session, db_gov: Session, usuario: Usuario, msp_id: str) -> None:
     if is_platform_operator(db_gov, usuario):
         return
     if msp_id not in active_msp_ids(db, usuario):
-        raise HTTPException(403, "Sin administración de este proveedor")
+        raise SecurityDenial(403, "Sin administración de este proveedor", reason="MSP_DENIED")
 
 
 def require_condominio(
@@ -58,7 +59,7 @@ def require_condominio(
         UserTenantScope.estado == ScopeStatus.ACTIVO,
     ).all()
     if not any(nivel_suficiente(scope.access_level, level) for scope in scopes):
-        raise HTTPException(403, "Sin acceso al condominio")
+        raise SecurityDenial(403, "Sin acceso al condominio", reason="SCOPE_DENIED")
     return condo
 
 
@@ -107,14 +108,14 @@ def require_visita(
                          visita.condominio_id in _admin_condominios(db, usuario) or
                          _is_msp_admin_for(db, usuario, visita.condominio_id)):
         if getattr(visita, "destino_tipo", None) in ("comun", "otro"):
-            raise HTTPException(403, "Sin acceso a este destino")
+            raise SecurityDenial(403, "Sin acceso a este destino", reason="RESIDENCE_DENIED")
         if getattr(visita, "destino_id", None) and usuario.casa_id and visita.destino_id != usuario.casa_id:
-            raise HTTPException(403, "Sin acceso a esta vivienda")
+            raise SecurityDenial(403, "Sin acceso a esta vivienda", reason="RESIDENCE_DENIED")
         if not usuario.casa_unidad or not usuario.condominio_id or (
             visita.casa_unidad != usuario.casa_unidad or
             visita.condominio_id != usuario.condominio_id
         ):
-            raise HTTPException(403, "Sin acceso a esta vivienda")
+            raise SecurityDenial(403, "Sin acceso a esta vivienda", reason="RESIDENCE_DENIED")
     return visita
 
 
