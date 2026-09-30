@@ -48,7 +48,8 @@ def generar_qr(
         session_token=token,
         accion="generar_qr",
         tenant_id=visita.condominio_id,
-        metadata={"dias_vigencia": dias_vigencia}
+        metadata={"dias_vigencia": dias_vigencia},
+        db_gov=db_gov,
     )
     
     if not permitido:
@@ -56,7 +57,11 @@ def generar_qr(
         raise HTTPException(403, detail=f"Gobierno denegó operación: {motivo}")
     # ═══════════════════════════════════════════════════════════════════
 
-    qr_data = qr_service.generar_qr_para_visita(visita_id)
+    if visita.estado not in ["pendiente", "activa"]:
+        raise HTTPException(400, "No se puede generar QR para una visita cancelada o finalizada")
+    if visita.vigencia and qr_service.utc_now() >= qr_service.ventana_visita(visita.vigencia)[1]:
+        raise HTTPException(400, "La ventana de acceso de la visita ya terminó")
+    qr_data = qr_service.generar_qr_para_visita(visita_id, fecha_visita=visita.vigencia)
     visita_service.actualizar_qr(db, visita_id, qr_data["token"], qr_data["qr_vigencia"])
     
     # AUP_EVENT: QR generado exitosamente
@@ -80,7 +85,8 @@ def generar_qr(
         "status": "ok",
         "visita_id": visita_id,
         "qr_base64": base64.b64encode(qr_data["qr_bytes"]).decode(),
-        "qr_vigencia": qr_data["qr_vigencia"],
+        "qr_vigencia": qr_service.as_utc(qr_data["qr_vigencia"]),
+        "qr_inicio": qr_data["qr_inicio"],
     }
 
 
@@ -122,6 +128,11 @@ def validar_qr(
     tenant_id = visita.condominio_id or usuario.condominio_id or "sistema"
     session_token = request.headers.get("Authorization", "").replace("Bearer ", "")
 
+    if visita.estado == "cancelada":
+        raise HTTPException(400, "Visita cancelada; QR sin autorización de acceso")
+    if visita.estado not in ["pendiente", "activa", "entrada_registrada", "salida_registrada"]:
+        raise HTTPException(400, "Visita finalizada; QR sin autorización de acceso")
+
     if visita.qr_token != token:
         logger.warning("QR validation failed: token mismatch", extra={"visita_id": visita_id})
         try:
@@ -133,7 +144,10 @@ def validar_qr(
             pass
         raise HTTPException(400, "QR inválido")
 
-    if not visita.qr_vigencia or visita.qr_vigencia < datetime.utcnow():
+    now = qr_service.utc_now()
+    window_start, window_end = qr_service.ventana_visita(visita.vigencia) if visita.vigencia else (None, None)
+    if (not visita.qr_vigencia or now >= qr_service.as_utc(visita.qr_vigencia)
+            or (window_end is not None and now >= window_end)):
         logger.info("QR expired", extra={"visita_id": visita_id})
         try:
             registrar_evento(db=db, identity=usuario, session_token=session_token,
@@ -154,6 +168,9 @@ def validar_qr(
         except Exception:
             pass
         raise HTTPException(400, "QR ya utilizado")
+
+    if window_start is not None and now < window_start:
+        raise HTTPException(400, "QR aún no vigente; acceso desde 30 minutos antes de la visita")
 
     visita_service.registrar_entrada(db, visita_id)
 
