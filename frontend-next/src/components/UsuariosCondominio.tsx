@@ -64,7 +64,7 @@ export default function UsuariosCondominio({ condominioId, getToken }: {
     try {
       const token = await getToken();
       if (!token) throw new Error("Sin sesión");
-      const data = await api.get<{ casas: { casa_id: string; numero: string }[] }>(
+      const data = await api.get<{ casas: { casa_id: string; numero: string; tipo: string }[] }>(
         `/condominios/${encodeURIComponent(condominioId)}/casas`, token);
       setCasas(data.casas.filter(c => ["casa", "depto", "local"].includes(c.tipo)));
     } catch (e: unknown) {
