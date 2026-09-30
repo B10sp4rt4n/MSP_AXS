@@ -3,6 +3,7 @@ import os
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
+from fastapi import HTTPException
 from threading import Event as Signal
 from types import SimpleNamespace
 
@@ -14,7 +15,7 @@ from backend.core.tenant.context import _set_postgres_tenant
 from backend.db.core import Base_CORE, MSP, Condominio, Casa, Visita, EventOutbox
 from backend.db.event import Base_EVENT, Event
 from backend.services import visita_service
-from backend.services.event_outbox import contexto_evento, enviar_pendientes, publicar_evento
+from backend.services.event_outbox import contexto_evento, enviar_pendientes, publicar_evento, rechazar_operacion
 
 
 @pytest.mark.integration
@@ -50,6 +51,11 @@ def test_workers_concurrentes_rls_y_reenvio():
             row = visita_service.crear_visita(db, data, "a1", auditoria=audit)
             visita_service.registrar_entrada(db, row.visita_id, auditoria=audit)
             assert db.query(EventOutbox).count() == 2
+            with pytest.raises(HTTPException) as rejected:
+                rechazar_operacion(db, SimpleNamespace(usuario_id="guard"), "test-token",
+                                  "a1", row.visita_id, detail="QR ya utilizado", entidad="qr", accion="validar")
+            assert rejected.value.status_code == 400
+            assert db.query(EventOutbox).count() == 3
         with factory() as db:
             assert db.query(EventOutbox).count() == 0
             _set_postgres_tenant(db, "a2")
@@ -70,18 +76,18 @@ def test_workers_concurrentes_rls_y_reenvio():
                     assert enviar_pendientes(db, "a1", factory, now=now) == 0
             finally:
                 release.set()
-            assert first.result(timeout=20) == 2
+            assert first.result(timeout=20) == 3
         with factory() as db:
             _set_postgres_tenant(db, "a1")
             rows = db.query(EventOutbox).all()
             assert all(r.delivered_at and r.attempts == 1 for r in rows)
-            assert db.query(Event).count() == 2
+            assert db.query(Event).count() == 3
             # Simular pérdida del ACK: EVENT ya confirmó, CORE vuelve a tener pendiente.
             rows[0].delivered_at = None
             db.commit()
         with factory() as restarted:
             assert enviar_pendientes(restarted, "a1", factory, now=now) == 1
-            assert restarted.query(Event).count() == 2
+            assert restarted.query(Event).count() == 3
     finally:
         release.set()
         with engine.begin() as conn:

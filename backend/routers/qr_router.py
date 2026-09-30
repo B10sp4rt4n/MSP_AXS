@@ -5,14 +5,13 @@ import logging
 from sqlalchemy.orm import Session
 from backend.db.core import get_core_db, AccessLevel
 from backend.db.gov import get_gov_db
-from backend.core.scope.msp_boundary import require_visita
+from backend.core.scope.msp_boundary import require_visita, require_condominio
+from backend.core.tenant.context import _set_postgres_tenant
 from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
 from backend.db.core import Visita, Usuario
 from ..services import qr_service, visita_service
-from backend.services.event_outbox import contexto_evento
-from ..core.event.registry import registrar_evento
-from ..core.event import EventEntity, EventAction, EventResult
+from backend.services.event_outbox import contexto_evento, rechazar_operacion
 from ..core.gov.facade import puede_ejecutar_accion
 import base64
 from datetime import datetime, timedelta
@@ -55,16 +54,27 @@ def generar_qr(
     
     if not permitido:
         # AUP_GOV denegó la operación
-        raise HTTPException(403, detail=f"Gobierno denegó operación: {motivo}")
+        rechazar_operacion(db, usuario, token, visita.condominio_id, visita_id,
+            detail=f"Gobierno denegó operación: {motivo}", status_code=403,
+            entidad="qr", accion="crear", motivo="Gobierno denegó la generación de QR")
     # ═══════════════════════════════════════════════════════════════════
 
     if visita.estado not in ["pendiente", "activa"]:
-        raise HTTPException(400, "No se puede generar QR para una visita cancelada o finalizada")
+        rechazar_operacion(db, usuario, token, visita.condominio_id, visita_id,
+            detail="No se puede generar QR para una visita cancelada o finalizada", entidad="qr", accion="crear")
     if visita.vigencia and qr_service.utc_now() >= qr_service.ventana_visita(visita.vigencia)[1]:
-        raise HTTPException(400, "La ventana de acceso de la visita ya terminó")
+        rechazar_operacion(db, usuario, token, visita.condominio_id, visita_id,
+            detail="La ventana de acceso de la visita ya terminó", entidad="qr", accion="crear")
     qr_data = qr_service.generar_qr_para_visita(visita_id, fecha_visita=visita.vigencia)
-    visita_service.actualizar_qr(db, visita_id, qr_data["token"], qr_data["qr_vigencia"],
-        auditoria=contexto_evento(usuario, token, entidad="qr", accion="crear", motivo="QR generado para visita"))
+    tenant_id = visita.condominio_id
+    try:
+        visita_service.actualizar_qr(db, visita_id, qr_data["token"], qr_data["qr_vigencia"],
+            auditoria=contexto_evento(usuario, token, entidad="qr", accion="crear", motivo="QR generado para visita"))
+    except HTTPException as exc:
+        if exc.status_code == 400:
+            rechazar_operacion(db, usuario, token, tenant_id, visita_id,
+                detail=str(exc.detail), entidad="qr", accion="crear")
+        raise
     
     return {
         "status": "ok",
@@ -85,81 +95,54 @@ def validar_qr(
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
     condominio_id: str | None = None,
 ):
-    logger = logging.getLogger("axs.qr")
     verificar_rol(usuario, ["GUARDIA", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
+    tenant_id = condominio_id or usuario.condominio_id
+    if not tenant_id:
+        raise HTTPException(400, "condominio_id requerido para esta operación")
+    # Autorizar antes de registrar incluso una visita inexistente: ningún
+    # parámetro del cliente puede elegir una bandeja ajena ni el tenant sistema.
+    require_condominio(db, db_gov, usuario, tenant_id, AccessLevel.GUARDIA)
+    _set_postgres_tenant(db, tenant_id)
+    session_token = request.headers.get("Authorization", "").replace("Bearer ", "")
+
+    def rechazar(detail, *, status_code=400, resultado="denegado"):
+        rechazar_operacion(db, usuario, session_token, tenant_id, visita_id, detail=detail,
+                          entidad="qr", accion="validar", status_code=status_code,
+                          resultado=resultado, metadata={"visita_id": visita_id})
 
     try:
         visita = require_visita(db, db_gov, usuario, visita_id, AccessLevel.GUARDIA,
-                               condominio_id=condominio_id)
+                               condominio_id=tenant_id)
     except HTTPException as exc:
-        if exc.status_code != 404:
-            raise
-        logger.warning("QR validation failed: visita no encontrada", extra={"visita_id": visita_id, "user": getattr(usuario, "usuario_id", None)})
-        # AUP_EVENT: Validación fallida (visita no encontrada)
-        session_token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        registrar_evento(
-            db=db,
-            identity=usuario,
-            session_token=session_token,
-            tenant_id=condominio_id or usuario.condominio_id or "sistema",
-            entidad=EventEntity.QR.value,
-            entidad_id=token,
-            accion=EventAction.VALIDAR.value,
-            resultado=EventResult.FALLO.value,
-            motivo="Visita no encontrada"
-        )
+        if exc.status_code == 404:
+            rechazar("Visita no encontrada", status_code=404, resultado="fallo")
         raise
 
-    tenant_id = visita.condominio_id or usuario.condominio_id or "sistema"
-    session_token = request.headers.get("Authorization", "").replace("Bearer ", "")
-
     if visita.estado == "cancelada":
-        raise HTTPException(400, "Visita cancelada; QR sin autorización de acceso")
+        rechazar("Visita cancelada; QR sin autorización de acceso")
     if visita.estado not in ["pendiente", "activa", "entrada_registrada", "salida_registrada"]:
-        raise HTTPException(400, "Visita finalizada; QR sin autorización de acceso")
-
+        rechazar("Visita finalizada; QR sin autorización de acceso")
     if visita.qr_token != token:
-        logger.warning("QR validation failed: token mismatch", extra={"visita_id": visita_id})
-        try:
-            registrar_evento(db=db, identity=usuario, session_token=session_token,
-                tenant_id=tenant_id, entidad=EventEntity.QR.value, entidad_id=token,
-                accion=EventAction.VALIDAR.value, resultado=EventResult.FALLO.value,
-                motivo="Token QR no coincide", metadata={"visita_id": visita_id})
-        except Exception:
-            pass
-        raise HTTPException(400, "QR inválido")
+        rechazar("QR inválido", resultado="fallo")
 
     now = qr_service.utc_now()
     window_start, window_end = qr_service.ventana_visita(visita.vigencia) if visita.vigencia else (None, None)
     if (not visita.qr_vigencia or now >= qr_service.as_utc(visita.qr_vigencia)
             or (window_end is not None and now >= window_end)):
-        logger.info("QR expired", extra={"visita_id": visita_id})
-        try:
-            registrar_evento(db=db, identity=usuario, session_token=session_token,
-                tenant_id=tenant_id, entidad=EventEntity.QR.value, entidad_id=token,
-                accion=EventAction.VALIDAR.value, resultado=EventResult.DENEGADO.value,
-                motivo="QR expirado", metadata={"visita_id": visita_id, "qr_vigencia": str(visita.qr_vigencia)})
-        except Exception:
-            pass
-        raise HTTPException(400, "QR expirado")
-
+        rechazar("QR expirado")
     if visita.estado in ["entrada_registrada", "salida_registrada"]:
-        logger.warning("QR already used", extra={"visita_id": visita_id, "estado": visita.estado})
-        try:
-            registrar_evento(db=db, identity=usuario, session_token=session_token,
-                tenant_id=tenant_id, entidad=EventEntity.QR.value, entidad_id=token,
-                accion=EventAction.VALIDAR.value, resultado=EventResult.DENEGADO.value,
-                motivo="QR ya utilizado", metadata={"visita_id": visita_id, "estado": visita.estado})
-        except Exception:
-            pass
-        raise HTTPException(400, "QR ya utilizado")
-
+        rechazar("QR ya utilizado")
     if window_start is not None and now < window_start:
-        raise HTTPException(400, "QR aún no vigente; acceso desde 30 minutos antes de la visita")
+        rechazar("QR aún no vigente; acceso desde 30 minutos antes de la visita")
 
-    visita = visita_service.registrar_entrada(db, visita_id, qr_token=token,
-        auditoria=contexto_evento(usuario, session_token, entidad="qr", accion="validar",
-                                  motivo="QR validado y entrada registrada"))
+    try:
+        visita = visita_service.registrar_entrada(db, visita_id, qr_token=token,
+            auditoria=contexto_evento(usuario, session_token, entidad="qr", accion="validar",
+                                      motivo="QR validado y entrada registrada"))
+    except HTTPException as exc:
+        if exc.status_code == 400:
+            rechazar(str(exc.detail))
+        raise
 
     return {
         "status": "aprobado",
@@ -168,4 +151,3 @@ def validar_qr(
         "casa_unidad": visita.casa_unidad,
         "condominio_id": visita.condominio_id,
     }
-

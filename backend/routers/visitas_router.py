@@ -14,21 +14,18 @@ from backend.core.auth.dependencies import get_current_user
 from backend.db.core import Usuario, AccessLevel
 
 # AUP_SCOPE
-from backend.core.scope.validator import obtener_scope_usuario_en_tenant
 
 # AUP_GOV
 from backend.core.gov.facade import puede_ejecutar_accion
 
 # AUP_EVENT
-from backend.core.event.registry import registrar_evento
-from backend.core.event import EventEntity, EventAction, EventResult
 
 # Infraestructura
 from backend.db.core import get_core_db
 from backend.db.gov import get_gov_db
 from backend.core.scope.msp_boundary import require_visita, authorized_tenant_context
 from backend.services import visita_service
-from backend.services.event_outbox import contexto_evento
+from backend.services.event_outbox import contexto_evento, rechazar_operacion
 from backend.schemas.visita import VisitaCreate, VisitaResponse
 
 # DEPRECADO - Solo para endpoints no migrados aún
@@ -80,8 +77,6 @@ def crear_visita(
         db, condominio_id, destino_id=data.destino_id,
         casa_unidad=data.casa_unidad, motivo=data.destino_motivo,
     )
-    # Obtener scope_id para eventos
-    scope = obtener_scope_usuario_en_tenant(db, current_user.usuario_id, condominio_id)
     
     # ─────────────────────────────────────────────────────────────────────────
     # PASO 5: Evaluar gobierno (límites de política si aplica)
@@ -97,20 +92,10 @@ def crear_visita(
     )
     
     if not permitido:
-        registrar_evento(
-            db=db,
-            identity=current_user,
-            session_token=token,
-            tenant_id=condominio_id,
-            entidad=EventEntity.VISITA.value,
-            entidad_id="pending",
-            accion=EventAction.CREAR.value,
-            resultado=EventResult.DENEGADO.value,
-            scope_id=scope.id if scope else None,
-            motivo=f"Gobierno denegó: {motivo_gov}"
-        )
-        raise HTTPException(status_code=403, detail=f"Gobierno denegó: {motivo_gov}")
-    
+        rechazar_operacion(db, current_user, token, condominio_id, "pending",
+            detail=f"Gobierno denegó: {motivo_gov}", status_code=403, accion="crear",
+            motivo="Gobierno denegó la creación de visita")
+
     # ─────────────────────────────────────────────────────────────────────────
     # PASO 6: Ejecutar acción de negocio
     # ─────────────────────────────────────────────────────────────────────────
@@ -227,13 +212,24 @@ def registrar_entrada_manual(
     verificar_rol(usuario, ["GUARDIA", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
     visita = require_visita(db, db_gov, usuario, visita_id, AccessLevel.GUARDIA,
                            condominio_id=condominio_id)
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    tenant_id = visita.condominio_id
+    def rechazar(detail):
+        rechazar_operacion(db, usuario, token, tenant_id, visita_id, detail=detail,
+                          accion="registrar", metadata={"visita_id": visita_id})
+
     if visita.estado not in ["pendiente", "activa"] or visita.entrada_registrada_en:
-        raise HTTPException(400, "La visita ya tiene entrada o está finalizada")
+        rechazar("La visita ya tiene entrada o está finalizada")
     if visita.qr_token:
-        raise HTTPException(400, "Esta visita requiere validar su QR")
-    return visita_service.registrar_entrada(db, visita_id, auditoria=contexto_evento(
-        usuario, request.headers.get("Authorization", "").replace("Bearer ", ""),
-        motivo="Entrada manual registrada"))
+        rechazar("Esta visita requiere validar su QR")
+    try:
+        return visita_service.registrar_entrada(db, visita_id, auditoria=contexto_evento(
+            usuario, request.headers.get("Authorization", "").replace("Bearer ", ""),
+            motivo="Entrada manual registrada"))
+    except HTTPException as exc:
+        if exc.status_code == 400:
+            rechazar(str(exc.detail))
+        raise
 
 
 @router.patch("/{visita_id}/salida")
@@ -248,11 +244,22 @@ def registrar_salida(
     verificar_rol(usuario, ["GUARDIA", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
     visita = require_visita(db, db_gov, usuario, visita_id, AccessLevel.GUARDIA,
                            condominio_id=condominio_id)
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    tenant_id = visita.condominio_id
+    def rechazar(detail):
+        rechazar_operacion(db, usuario, token, tenant_id, visita_id, detail=detail,
+                          accion="registrar", metadata={"visita_id": visita_id})
+
     if visita.estado != "entrada_registrada" or not visita.entrada_registrada_en:
-        raise HTTPException(400, f"No se puede registrar salida en estado '{visita.estado}'")
-    visita = visita_service.registrar_salida(db, visita_id, auditoria=contexto_evento(
-        usuario, request.headers.get("Authorization", "").replace("Bearer ", ""),
-        motivo="Salida registrada"))
+        rechazar(f"No se puede registrar salida en estado '{visita.estado}'")
+    try:
+        visita = visita_service.registrar_salida(db, visita_id, auditoria=contexto_evento(
+            usuario, request.headers.get("Authorization", "").replace("Bearer ", ""),
+            motivo="Salida registrada"))
+    except HTTPException as exc:
+        if exc.status_code == 400:
+            rechazar(str(exc.detail))
+        raise
     return {"status": "ok", "visita_id": visita_id, "estado": visita.estado}
 
 
@@ -273,14 +280,25 @@ def cancelar_visita(
     level = AccessLevel.RESIDENTE if usuario.rol == "RESIDENTE" else AccessLevel.ADMIN_CONDOMINIO
     visita = require_visita(db, db_gov, usuario, visita_id, level,
                            own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    tenant_id = visita.condominio_id
+    def rechazar(detail):
+        rechazar_operacion(db, usuario, token, tenant_id, visita_id, detail=detail,
+                          accion="revocar", metadata={"visita_id": visita_id})
+
     if usuario.rol == "RESIDENTE":
         if visita.condominio_id != usuario.condominio_id or visita.casa_unidad != usuario.casa_unidad:
             raise HTTPException(403, "No autorizado para esta visita")
     if visita.estado in ["cancelada", "salida_registrada"]:
-        raise HTTPException(400, f"La visita ya está en estado '{visita.estado}'")
-    visita_service.cancelar_visita(db, visita_id, estado_esperado=visita.estado,
-        auditoria=contexto_evento(usuario, request.headers.get("Authorization", "").replace("Bearer ", ""),
-                                  accion="revocar", motivo="Visita cancelada"))
+        rechazar(f"La visita ya está en estado '{visita.estado}'")
+    try:
+        visita_service.cancelar_visita(db, visita_id, estado_esperado=visita.estado,
+            auditoria=contexto_evento(usuario, request.headers.get("Authorization", "").replace("Bearer ", ""),
+                                      accion="revocar", motivo="Visita cancelada"))
+    except HTTPException as exc:
+        if exc.status_code == 400:
+            rechazar(str(exc.detail))
+        raise
     return {"status": "ok", "visita_id": visita_id, "estado": "cancelada"}
 
 
@@ -297,4 +315,3 @@ def obtener_visita(
 ):
     return require_visita(db, db_gov, usuario, visita_id, AccessLevel.RESIDENTE,
                           own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
-

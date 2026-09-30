@@ -84,9 +84,6 @@ def test_fallo_commit_revierte_entrada(db_session, visita, monkeypatch):
 
 
 def test_http_roles_tenant_y_un_solo_evento_de_exito(client, db_session, visita, monkeypatch):
-    import backend.routers.qr_router as qr_router
-    records = []
-    monkeypatch.setattr(qr_router, "registrar_evento", lambda **kw: records.append(kw))
     condo = visita.condominio_id
     for identity, role, house in [("guard", "GUARDIA", None),
                                   ("resident", "RESIDENTE", "101"),
@@ -115,9 +112,8 @@ def test_http_roles_tenant_y_un_solo_evento_de_exito(client, db_session, visita,
     entry = db_session.query(Visita).filter_by(visita_id="atomic").one().entrada_registrada_en
     assert client.get(url, headers=guard).status_code == 400
     assert db_session.query(Visita).filter_by(visita_id="atomic").one().entrada_registrada_en == entry
-    assert not [r for r in records if r["resultado"] == "exito"]
     events = db_session.query(EventOutbox).all()
-    assert len(events) == 1
+    assert len(events) == 2
+    assert sorted(r.payload["resultado"] for r in events) == ["denegado", "exito"]
     assert events[0].payload["accion"] == "validar"
     assert events[0].delivered_at is None
-
