@@ -196,6 +196,18 @@ en el código — no inventado). Resumen de las que importan para arrancar:
 
 Formato: `fecha — decisión — motivo`.
 
+- **2026-09-30** — Bandeja global `security_outbox` separada de visitas para
+  rechazos de sesión, identidad no encontrada y autorización (proveedor,
+  condominio, vivienda y rol). No requiere ni fija un tenant operativo.
+  El dominio EVENT es PLATFORM_SECURITY; no es un condominio ficticio.
+  Captura sólo rutas de servidor sin parámetros, motivo enumerado e identidad
+  comprobada en get_current_user. Nunca guarda JWT/QR/IP/query ni tokens en logs.
+  Sesión independiente: su commit no confirma negocio del request. FORCE RLS
+  restringe la bandeja al rol de backend y a eventos de seguridad, con actualización
+  exclusiva de ACK/reintentos. No se amplían políticas de visitas ni roles.
+  El worker compartido reenvía con UID estable; fallo CORE bloquea con 503.
+  No hay endpoint de lectura para residentes, guardias ni admins de condominio.
+
 - **2026-09-30** — Los rechazos de validación QR y las denegaciones de estado
   en entrada, salida, cancelación y generación QR usan la bandeja CORE.
   Se descartan cambios pendientes antes de confirmar sólo el intento rechazado.
