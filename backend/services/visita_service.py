@@ -6,6 +6,7 @@ from typing import Any, Optional
 import uuid
 
 from backend.db.core import Visita, Evidencia, Casa
+from backend.services.event_outbox import encolar_visita
 from fastapi import HTTPException
 from ..utils.hash_tools import calcular_hash_sha256
 from ..utils.file_storage import guardar_archivo
@@ -22,7 +23,7 @@ def generar_visita_id() -> str:
 # ---------------------------------------------------------
 # Crear visita (ADMIN_CONDOMINIO)
 # ---------------------------------------------------------
-def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Optional[str] = None, *, entrada_inmediata: bool = False, destino: dict | None = None) -> Visita:
+def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Optional[str] = None, *, entrada_inmediata: bool = False, destino: dict | None = None, auditoria: dict | None = None) -> Visita:
     visita_id = generar_visita_id()
     visita = Visita(
         visita_id=visita_id,
@@ -37,6 +38,9 @@ def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Option
     )
     try:
         db.add(visita)
+        if auditoria:
+            db.flush()
+            encolar_visita(db, visita, auditoria)
         db.commit()
         db.refresh(visita)
     except Exception:
@@ -48,7 +52,7 @@ def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Option
 # ---------------------------------------------------------
 # Actualizar QR
 # ---------------------------------------------------------
-def actualizar_qr(db: Session, visita_id: str, token: str, qr_vigencia: datetime) -> Optional[Visita]:
+def actualizar_qr(db: Session, visita_id: str, token: str, qr_vigencia: datetime, *, auditoria: dict | None = None) -> Optional[Visita]:
     query = db.query(Visita).filter(
         Visita.visita_id == visita_id,
         Visita.estado.in_(["pendiente", "activa"]),
@@ -57,10 +61,10 @@ def actualizar_qr(db: Session, visita_id: str, token: str, qr_vigencia: datetime
     )
     return _guardar_transicion(db, visita_id, query,
         {Visita.qr_token: token, Visita.qr_vigencia: qr_vigencia},
-        "La visita cambió de estado; no se puede actualizar su QR")
+        "La visita cambió de estado; no se puede actualizar su QR", auditoria=auditoria)
 
 
-def _guardar_transicion(db, visita_id, query, values, conflict):
+def _guardar_transicion(db, visita_id, query, values, conflict, *, auditoria=None):
     """Compare-and-set: el estado se comprueba dentro del UPDATE, no en Python.
 
     Un reintento o una solicitud con una instancia ORM vieja nunca sobrescribe
@@ -70,10 +74,14 @@ def _guardar_transicion(db, visita_id, query, values, conflict):
         changed = query.update(values, synchronize_session=False)
         if changed != 1:
             raise HTTPException(400, conflict)
-        db.commit()
-        return db.query(Visita).populate_existing().filter(
+        visita = db.query(Visita).populate_existing().filter(
             Visita.visita_id == visita_id,
         ).one()
+        if auditoria:
+            encolar_visita(db, visita, auditoria)
+        db.commit()
+        db.refresh(visita)
+        return visita
     except Exception:
         db.rollback()
         raise
@@ -82,7 +90,7 @@ def _guardar_transicion(db, visita_id, query, values, conflict):
 # ---------------------------------------------------------
 # Registrar entrada
 # ---------------------------------------------------------
-def registrar_entrada(db: Session, visita_id: str, *, qr_token: str | None = None) -> Visita:
+def registrar_entrada(db: Session, visita_id: str, *, qr_token: str | None = None, auditoria: dict | None = None) -> Visita:
     now = datetime.utcnow()
     query = db.query(Visita).filter(
         Visita.visita_id == visita_id,
@@ -104,13 +112,13 @@ def registrar_entrada(db: Session, visita_id: str, *, qr_token: str | None = Non
         )
         conflict = "QR ya utilizado o sin autorización vigente"
     return _guardar_transicion(db, visita_id, query,
-        {Visita.estado: "entrada_registrada", Visita.entrada_registrada_en: now}, conflict)
+        {Visita.estado: "entrada_registrada", Visita.entrada_registrada_en: now}, conflict, auditoria=auditoria)
 
 
 # ---------------------------------------------------------
 # Registrar salida
 # ---------------------------------------------------------
-def registrar_salida(db: Session, visita_id: str) -> Visita:
+def registrar_salida(db: Session, visita_id: str, *, auditoria: dict | None = None) -> Visita:
     query = db.query(Visita).filter(
         Visita.visita_id == visita_id,
         Visita.estado == "entrada_registrada",
@@ -119,23 +127,23 @@ def registrar_salida(db: Session, visita_id: str) -> Visita:
     )
     return _guardar_transicion(db, visita_id, query,
         {Visita.estado: "salida_registrada", Visita.salida_registrada_en: datetime.utcnow()},
-        "La visita no tiene entrada, ya tiene salida o cambió de estado")
+        "La visita no tiene entrada, ya tiene salida o cambió de estado", auditoria=auditoria)
 
 
-def cancelar_visita(db: Session, visita_id: str, *, estado_esperado: str) -> Visita:
+def cancelar_visita(db: Session, visita_id: str, *, estado_esperado: str, auditoria: dict | None = None) -> Visita:
     if estado_esperado in ["cancelada", "salida_registrada"]:
         raise HTTPException(400, "La visita ya está finalizada")
     query = db.query(Visita).filter(
         Visita.visita_id == visita_id, Visita.estado == estado_esperado,
     )
     return _guardar_transicion(db, visita_id, query, {Visita.estado: "cancelada"},
-        "La visita cambió de estado; vuelve a consultar antes de cancelar")
+        "La visita cambió de estado; vuelve a consultar antes de cancelar", auditoria=auditoria)
 
 
 # ---------------------------------------------------------
 # Crear visita desde preregistro (RESIDENTE)
 # ---------------------------------------------------------
-def crear_desde_preregistro(db: Session, data: Any, usuario: Any, *, destino: dict | None = None, casa_label: str | None = None) -> Visita:
+def crear_desde_preregistro(db: Session, data: Any, usuario: Any, *, destino: dict | None = None, casa_label: str | None = None, auditoria: dict | None = None, generar_qr: bool = False) -> Visita:
     """
     Crear una visita desde preregistro.
     Incluye evidencia metadata-only sin archivos (archivo_url='', hash_sha256='').
@@ -203,10 +211,20 @@ def crear_desde_preregistro(db: Session, data: Any, usuario: Any, *, destino: di
             )
             db.add(evidencia)
 
+        if generar_qr:
+            from backend.services import qr_service
+            qr_data = qr_service.generar_qr_para_visita(visita_id, fecha_visita=vigencia)
+            visita.qr_token = qr_data["token"]
+            visita.qr_vigencia = qr_data["qr_vigencia"]
+        if auditoria:
+            encolar_visita(db, visita, auditoria)
+            if generar_qr:
+                encolar_visita(db, visita, {**auditoria, "entidad": "qr", "accion": "crear",
+                                          "motivo": "QR generado en preregistro"})
         db.commit()
         db.refresh(visita)
 
-    except SQLAlchemyError:
+    except Exception:
         db.rollback()
         raise
 
@@ -277,3 +295,4 @@ def resolver_destino(db, condominio_id, *, destino_id=None, casa_unidad=None,
         raise HTTPException(400, "El destino no es una vivienda válida" if residente else "Tipo de destino inválido")
     return casa.numero, {"destino_id": casa.casa_id, "destino_tipo": "vivienda" if casa.tipo in VIVIENDAS else "comun",
                          "destino_motivo": None}
+
