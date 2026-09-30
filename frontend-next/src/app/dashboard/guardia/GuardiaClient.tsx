@@ -146,7 +146,22 @@ function VisitaCard({
   const hora = (dt: string | null) =>
     dt ? new Date(dt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) : "—";
 
-  const canExit = ["pendiente", "entrada_registrada", "activa"].includes(visita.estado);
+  const canEnter = ["pendiente", "activa"].includes(visita.estado) && !visita.qr_token && !visita.entrada_registrada_en;
+  const canExit = visita.estado === "entrada_registrada" && !!visita.entrada_registrada_en;
+
+  const registrarEntrada = async () => {
+    setLoading(true);
+    setErr("");
+    try {
+      const token = await getToken();
+      await api.patch(`/visitas/${visita.visita_id}/entrada?condominio_id=${encodeURIComponent(condominioId)}`, {}, token!);
+      onRefresh();
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Error al registrar entrada");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const registrarSalida = async () => {
     setLoading(true);
@@ -167,7 +182,7 @@ function VisitaCard({
       <div className="flex items-start justify-between">
         <div>
           <p className="font-semibold text-white">{visita.nombre_visitante}</p>
-          <p className="text-xs text-gray-400 mt-0.5">Casa {visita.casa_unidad} · {visita.tipo_visita}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{visita.casa_unidad?.toLowerCase().startsWith("casa") ? visita.casa_unidad : `Casa ${visita.casa_unidad}`} · {visita.tipo_visita}</p>
         </div>
         <span className={`text-xs px-2 py-1 rounded-full font-medium ${estadoColor[visita.estado] ?? "bg-gray-700 text-gray-300"}`}>
           {visita.estado}
@@ -178,6 +193,12 @@ function VisitaCard({
         <span>Salida: {hora(visita.salida_registrada_en)}</span>
       </div>
       {err && <p className="text-red-400 text-xs mt-2">{err}</p>}
+      {canEnter && (
+        <button onClick={registrarEntrada} disabled={loading}
+          className="mt-3 w-full bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-lg">
+          {loading ? "Registrando..." : "Registrar Entrada"}
+        </button>
+      )}
       {canExit && (
         <button
           onClick={registrarSalida}
