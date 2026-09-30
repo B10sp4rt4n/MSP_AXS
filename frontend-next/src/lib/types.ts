@@ -3,6 +3,9 @@ export interface Visita {
   condominio_id: string;
   nombre_visitante: string;
   casa_unidad: string;
+  destino_id?: string | null;
+  destino_tipo?: string | null;
+  destino_motivo?: string | null;
   tipo_visita: string;
   estado: string; // pendiente | activa | completada | cancelada
   qr_token: string | null;
