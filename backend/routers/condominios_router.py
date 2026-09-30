@@ -399,7 +399,7 @@ def crear_personal(
     condo = require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
     if body.rol == "ADMIN_CONDOMINIO":
         require_msp_admin(db, db_gov, usuario, condo.msp_id)
-    existing = db.query(Usuario).filter(func.lower(Usuario.email) == body.email).first()
+    existing = db.query(Usuario).filter(func.lower(Usuario.email) == body.email).with_for_update().first()
     if existing:
         # Sólo incorporar cuentas de autorregistro que aún carezcan de asignación.
         # No cambiar residentes, personal existente ni operadores de otro proveedor.
@@ -410,7 +410,7 @@ def crear_personal(
             MSPMembership.usuario_id == existing.usuario_id
         ).first()
         if (existing.condominio_id or existing.casa_id or assigned or membership
-                or existing.rol.upper() != "RESIDENTE" or is_platform_operator(db_gov, existing)):
+                or (existing.rol or "").upper() != "RESIDENTE" or is_platform_operator(db_gov, existing)):
             raise HTTPException(409, detail="Email ya asignado; no se modificó su rol ni su condominio")
         identity = existing
     else:
