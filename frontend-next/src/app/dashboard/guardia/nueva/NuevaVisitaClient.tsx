@@ -26,7 +26,7 @@ export default function NuevaVisitaClient() {
     const stored = localStorage.getItem(CONDOMINIO_KEY) || "";
     getToken().then(token => api.get<Condominio[]>("/condominios/", token!)).then((data) => {
       setCondominios(data);
-      setCondominioId(stored || data[0]?.condominio_id || "");
+      setCondominioId(data.find(c => c.condominio_id === stored)?.condominio_id || data[0]?.condominio_id || "");
     });
   }, [getToken]);
 
@@ -41,7 +41,7 @@ export default function NuevaVisitaClient() {
     try {
       const token = await getToken();
       const vigencia = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      await api.post(`/visitas/${condominioId}`, { ...form, condominio_id: condominioId, vigencia }, token!);
+      await api.post(`/visitas/entrada/${condominioId}`, { ...form, condominio_id: condominioId, vigencia }, token!);
       router.push("/dashboard/guardia");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : JSON.stringify(err));
