@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Literal
 from ..core.auth.dependencies import get_current_user
 from backend.db.core import Usuario, Condominio, Casa, MSP, MSPMembership, UserTenantScope, AccessLevel, get_core_db
@@ -382,6 +382,7 @@ def listar_usuarios(
             "usuario_id": identity.usuario_id, "nombre": identity.nombre or "",
             "email": identity.email or "", "rol": scope.access_level.name,
             "casa_unidad": identity.casa_unidad if identity.condominio_id == condominio_id else None,
+            "casa_id": identity.casa_id if identity.condominio_id == condominio_id else None,
             "registro_pendiente": identity.clerk_id is None,
         }
     return list(result.values())
@@ -439,3 +440,88 @@ def crear_personal(
         "email": identity.email, "rol": identity.rol,
         "registro_pendiente": identity.clerk_id is None,
     }
+
+
+class UsuarioEdit(PersonalCreate):
+    model_config = ConfigDict(extra="forbid")
+    rol: Literal["GUARDIA", "ADMIN_CONDOMINIO", "RESIDENTE"]
+    casa_id: Optional[str] = None
+
+
+@router.patch("/{condominio_id}/usuarios/{usuario_id}")
+def editar_usuario(
+    condominio_id: str,
+    usuario_id: str,
+    body: UsuarioEdit,
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    condo = require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
+    identity = db.query(Usuario).filter(
+        Usuario.usuario_id == usuario_id, Usuario.condominio_id == condominio_id
+    ).with_for_update().first()
+    if not identity:
+        raise HTTPException(404, detail="Usuario no encontrado en este condominio")
+    scopes = db.query(UserTenantScope).filter(
+        UserTenantScope.usuario_id == usuario_id, UserTenantScope.estado == ScopeStatus.ACTIVO
+    ).all()
+    local = [s for s in scopes if s.tenant_id == condominio_id]
+    if not local:
+        raise HTTPException(404, detail="Usuario sin asignación activa")
+    if (any(s.tenant_id != condominio_id for s in scopes)
+            or db.query(MSPMembership.id).filter(MSPMembership.usuario_id == usuario_id).first()
+            or is_platform_operator(db_gov, identity)
+            or identity.rol not in ("GUARDIA", "ADMIN_CONDOMINIO", "RESIDENTE")):
+        raise HTTPException(409, detail="Esta cuenta requiere gestión de alcance global")
+    changed_role = body.rol != identity.rol
+    if changed_role or identity.rol == "ADMIN_CONDOMINIO":
+        require_msp_admin(db, db_gov, usuario, condo.msp_id)
+    if changed_role and usuario_id == usuario.usuario_id:
+        raise HTTPException(400, detail="No puedes cambiar tu propio rol desde este panel")
+    if body.email != identity.email.lower() and identity.clerk_id:
+        raise HTTPException(400, detail="El correo de una cuenta registrada se cambia desde Administrar cuenta, verificando el nuevo correo")
+    duplicate = db.query(Usuario.usuario_id).filter(
+        func.lower(Usuario.email) == body.email, Usuario.usuario_id != usuario_id
+    ).first()
+    if duplicate:
+        raise HTTPException(409, detail="Email ya registrado")
+    casa = None
+    if body.rol == "RESIDENTE":
+        if body.casa_id:
+            casa = db.query(Casa).filter(
+                Casa.casa_id == body.casa_id, Casa.condominio_id == condominio_id
+            ).with_for_update().first()
+            if not casa:
+                raise HTTPException(400, detail="La vivienda no pertenece a este condominio")
+            occupied = db.query(Usuario.usuario_id).filter(
+                Usuario.casa_id == casa.casa_id, Usuario.rol == "RESIDENTE",
+                Usuario.usuario_id != usuario_id,
+            ).first()
+            if occupied:
+                raise HTTPException(409, detail="La vivienda ya tiene un residente asignado")
+        elif changed_role or identity.casa_id:
+            raise HTTPException(400, detail="Selecciona la vivienda del residente")
+    elif body.casa_id:
+        raise HTTPException(400, detail="Sólo los residentes tienen vivienda asignada")
+    identity.nombre = body.nombre
+    identity.email = body.email
+    identity.rol = body.rol
+    if casa:
+        identity.casa_id = casa.casa_id
+        identity.casa_unidad = casa.numero
+    elif body.rol != "RESIDENTE":
+        identity.casa_id = None
+        identity.casa_unidad = None
+    for scope in local:
+        scope.access_level = AccessLevel[body.rol]
+        scope.metadata_json = {
+            **(scope.metadata_json or {}), "last_edited_by": usuario.usuario_id,
+            "source": "panel_usuarios",
+        }
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, detail="Email ya registrado; actualiza la lista")
+    return {"status": "ok", "usuario_id": identity.usuario_id}
