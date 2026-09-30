@@ -23,29 +23,55 @@ def contexto_evento(usuario, session_token, *, entidad="visita", accion="registr
             "entidad": entidad, "accion": accion, "motivo": motivo}
 
 
-def encolar_visita(db, visita, contexto):
-    """No hace commit: una falla aquí revierte también la operación de visita."""
+def encolar_evento(db, condominio_id, entidad_id, contexto, *, resultado="exito", metadata=None):
+    """Sólo inserta; el llamador confirma junto con su operación o rechazo."""
+    if not condominio_id or not entidad_id:
+        raise ValueError("Auditoría sin condominio o entidad")
     event_uid = "evt_" + uuid.uuid4().hex
     now = datetime.utcnow()
-    if not visita.condominio_id:
-        raise ValueError("Auditoría sin condominio")
-    payload = {
-        **contexto, "event_uid": event_uid, "tenant_id": visita.condominio_id,
-        "tipo_evento": contexto["accion"], "entidad_id": visita.visita_id,
-        "resultado": "exito", "timestamp": now.isoformat(),
-        "metadata_json": {"visita_id": visita.visita_id, "estado": visita.estado,
-            "destino_id": visita.destino_id, "destino_tipo": visita.destino_tipo,
-            "casa_unidad": visita.casa_unidad,
-            "entrada_registrada_en": visita.entrada_registrada_en.isoformat() if visita.entrada_registrada_en else None,
-            "salida_registrada_en": visita.salida_registrada_en.isoformat() if visita.salida_registrada_en else None},
-    }
+    payload = {**contexto, "event_uid": event_uid, "tenant_id": condominio_id,
+               "tipo_evento": contexto["accion"], "entidad_id": entidad_id,
+               "resultado": resultado, "timestamp": now.isoformat(), "metadata_json": metadata}
     payload["hash_evento"] = calcular_hash_evento(
         event_uid, payload["identity_id"], payload["session_hash"], payload["tenant_id"],
         payload["entidad"], payload["entidad_id"], payload["accion"], payload["resultado"], now)
-    db.add(EventOutbox(event_uid=event_uid, condominio_id=visita.condominio_id,
+    db.add(EventOutbox(event_uid=event_uid, condominio_id=condominio_id,
                       payload=payload, created_at=now, next_attempt_at=now, attempts=0))
     db.flush()
     return event_uid
+
+
+def encolar_visita(db, visita, contexto):
+    """No hace commit: una falla aquí revierte también la operación de visita."""
+    metadata = {"visita_id": visita.visita_id, "estado": visita.estado,
+        "destino_id": visita.destino_id, "destino_tipo": visita.destino_tipo,
+        "casa_unidad": visita.casa_unidad,
+        "entrada_registrada_en": visita.entrada_registrada_en.isoformat() if visita.entrada_registrada_en else None,
+        "salida_registrada_en": visita.salida_registrada_en.isoformat() if visita.salida_registrada_en else None}
+    return encolar_evento(db, visita.condominio_id, visita.visita_id, contexto, metadata=metadata)
+
+
+def rechazar_operacion(db, usuario, session_token, condominio_id, entidad_id, *, detail,
+                      entidad="visita", accion="registrar", motivo=None, status_code=400,
+                      resultado="denegado", metadata=None):
+    """Usar sólo DESPUÉS de autorizar el condominio. Nunca confirma negocio pendiente.
+
+    Cada solicitud rechazada es un intento distinto. Su UID se conserva en los
+    reenvíos a EVENT. Un fallo de CORE mantiene el rechazo y devuelve 503.
+    """
+    from fastapi import HTTPException
+    contexto = contexto_evento(usuario, session_token, entidad=entidad, accion=accion,
+                               motivo=motivo or detail)
+    try:
+        db.rollback()
+        _set_postgres_tenant(db, condominio_id)
+        encolar_evento(db, condominio_id, entidad_id, contexto, resultado=resultado, metadata=metadata)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.error("No se pudo conservar el rechazo (%s)", type(exc).__name__)
+        raise HTTPException(503, "Acceso rechazado; no se pudo conservar su auditoría") from exc
+    raise HTTPException(status_code, detail)
 
 
 def publicar_evento(db_event, payload):
