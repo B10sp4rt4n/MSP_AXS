@@ -104,3 +104,61 @@ def test_webhook_vincula_sin_perder_rol(client, people, monkeypatch):
     new = people.query(Usuario).filter_by(clerk_id="clerk_new").one()
     assert new.rol == "RESIDENTE"
     assert people.query(UserTenantScope).filter_by(usuario_id=new.usuario_id).count() == 0
+
+
+def test_editar_cuenta_permisos_correo_y_scope(client, people):
+    msp = headers("msp", "MSP_ADMIN")
+    admin = headers("admin", "ADMIN_CONDOMINIO")
+    guard = headers("guard", "GUARDIA")
+    url = "/condominios/a1/usuarios/guard"
+    body = {"nombre": "Guardia corregido", "email": "corrected@test.local", "rol": "GUARDIA"}
+    assert client.patch(url, headers=guard, json=body).status_code == 403
+    assert client.patch("/condominios/b1/usuarios/guard", headers=msp, json=body).status_code == 403
+    assert client.patch("/condominios/a1/usuarios/missing", headers=msp, json=body).status_code == 404
+    saved = client.patch(url, headers=admin, json=body)
+    assert saved.status_code == 200, saved.text
+    identity = people.query(Usuario).filter_by(usuario_id="guard").one()
+    assert identity.nombre == "Guardia corregido" and identity.email == "corrected@test.local"
+    assert client.patch(url, headers=admin, json={**body, "rol": "ADMIN_CONDOMINIO"}).status_code == 403
+    promoted = client.patch(url, headers=msp, json={**body, "rol": "ADMIN_CONDOMINIO"})
+    assert promoted.status_code == 200, promoted.text
+    assert identity.rol == "ADMIN_CONDOMINIO"
+    scope = people.query(UserTenantScope).filter_by(usuario_id="guard").one()
+    assert scope.access_level == AccessLevel.ADMIN_CONDOMINIO
+    assert scope.metadata_json["last_edited_by"] == "msp"
+    demoted = client.patch(url, headers=msp, json=body)
+    assert demoted.status_code == 200
+    assert client.post("/condominios/a1/usuarios", headers=headers("guard", "ADMIN_CONDOMINIO"),
+                       json={"nombre": "No", "email": "forbidden@test.local", "rol": "GUARDIA"}).status_code == 403
+    assert client.patch(url, headers=msp, json={**body, "email": "resident@test.local"}).status_code == 409
+    identity.clerk_id = "clerk_guard"
+    people.commit()
+    assert client.patch(url, headers=msp, json={**body, "email": "another@test.local"}).status_code == 400
+    assert identity.email == "corrected@test.local"
+    assert client.patch(url, headers=msp, json={**body, "condominio_id": "b1"}).status_code == 422
+
+
+def test_editar_residente_vivienda_valida_y_rol(client, people):
+    from backend.db.core import Casa
+    people.add_all([
+        Casa(casa_id="home_a", condominio_id="a1", numero="102"),
+        Casa(casa_id="home_b", condominio_id="b1", numero="201"),
+    ])
+    people.commit()
+    msp = headers("msp", "MSP_ADMIN")
+    admin = headers("admin", "ADMIN_CONDOMINIO")
+    url = "/condominios/a1/usuarios/resident"
+    body = {"nombre": "Resident updated", "email": "resident@test.local", "rol": "RESIDENTE", "casa_id": "home_a"}
+    assert client.patch(url, headers=admin, json={**body, "casa_id": "home_b"}).status_code == 400
+    changed = client.patch(url, headers=admin, json=body)
+    assert changed.status_code == 200, changed.text
+    resident = people.query(Usuario).filter_by(usuario_id="resident").one()
+    assert resident.casa_id == "home_a" and resident.casa_unidad == "102"
+    guard_url = "/condominios/a1/usuarios/guard"
+    guard_body = {**body, "email": "guard@test.local"}
+    assert client.patch(guard_url, headers=msp, json=guard_body).status_code == 409
+    staff = {**body, "rol": "GUARDIA", "casa_id": None}
+    assert client.patch(url, headers=admin, json=staff).status_code == 403
+    assert client.patch(url, headers=msp, json=staff).status_code == 200
+    assert resident.casa_id is None and resident.casa_unidad is None
+    assert people.query(UserTenantScope).filter_by(usuario_id="resident").one().access_level == AccessLevel.GUARDIA
