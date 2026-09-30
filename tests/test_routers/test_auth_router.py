@@ -35,7 +35,7 @@ from datetime import datetime
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @pytest.fixture
-def test_client(db_core_session, db_event_session):
+def test_client(db_core_session, db_event_session, monkeypatch):
     """Cliente HTTP con DBs sobrescritas por las de test."""
     
     def override_get_core_db():
@@ -50,6 +50,9 @@ def test_client(db_core_session, db_event_session):
         finally:
             pass
     
+    from sqlalchemy.orm import sessionmaker
+    from backend.services import security_outbox
+    monkeypatch.setattr(security_outbox, "SessionFactory", sessionmaker(bind=db_core_session.get_bind()))
     app.dependency_overrides[get_core_db] = override_get_core_db
     app.dependency_overrides[get_event_db] = override_get_event_db
     
@@ -159,7 +162,7 @@ def test_login_email_no_existe_retorna_401(test_client: TestClient):
     Espera:
       - HTTP 401 Unauthorized
       - Mensaje genérico (no revela si email existe)
-      - NO registra evento (porque no hay identity válida)
+      - Conserva rechazo anónimo en CORE y entrega durable a EVENT
     """
     response = test_client.post(
         "/auth/login",
@@ -173,29 +176,14 @@ def test_login_email_no_existe_retorna_401(test_client: TestClient):
     assert "Email o contraseña incorrectos" in response.json()["detail"]
 
 
-def test_login_email_no_existe_no_registra_evento(
-    test_client: TestClient,
-    db_event_session: Session
-):
-    """
-    ❌ Caso: Email no existe → NO debe registrar evento
-    
-    Espera:
-      - Sin eventos en AUP_EVENT
-      
-    RAZÓN:
-      No hay AUP_IDENTITY válida, por lo tanto no hay identity_id para el evento.
-    """
-    test_client.post(
-        "/auth/login",
-        json={
-            "email": "noexiste@test.com",
-            "password": "cualquier_password"
-        }
-    )
-    
-    eventos = db_event_session.query(Event).all()
-    assert len(eventos) == 0
+def test_login_email_no_existe_conserva_rechazo(test_client, db_core_session, db_event_session):
+    from backend.db.core import SecurityOutbox
+    response = test_client.post("/auth/login", json={"email": "noexiste@test.com", "password": "secret"})
+    assert response.status_code == 401
+    payload = db_core_session.query(SecurityOutbox).one().payload
+    assert payload["motivo"] == "INVALID_CREDENTIALS"
+    assert payload["identity_id"] == "NONE"
+    assert db_event_session.query(Event).count() == 0
 
 
 @patch('backend.routers.auth_router.verify_password', return_value=False)
@@ -224,39 +212,15 @@ def test_login_password_incorrecto_retorna_401(
 
 
 @patch('backend.routers.auth_router.verify_password', return_value=False)
-def test_login_password_incorrecto_registra_evento_fallo(
-    mock_verify,
-    test_client: TestClient,
-    usuario_test: Usuario,
-    db_event_session: Session
-):
-    """
-    ❌ Caso: Password incorrecto → registra evento FALLO
-    
-    Espera:
-      - Evento con accion=LOGIN, resultado=FALLO
-      - motivo="Contraseña incorrecta"
-      
-    RAZÓN:
-      A diferencia de email no existe, aquí SÍ hay AUP_IDENTITY válida,
-      por lo tanto SÍ podemos registrar el evento de fallo.
-    """
-    test_client.post(
-        "/auth/login",
-        json={
-            "email": "juan@test.com",
-            "password": "password_incorrecto"
-        }
-    )
-    
-    evento = db_event_session.query(Event).filter(
-        Event.tipo_evento == "login",
-        Event.resultado == "fallo"
-    ).first()
-    
-    assert evento is not None
-    assert evento.identity_id == usuario_test.usuario_id
-    assert evento.motivo == "Contraseña incorrecta"
+def test_login_password_incorrecto_conserva_rechazo(mock_verify, test_client, usuario_test, db_core_session, db_event_session):
+    from backend.db.core import SecurityOutbox
+    response = test_client.post("/auth/login", json={"email": "juan@test.com", "password": "secret"})
+    assert response.status_code == 401
+    payload = db_core_session.query(SecurityOutbox).one().payload
+    assert payload["motivo"] == "INVALID_CREDENTIALS"
+    assert payload["identity_id"] == "NONE"
+    assert "juan@test.com" not in str(payload)
+    assert db_event_session.query(Event).count() == 0
 
 
 @patch('backend.routers.auth_router.verify_password', return_value=True)
