@@ -10,6 +10,7 @@ from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
 from backend.db.core import Visita, Usuario
 from ..services import qr_service, visita_service
+from backend.services.event_outbox import contexto_evento
 from ..core.event.registry import registrar_evento
 from ..core.event import EventEntity, EventAction, EventResult
 from ..core.gov.facade import puede_ejecutar_accion
@@ -62,25 +63,9 @@ def generar_qr(
     if visita.vigencia and qr_service.utc_now() >= qr_service.ventana_visita(visita.vigencia)[1]:
         raise HTTPException(400, "La ventana de acceso de la visita ya terminó")
     qr_data = qr_service.generar_qr_para_visita(visita_id, fecha_visita=visita.vigencia)
-    visita_service.actualizar_qr(db, visita_id, qr_data["token"], qr_data["qr_vigencia"])
+    visita_service.actualizar_qr(db, visita_id, qr_data["token"], qr_data["qr_vigencia"],
+        auditoria=contexto_evento(usuario, token, entidad="qr", accion="crear", motivo="QR generado para visita"))
     
-    # AUP_EVENT: QR generado exitosamente
-    registrar_evento(
-        db=db,
-        identity=usuario,
-        session_token=token,
-        tenant_id=visita.condominio_id,
-        entidad=EventEntity.QR.value,
-        entidad_id=qr_data["token"],
-        accion=EventAction.CREAR.value,
-        resultado=EventResult.EXITO.value,
-        motivo="QR generado para visita",
-        metadata={
-            "visita_id": visita_id,
-            "qr_vigencia": str(qr_data["qr_vigencia"])
-        }
-    )
-
     return {
         "status": "ok",
         "visita_id": visita_id,
@@ -172,16 +157,9 @@ def validar_qr(
     if window_start is not None and now < window_start:
         raise HTTPException(400, "QR aún no vigente; acceso desde 30 minutos antes de la visita")
 
-    visita = visita_service.registrar_entrada(db, visita_id, qr_token=token)
-
-    try:
-        registrar_evento(db=db, identity=usuario, session_token=session_token,
-            tenant_id=tenant_id, entidad=EventEntity.QR.value, entidad_id=token,
-            accion=EventAction.VALIDAR.value, resultado=EventResult.EXITO.value,
-            motivo="QR validado y entrada registrada",
-            metadata={"visita_id": visita_id, "visitante": visita.nombre_visitante, "casa_unidad": visita.casa_unidad})
-    except Exception:
-        pass
+    visita = visita_service.registrar_entrada(db, visita_id, qr_token=token,
+        auditoria=contexto_evento(usuario, session_token, entidad="qr", accion="validar",
+                                  motivo="QR validado y entrada registrada"))
 
     return {
         "status": "aprobado",
@@ -190,3 +168,4 @@ def validar_qr(
         "casa_unidad": visita.casa_unidad,
         "condominio_id": visita.condominio_id,
     }
+
