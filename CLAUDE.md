@@ -196,6 +196,19 @@ en el código — no inventado). Resumen de las que importan para arrancar:
 
 Formato: `fecha — decisión — motivo`.
 
+- **2026-09-30** — Las transiciones de visitas usan `UPDATE` condicional
+  (compare-and-set) para comprobar estado y persistir en una operación atómica.
+  Entrada exige pendiente/activa sin horas previas; QR exige además token actual,
+  vigencia y ventana UTC. La salida y actualización del QR también comprueban
+  su estado al escribir; cancelar exige el estado previamente autorizado.
+  Un escaneo/reintento perdedor devuelve 400 sin reescribir las horas originales.
+  Se conserva la regla existente que permite cancelar una visita ya ingresada
+  cuando se consulta explícitamente ese estado; no se cambió esa política.
+  Las pruebas PostgreSQL ejercitan dos sesiones concurrentes bajo FORCE RLS
+  y un rol sin bypass. Esto no sustituye idempotencia de creación ni una cola
+  durable para EVENT: esos pendientes siguen abiertos, al igual que operación
+  sin conexión y recuperación de una respuesta perdida después del commit.
+
 - **2026-09-24** — Se corrigen marcadores de conflicto de git
   (`<<<<<<< HEAD / ======= / >>>>>>> origin/main`) que habían quedado
   commiteados sin resolver en **tres archivos**, todos por la misma merge
