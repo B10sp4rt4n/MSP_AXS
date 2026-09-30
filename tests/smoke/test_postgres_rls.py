@@ -164,12 +164,19 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
         with TestClient(app) as client:
             resident_headers = {"Authorization": f"Bearer {create_access_token('resident_a', 'RESIDENTE')}"}
             prereg_data = {"nombre_visitante": "RLS resident visitor", "tipo_visita": "proveedor",
-                          "fecha_visita": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+                          "fecha_visita": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat(),
                           "placa": "TEST-123", "notas": "RLS metadata"}
             prereg = client.post("/preregistro/crear", headers=resident_headers, json=prereg_data)
             assert prereg.status_code == 200, prereg.text
             prereg_id = prereg.json()["visita_id"]
             assert prereg.json()["qr_base64"]
+            expiry = datetime.fromisoformat(prereg.json()["qr_vigencia"])
+            scheduled = datetime.fromisoformat(prereg_data["fecha_visita"])
+            assert expiry == scheduled + timedelta(minutes=60)
+            assert datetime.fromisoformat(prereg.json()["qr_inicio"]) == scheduled - timedelta(minutes=30)
+            replay = client.get(f"/preregistro/qr/{prereg_id}", headers=resident_headers)
+            assert replay.status_code == 200, replay.text
+            assert replay.json()["qr_base64"] == prereg.json()["qr_base64"]
             with Session(scoped) as db:
                 _set_postgres_tenant(db, "a1")
                 saved = db.query(Visita).filter_by(visita_id=prereg_id).one()
@@ -177,6 +184,43 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
                 assert saved.qr_token and saved.qr_vigencia
                 assert db.query(Evidencia).filter_by(visita_id=prereg_id).one().metadata_json["placa"] == "TEST-123"
             assert client.get(f"/visitas/{prereg_id}?condominio_id=b1", headers=headers["b"]).status_code == 404
+            clock = client.get("/preregistro/reloj", headers=resident_headers)
+            assert datetime.fromisoformat(clock.json()["utc"]).utcoffset() == timedelta(0)
+            immediate = client.post("/preregistro/crear", headers=resident_headers,
+                                    json={"nombre_visitante": "Immediate UTC", "tipo_visita": "visita_personal"})
+            assert immediate.status_code == 200, immediate.text
+            immediate_id = immediate.json()["visita_id"]
+            early_data = {**prereg_data, "fecha_visita": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()}
+            future = client.post("/preregistro/crear", headers=resident_headers, json=early_data)
+            assert future.status_code == 200, future.text
+            future_id = future.json()["visita_id"]
+            with Session(scoped) as db:
+                _set_postgres_tenant(db, "a1")
+                token = db.query(Visita).filter_by(visita_id=prereg_id).one().qr_token
+                immediate_token = db.query(Visita).filter_by(visita_id=immediate_id).one().qr_token
+                future_token = db.query(Visita).filter_by(visita_id=future_id).one().qr_token
+            def scan(visit_id, qr_token):
+                return client.get(f"/qr/validar/{visit_id}/{qr_token}?condominio_id=a1", headers=headers["a"])
+            early = scan(future_id, future_token)
+            assert early.status_code == 400 and "aún no vigente" in early.text
+            assert client.patch(f"/visitas/{prereg_id}/cancelar", headers=resident_headers).status_code == 200
+            cancelled = scan(prereg_id, token)
+            assert cancelled.status_code == 400 and "cancelada" in cancelled.text
+            assert client.get(f"/preregistro/qr/{prereg_id}", headers=resident_headers).status_code == 400
+            assert scan(immediate_id, immediate_token).status_code == 200
+            assert scan(immediate_id, immediate_token).status_code == 400
+            with Session(scoped) as db:
+                _set_postgres_tenant(db, "a1")
+                expired = db.query(Visita).filter_by(visita_id=future_id).one()
+                expired.qr_vigencia = datetime.utcnow() - timedelta(seconds=1)
+                db.commit()
+            expired_scan = scan(future_id, future_token)
+            assert expired_scan.status_code == 400 and "expirado" in expired_scan.text
+            with Session(scoped) as db:
+                _set_postgres_tenant(db, "a1")
+                assert db.query(Visita).filter_by(visita_id=prereg_id).one().estado == "cancelada"
+                assert db.query(Visita).filter_by(visita_id=future_id).one().estado == "pendiente"
+                assert db.query(Visita).filter_by(visita_id=immediate_id).one().estado == "entrada_registrada"
             with Session(scoped) as db:
                 scope = db.query(UserTenantScope).filter_by(usuario_id="resident_a").one()
                 scope.estado = ScopeStatus.REVOCADO
@@ -192,7 +236,7 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
             assert own.json()["salida_registrada_en"] is None
             listing = client.get("/visitas/condominio/a1", headers=headers["a"])
             assert listing.status_code == 200, listing.text
-            assert {v["visita_id"] for v in listing.json()} == {"v_a", prereg_id}
+            assert {v["visita_id"] for v in listing.json()} == {"v_a", prereg_id, immediate_id, future_id}
             assert client.get("/visitas/condominio/b1", headers=headers["a"]).status_code == 403
             data = {"condominio_id": "a1", "casa_unidad": "101", "nombre_visitante": "Nuevo",
                     "tipo_visita": "eventual", "vigencia": (datetime.utcnow() + timedelta(days=1)).isoformat()}
@@ -236,3 +280,14 @@ def test_http_visitas_con_rls_y_sesiones_por_request(db_gov_session, db_event_se
         with engine.begin() as connection:
             connection.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
         engine.dispose()
+
+
+def test_qr_window_normalizes_offsets_to_utc():
+    from backend.services import qr_service
+    scheduled = datetime.fromisoformat("2026-10-01T12:00:00-06:00")
+    start, end = qr_service.ventana_visita(scheduled)
+    assert start == datetime(2026, 10, 1, 17, 30, tzinfo=timezone.utc)
+    assert end == datetime(2026, 10, 1, 19, 0, tzinfo=timezone.utc)
+    assert qr_service.as_utc(datetime(2026, 10, 1, 18)) == scheduled
+    generated = qr_service.generar_qr_para_visita("test", fecha_visita=scheduled)
+    assert qr_service.as_utc(generated["qr_vigencia"]) == end
