@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
-from backend.db.core import Visita, Usuario, UserTenantScope, AccessLevel, ScopeStatus
+from backend.db.core import EventOutbox, Visita, Usuario, UserTenantScope, AccessLevel, ScopeStatus
 from backend.services import visita_service
 from backend.core.auth.jwt import create_access_token
 
@@ -115,4 +115,9 @@ def test_http_roles_tenant_y_un_solo_evento_de_exito(client, db_session, visita,
     entry = db_session.query(Visita).filter_by(visita_id="atomic").one().entrada_registrada_en
     assert client.get(url, headers=guard).status_code == 400
     assert db_session.query(Visita).filter_by(visita_id="atomic").one().entrada_registrada_en == entry
-    assert len([r for r in records if r["resultado"] == "exito"]) == 1
+    assert not [r for r in records if r["resultado"] == "exito"]
+    events = db_session.query(EventOutbox).all()
+    assert len(events) == 1
+    assert events[0].payload["accion"] == "validar"
+    assert events[0].delivered_at is None
+
