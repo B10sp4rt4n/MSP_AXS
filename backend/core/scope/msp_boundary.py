@@ -106,6 +106,10 @@ def require_visita(
     if own_unit and not (is_platform_operator(db_gov, usuario) or
                          visita.condominio_id in _admin_condominios(db, usuario) or
                          _is_msp_admin_for(db, usuario, visita.condominio_id)):
+        if getattr(visita, "destino_tipo", None) in ("comun", "otro"):
+            raise HTTPException(403, "Sin acceso a este destino")
+        if getattr(visita, "destino_id", None) and usuario.casa_id and visita.destino_id != usuario.casa_id:
+            raise HTTPException(403, "Sin acceso a esta vivienda")
         if not usuario.casa_unidad or not usuario.condominio_id or (
             visita.casa_unidad != usuario.casa_unidad or
             visita.condominio_id != usuario.condominio_id

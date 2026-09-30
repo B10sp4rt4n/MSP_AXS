@@ -60,7 +60,7 @@ export default function AdminClient() {
                 : "text-gray-400 hover:text-white"
             }`}
           >
-            {t === "visitas" ? "Visitas" : t === "casas" ? "Casas / Unidades" : "Usuarios"}
+            {t === "visitas" ? "Visitas" : t === "casas" ? "Viviendas / Destinos" : "Usuarios"}
           </button>
         ))}
       </div>
@@ -143,13 +143,14 @@ function TabVisitas({ condominioId, getToken }: { condominioId: string; getToken
                 <div>
                   <p className="font-semibold text-white">{v.nombre_visitante}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    Casa {v.casa_unidad} · {v.tipo_visita}
+                    Destino: {v.casa_unidad} · {v.tipo_visita}
                   </p>
                 </div>
                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${estadoColor[v.estado] ?? "bg-gray-700 text-gray-300"}`}>
                   {v.estado.replace("_", " ")}
                 </span>
               </div>
+              {v.destino_motivo && <p className="text-xs text-yellow-300 mt-2">Excepción: {v.destino_motivo}</p>}
               <div className="mt-3 flex gap-4 text-xs text-gray-500">
                 <span>Entrada: {hora(v.entrada_registrada_en)}</span>
                 <span>Salida: {hora(v.salida_registrada_en)}</span>
@@ -217,7 +218,7 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
     } finally { setResSaving(false); }
   };
 
-  const tipoLabel: Record<string, string> = { casa: "Casa", depto: "Depto", local: "Local" };
+  const tipoLabel: Record<string, string> = { casa: "Casa", depto: "Depto", local: "Local", administracion: "Administración", mantenimiento: "Mantenimiento", area_comun: "Área común" };
 
   return (
     <div>
@@ -225,13 +226,13 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
         <p className="text-sm text-gray-400">{casasData ? `${casasData.total_casas} unidad(es)` : ""}</p>
         <button onClick={() => { setShowForm(!showForm); setFormError(""); }}
           className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">
-          {showForm ? "Cancelar" : "+ Nueva Unidad"}
+          {showForm ? "Cancelar" : "+ Nuevo destino"}
         </button>
       </div>
 
       {showForm && (
         <div className="bg-gray-900 border border-gray-700 rounded-xl p-4 mb-4 space-y-3">
-          <h3 className="text-sm font-semibold text-gray-200">Nueva unidad</h3>
+          <h3 className="text-sm font-semibold text-gray-200">Nueva vivienda o destino</h3>
           <input
             placeholder="Número (ej. A-12, 101, Local 3)"
             value={form.numero}
@@ -243,6 +244,9 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
             <option value="casa">Casa</option>
             <option value="depto">Departamento</option>
             <option value="local">Local comercial</option>
+            <option value="administracion">Administración</option>
+            <option value="mantenimiento">Mantenimiento</option>
+            <option value="area_comun">Área común</option>
           </select>
           {formError && <p className="text-red-400 text-xs">{formError}</p>}
           <button onClick={crearCasa} disabled={saving}
@@ -268,7 +272,7 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
                   <p className="font-semibold text-white">{item.numero}</p>
                   <p className="text-xs text-gray-500">{tipoLabel[item.tipo] ?? item.tipo}</p>
                 </div>
-                {!item.residente && asignando !== item.casa_id && (
+                {!item.residente && ["casa", "depto", "local"].includes(item.tipo) && asignando !== item.casa_id && (
                   <button
                     onClick={() => { setAsignando(item.casa_id); setResForm({ nombre: "", email: "" }); setResError(""); }}
                     className="text-xs bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg">
@@ -305,7 +309,7 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-gray-600 mt-1">Sin residente asignado</p>
+                <p className="text-xs text-gray-600 mt-1">{["casa", "depto", "local"].includes(item.tipo) ? "Sin residente asignado" : "Destino común"}</p>
               )}
             </div>
           ))}

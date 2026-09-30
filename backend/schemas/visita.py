@@ -11,12 +11,17 @@ class VisitaBase(BaseModel):
 class VisitaCreate(VisitaBase):
     condominio_id: str
     casa_unidad: str | None = None
+    destino_id: str | None = None
+    destino_motivo: str | None = None
 
 
 class VisitaResponse(VisitaBase):
     visita_id: str
     condominio_id: str
     casa_unidad: str | None
+    destino_id: str | None = None
+    destino_tipo: str | None = None
+    destino_motivo: str | None = None
     estado: str
     qr_token: str | None
     qr_vigencia: datetime | None

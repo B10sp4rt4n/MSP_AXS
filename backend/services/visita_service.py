@@ -1,10 +1,12 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
 from typing import Any, Optional
 import uuid
 
-from backend.db.core import Visita, Evidencia
+from backend.db.core import Visita, Evidencia, Casa
+from fastapi import HTTPException
 from ..utils.hash_tools import calcular_hash_sha256
 from ..utils.file_storage import guardar_archivo
 from ..core.config import settings
@@ -20,7 +22,7 @@ def generar_visita_id() -> str:
 # ---------------------------------------------------------
 # Crear visita (ADMIN_CONDOMINIO)
 # ---------------------------------------------------------
-def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Optional[str] = None, *, entrada_inmediata: bool = False) -> Visita:
+def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Optional[str] = None, *, entrada_inmediata: bool = False, destino: dict | None = None) -> Visita:
     visita_id = generar_visita_id()
     visita = Visita(
         visita_id=visita_id,
@@ -31,6 +33,7 @@ def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Option
         vigencia=getattr(data, "vigencia", None),
         estado="entrada_registrada" if entrada_inmediata else "pendiente",
         entrada_registrada_en=datetime.utcnow() if entrada_inmediata else None,
+        **(destino or {}),
     )
     try:
         db.add(visita)
@@ -96,7 +99,7 @@ def registrar_salida(db: Session, visita_id: str) -> Optional[Visita]:
 # ---------------------------------------------------------
 # Crear visita desde preregistro (RESIDENTE)
 # ---------------------------------------------------------
-def crear_desde_preregistro(db: Session, data: Any, usuario: Any) -> Visita:
+def crear_desde_preregistro(db: Session, data: Any, usuario: Any, *, destino: dict | None = None, casa_label: str | None = None) -> Visita:
     """
     Crear una visita desde preregistro.
     Incluye evidencia metadata-only sin archivos (archivo_url='', hash_sha256='').
@@ -129,10 +132,11 @@ def crear_desde_preregistro(db: Session, data: Any, usuario: Any) -> Visita:
             visita_id=visita_id,
             condominio_id=condominio_id,
             nombre_visitante=nombre_visitante,
-            casa_unidad=casa_unidad,
+            casa_unidad=casa_label or casa_unidad,
             tipo_visita=tipo_visita,
             vigencia=vigencia,
             estado="pendiente",
+            **(destino or {}),
         )
         db.add(visita)
         db.flush()  # Persist visita row so FK in evidencias resolves
@@ -182,6 +186,7 @@ def obtener_visitas_residente(db: Session, condominio_id: str, casa_unidad: str)
         .filter(
             Visita.condominio_id == condominio_id,
             Visita.casa_unidad == casa_unidad,
+            or_(Visita.destino_tipo == "vivienda", Visita.destino_tipo.is_(None)),
         )
         .order_by(Visita.vigencia.desc())
         .all()
@@ -205,3 +210,34 @@ def obtener_visitas_condominio(db: Session, condominio_id: str):
 # ---------------------------------------------------------
 def obtener_visita(db: Session, visita_id: str):
     return db.query(Visita).filter(Visita.visita_id == visita_id).first()
+
+
+VIVIENDAS = {"casa", "depto", "local"}
+COMUNES = {"administracion", "mantenimiento", "area_comun"}
+
+
+def resolver_destino(db, condominio_id, *, destino_id=None, casa_unidad=None,
+                     motivo=None, residente=False):
+    """El texto histórico es una etiqueta; el catálogo decide el destino nuevo."""
+    if destino_id == "OTRO":
+        reason = (motivo or "").strip()
+        if residente or len(reason) < 5 or len(reason) > 500:
+            raise HTTPException(400, "Otro destino requiere un motivo de 5 a 500 caracteres")
+        return "Otro destino", {"destino_id": None, "destino_tipo": "otro", "destino_motivo": reason}
+    query = db.query(Casa).filter(Casa.condominio_id == condominio_id)
+    if destino_id:
+        query = query.filter(Casa.casa_id == destino_id)
+    elif casa_unidad:
+        # Compatibilidad limitada: sólo un número exacto existente en catálogo.
+        query = query.filter(Casa.numero == casa_unidad.strip())
+    else:
+        raise HTTPException(400, "Selecciona un destino del catálogo")
+    candidates = query.all()
+    if len(candidates) != 1:
+        raise HTTPException(400, "Destino no encontrado en el catálogo de este condominio")
+    casa = candidates[0]
+    allowed = VIVIENDAS if residente else VIVIENDAS | COMUNES
+    if casa.tipo not in allowed:
+        raise HTTPException(400, "El destino no es una vivienda válida" if residente else "Tipo de destino inválido")
+    return casa.numero, {"destino_id": casa.casa_id, "destino_tipo": "vivienda" if casa.tipo in VIVIENDAS else "comun",
+                         "destino_motivo": None}

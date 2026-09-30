@@ -13,7 +13,7 @@ export default function UsuariosCondominio({ condominioId, getToken }: {
 }) {
   const [editing, setEditing] = useState<Usuario | null>(null);
   const [editForm, setEditForm] = useState({ nombre: "", email: "", rol: "GUARDIA", casa_id: "" });
-  const [casas, setCasas] = useState<{ casa_id: string; numero: string }[]>([]);
+  const [casas, setCasas] = useState<{ casa_id: string; numero: string; tipo: string }[]>([]);
   const [editError, setEditError] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [unitsLoading, setUnitsLoading] = useState(false);
@@ -64,9 +64,9 @@ export default function UsuariosCondominio({ condominioId, getToken }: {
     try {
       const token = await getToken();
       if (!token) throw new Error("Sin sesión");
-      const data = await api.get<{ casas: { casa_id: string; numero: string }[] }>(
+      const data = await api.get<{ casas: { casa_id: string; numero: string; tipo: string }[] }>(
         `/condominios/${encodeURIComponent(condominioId)}/casas`, token);
-      setCasas(data.casas);
+      setCasas(data.casas.filter(c => ["casa", "depto", "local"].includes(c.tipo)));
     } catch (e: unknown) {
       setEditError(e instanceof Error ? e.message : "No se pudieron cargar las viviendas");
     } finally { setUnitsLoading(false); }

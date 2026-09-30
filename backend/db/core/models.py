@@ -212,6 +212,9 @@ class Visita(Base_CORE):
     visita_id = Column(String, unique=True, index=True)
     condominio_id = Column(String, ForeignKey("condominios_exo.condominio_id"))
     nombre_visitante = Column(String)
+    destino_id = Column(String, ForeignKey("casas.casa_id"), nullable=True)
+    destino_tipo = Column(String, nullable=True)
+    destino_motivo = Column(Text, nullable=True)
     casa_unidad = Column(String)
     tipo_visita = Column(String)  # frecuente, eventual, proveedor
     vigencia = Column(DateTime)

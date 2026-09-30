@@ -15,10 +15,14 @@ export default function NuevaVisitaClient() {
   const [condominioId, setCondominioId] = useState("");
   const [form, setForm] = useState({
     nombre_visitante: "",
-    casa_unidad: "",
+    destino_id: "",
+    destino_motivo: "",
     tipo_visita: "eventual",
     placa: "",
   });
+  const [destinos, setDestinos] = useState<{ destino_id: string; nombre: string; tipo: string }[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -27,8 +31,24 @@ export default function NuevaVisitaClient() {
     getToken().then(token => api.get<Condominio[]>("/condominios/", token!)).then((data) => {
       setCondominios(data);
       setCondominioId(data.find(c => c.condominio_id === stored)?.condominio_id || data[0]?.condominio_id || "");
-    });
+    }).catch((e: unknown) => setError(e instanceof Error ? e.message : "Error al cargar condominios"));
   }, [getToken]);
+
+  useEffect(() => {
+    let active = true;
+    setDestinos([]); setCatalogError("");
+    setForm(f => ({ ...f, destino_id: "", destino_motivo: "" }));
+    if (!condominioId) return;
+    setCatalogLoading(true);
+    getToken().then(token => {
+      if (!token) throw new Error("Sin sesión");
+      return api.get<{ destino_id: string; nombre: string; tipo: string }[]>(
+        `/condominios/${encodeURIComponent(condominioId)}/destinos`, token);
+    }).then(data => { if (active) setDestinos(data); })
+      .catch((e: unknown) => { if (active) setCatalogError(e instanceof Error ? e.message : "Error al cargar destinos"); })
+      .finally(() => { if (active) setCatalogLoading(false); });
+    return () => { active = false; };
+  }, [condominioId, getToken]);
 
   const set = (field: string, value: string) =>
     setForm((f) => ({ ...f, [field]: value }));
@@ -36,6 +56,7 @@ export default function NuevaVisitaClient() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!condominioId) return;
+    if (!form.destino_id || catalogLoading || catalogError) { setError("Selecciona un destino del catálogo"); return; }
     setLoading(true);
     setError("");
     try {
@@ -87,18 +108,30 @@ export default function NuevaVisitaClient() {
             />
           </div>
 
-          {/* Casa / unidad */}
           <div>
-            <label className="text-xs text-gray-400 mb-1 block">Casa / Unidad *</label>
-            <input
-              required
-              type="text"
-              placeholder="Ej. Casa 12, Depto B"
-              value={form.casa_unidad}
-              onChange={(e) => set("casa_unidad", e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-blue-500"
-            />
+            <label className="text-xs text-gray-400 mb-1 block" htmlFor="destino">Destino *</label>
+            <select id="destino" required disabled={catalogLoading || loading} value={form.destino_id}
+              onChange={e => set("destino_id", e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm">
+              <option value="">{catalogLoading ? "Cargando destinos..." : "Selecciona un destino"}</option>
+              <optgroup label="Viviendas">
+                {destinos.filter(d => ["casa", "depto", "local"].includes(d.tipo)).map(d =>
+                  <option key={d.destino_id} value={d.destino_id}>{d.nombre}</option>)}
+              </optgroup>
+              <optgroup label="Destinos comunes">
+                {destinos.filter(d => ["administracion", "mantenimiento", "area_comun"].includes(d.tipo)).map(d =>
+                  <option key={d.destino_id} value={d.destino_id}>{d.nombre}</option>)}
+              </optgroup>
+              <option value="OTRO">Otro destino (excepción)</option>
+            </select>
+            {catalogError && <p role="alert" className="text-red-400 text-sm mt-2">{catalogError}</p>}
           </div>
+          {form.destino_id === "OTRO" && <div>
+            <label htmlFor="motivo" className="text-xs text-gray-400 mb-1 block">Motivo de la excepción *</label>
+            <textarea id="motivo" required minLength={5} maxLength={500} value={form.destino_motivo}
+              onChange={e => set("destino_motivo", e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm" />
+          </div>}
 
           {/* Tipo de visita */}
           <div>
@@ -137,7 +170,7 @@ export default function NuevaVisitaClient() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || catalogLoading || !!catalogError || !form.destino_id}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm mt-2"
           >
             {loading ? "Registrando..." : "Registrar Entrada"}

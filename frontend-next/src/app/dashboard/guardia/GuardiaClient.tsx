@@ -182,7 +182,7 @@ function VisitaCard({
       <div className="flex items-start justify-between">
         <div>
           <p className="font-semibold text-white">{visita.nombre_visitante}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{visita.casa_unidad?.toLowerCase().startsWith("casa") ? visita.casa_unidad : `Casa ${visita.casa_unidad}`} · {visita.tipo_visita}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Destino: {visita.casa_unidad} · {visita.tipo_visita}</p>
         </div>
         <span className={`text-xs px-2 py-1 rounded-full font-medium ${estadoColor[visita.estado] ?? "bg-gray-700 text-gray-300"}`}>
           {visita.estado}
@@ -192,6 +192,7 @@ function VisitaCard({
         <span>Entrada: {hora(visita.entrada_registrada_en)}</span>
         <span>Salida: {hora(visita.salida_registrada_en)}</span>
       </div>
+      {visita.destino_motivo && <p className="text-xs text-yellow-300 mt-2">Excepción: {visita.destino_motivo}</p>}
       {err && <p className="text-red-400 text-xs mt-2">{err}</p>}
       {canEnter && (
         <button onClick={registrarEntrada} disabled={loading}

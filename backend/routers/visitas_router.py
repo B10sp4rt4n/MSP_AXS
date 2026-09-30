@@ -75,6 +75,10 @@ def crear_visita(
     if data.condominio_id != condominio_id:
         raise HTTPException(400, "El condominio del cuerpo no coincide con la ruta")
 
+    label, destination = visita_service.resolver_destino(
+        db, condominio_id, destino_id=data.destino_id,
+        casa_unidad=data.casa_unidad, motivo=data.destino_motivo,
+    )
     # Obtener scope_id para eventos
     scope = obtener_scope_usuario_en_tenant(db, current_user.usuario_id, condominio_id)
     
@@ -113,8 +117,9 @@ def crear_visita(
         db,
         data,
         condominio_id=condominio_id,
-        casa_unidad=data.casa_unidad,
+        casa_unidad=label,
         entrada_inmediata=entrada_inmediata,
+        destino=destination,
     )
     
     # ─────────────────────────────────────────────────────────────────────────
@@ -133,7 +138,10 @@ def crear_visita(
         motivo="Visita creada exitosamente",
         metadata={
             "visitante": data.nombre_visitante,
-            "casa_unidad": data.casa_unidad,
+            "casa_unidad": visita.casa_unidad,
+            "destino_id": visita.destino_id,
+            "destino_tipo": visita.destino_tipo,
+            "destino_motivo": visita.destino_motivo,
             "vigencia": str(data.vigencia),
             "entrada_registrada_en": str(visita.entrada_registrada_en) if visita.entrada_registrada_en else None
         }
