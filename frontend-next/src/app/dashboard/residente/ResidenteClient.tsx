@@ -15,25 +15,42 @@ export default function ResidenteClient() {
   const [condominios, setCondominios] = useState<Condominio[]>([]);
   const [visitas, setVisitas] = useState<Visita[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
+    setError("");
+    setLoading(true);
     const stored = localStorage.getItem(CONDOMINIO_KEY) || "";
     getToken().then(token => api.get<Condominio[]>("/condominios/", token!))
       .then(data => {
         setCondominios(data);
-        const id = stored || data[0]?.condominio_id || "";
+        const id = data.find(c => c.condominio_id === stored)?.condominio_id
+          || data[0]?.condominio_id || "";
+        if (!id) {
+          localStorage.removeItem(CONDOMINIO_KEY);
+          setError("Tu cuenta aún no tiene un condominio asignado. Contacta a tu administrador.");
+          setLoading(false);
+        }
         setCondominioId(id);
       })
-      .catch(() => {});
-  }, [getToken]);
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : "No se pudo cargar tu condominio.");
+        setLoading(false);
+      });
+  }, [getToken, reload]);
 
   const loadVisitas = useCallback((id: string) => {
     if (!id) return;
     setLoading(true);
+    setError("");
     getToken()
       .then(token => api.get<Visita[]>(`/visitas/mis-visitas/${id}`, token!))
       .then(setVisitas)
-      .catch(() => setVisitas([]))
+      .catch((e: unknown) => {
+        setVisitas([]);
+        setError(e instanceof Error ? e.message : "No se pudieron cargar tus visitas.");
+      })
       .finally(() => setLoading(false));
   }, [getToken]);
 
@@ -41,7 +58,7 @@ export default function ResidenteClient() {
     if (!condominioId) return;
     localStorage.setItem(CONDOMINIO_KEY, condominioId);
     loadVisitas(condominioId);
-  }, [condominioId, loadVisitas]);
+  }, [condominioId, loadVisitas, reload]);
 
   const estadoColor: Record<string, string> = {
     pendiente:          "bg-yellow-500/20 text-yellow-300",
@@ -102,6 +119,14 @@ export default function ResidenteClient() {
 
         {loading ? (
           <p className="text-gray-500 text-sm">Cargando...</p>
+        ) : error ? (
+          <div role="alert" className="rounded-xl border border-red-800 bg-red-950/30 p-4">
+            <p className="text-red-300 text-sm">{error}</p>
+            <button onClick={() => setReload(value => value + 1)}
+              className="mt-3 text-blue-400 text-sm hover:underline">
+              Reintentar
+            </button>
+          </div>
         ) : visitas.length === 0 ? (
           <div className="text-center py-12 text-gray-600">
             <p className="text-4xl mb-3">📭</p>
