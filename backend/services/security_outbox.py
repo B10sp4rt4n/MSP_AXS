@@ -12,7 +12,7 @@ logger = logging.getLogger("axs.security_outbox")
 SessionFactory = SessionLocal_CORE
 DOMAIN = "PLATFORM_SECURITY"
 REASONS = {"NO_SESSION", "INVALID_SESSION", "UNKNOWN_IDENTITY", "SCOPE_DENIED",
-           "ROLE_DENIED", "MSP_DENIED", "PLATFORM_DENIED", "RESIDENCE_DENIED"}
+           "ROLE_DENIED", "MSP_DENIED", "PLATFORM_DENIED", "RESIDENCE_DENIED", "INVALID_CREDENTIALS"}
 
 
 def ruta_segura(request):

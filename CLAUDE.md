@@ -292,3 +292,10 @@ Formato: `fecha — decisión — motivo`.
 <!-- Regla permanente: toda decisión de arquitectura tomada en esta o futuras
      sesiones se agrega arriba (fecha, decisión, motivo) ANTES de cerrar la
      tarea. -->
+
+## Auditoría del login local — 30-sep-2026
+- POST /auth/login conserva ambos rechazos (usuario ausente o contraseña incorrecta) en security_outbox, motivo INVALID_CREDENTIALS, identidad NONE y dominio PLATFORM_SECURITY.
+- No atribuir identidad por correo presentado. No guardar correo, contraseña ni token de un intento rechazado. Respuesta genérica 401; CORE no disponible devuelve 503 sin acceso.
+- Entrega por el worker existente, con UUID estable y deduplicación. Migración versionada 20260930_login_security.sql extiende sólo la lista de motivos; no modifica privilegios ni políticas de tenants.
+- El frontend Next actual usa SignIn de Clerk: sus fallos de contraseña suceden en Clerk y NO llaman /auth/login. Este cambio no declara cobertura de esos fallos externos; no aceptar reportes del navegador como evidencia de autenticación verificable.
+- Pendientes: integración verificable de eventos de autenticación Clerk y rechazos de permisos de módulos antiguos.

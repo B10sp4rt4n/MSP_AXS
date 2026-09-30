@@ -27,7 +27,7 @@ AXIOMA APLICADO:
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 import logging
 
@@ -51,6 +51,7 @@ router = APIRouter(prefix="/auth", tags=["Autenticación"])
 @router.post("/login", response_model=TokenResponse)
 def login(
     credentials: LoginRequest,
+    request: Request,
     db_core: Session = Depends(get_core_db),
     db_event: Session = Depends(get_event_db)
 ):
@@ -81,39 +82,22 @@ def login(
     # Paso 1: Buscar AUP_IDENTITY por email (CORE)
     usuario = db_core.query(Usuario).filter(Usuario.email == credentials.email).first()
     
-    if not usuario:
-        logger.warning(f"Login fallido: AUP_IDENTITY no encontrada - {credentials.email}")
-        # No registramos evento aquí porque no hay identidad válida
+    # Un correo presentado no verifica identidad, exista o no en CORE.
+    if not usuario or not verify_password(credentials.password, usuario.password_hash):
+        from backend.services.security_outbox import guardar_intento
+        logger.warning("Login local rechazado: credenciales inválidas")
+        try:
+            guardar_intento(request, "INVALID_CREDENTIALS")
+        except Exception as exc:
+            logger.error("Login rechazado sin auditoría (%s)", type(exc).__name__)
+            raise HTTPException(status_code=503,
+                detail="Acceso rechazado; auditoría no disponible") from None
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email o contraseña incorrectos",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    # Paso 2: Validar AUP_CREDENTIAL
-    if not verify_password(credentials.password, usuario.password_hash):
-        logger.warning(f"Login fallido: AUP_CREDENTIAL inválida - {credentials.email}")
-        
-        # AUP_EVENT: Login fallido (escribe en EVENT)
-        registrar_evento(
-            db=db_event,
-            identity=usuario,
-            session_token="login_attempt",
-            tenant_id=usuario.condominio_id or "sistema",
-            entidad=EventEntity.SESSION.value,
-            entidad_id=usuario.usuario_id,
-            accion=EventAction.LOGIN.value,
-            resultado=EventResult.FALLO.value,
-            scope_id=None,
-            motivo="Contraseña incorrecta"
-        )
-        
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email o contraseña incorrectos",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
+
     # Paso 3 y 4: Generar y serializar AUP_SESSION
     access_token = create_access_token(
         user_id=usuario.usuario_id,
@@ -122,7 +106,7 @@ def login(
     
     logger.info(
         f"AUP_SESSION creada: identity={usuario.usuario_id} role={usuario.rol} "
-        f"method=local email={usuario.email}"
+        "method=local"
     )
     
     # Paso 5: AUP_EVENT - Login exitoso (escribe en EVENT)
