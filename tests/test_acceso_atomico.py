@@ -29,12 +29,12 @@ def test_reintentos_no_reescriben_entrada_ni_salida(db_session, visita):
     entry = saved.entrada_registrada_en
     with pytest.raises(HTTPException):
         visita_service.registrar_entrada(db_session, visita.visita_id)
-    assert db_session.get(Visita, visita.visita_id).entrada_registrada_en == entry
+    assert db_session.query(Visita).filter_by(visita_id=visita.visita_id).one().entrada_registrada_en == entry
     saved = visita_service.registrar_salida(db_session, visita.visita_id)
     departure = saved.salida_registrada_en
     with pytest.raises(HTTPException):
         visita_service.registrar_salida(db_session, visita.visita_id)
-    saved = db_session.get(Visita, visita.visita_id)
+    saved = db_session.query(Visita).filter_by(visita_id=visita.visita_id).one()
     assert saved.entrada_registrada_en == entry
     assert saved.salida_registrada_en == departure
     assert saved.estado == "salida_registrada"
@@ -55,7 +55,7 @@ def test_estado_actual_prevalece_sobre_qr_previamente_leido(db_session, visita, 
         db_session.commit()
     with pytest.raises(HTTPException):
         visita_service.registrar_entrada(db_session, visita.visita_id, qr_token="valid")
-    assert db_session.get(Visita, visita.visita_id).entrada_registrada_en is None
+    assert db_session.query(Visita).filter_by(visita_id=visita.visita_id).one().entrada_registrada_en is None
 
 
 def test_qr_no_permite_entrada_manual_ni_regeneracion_tras_consumo(db_session, visita):
@@ -68,7 +68,7 @@ def test_qr_no_permite_entrada_manual_ni_regeneracion_tras_consumo(db_session, v
         visita_service.actualizar_qr(db_session, visita.visita_id, "new", visita.qr_vigencia)
     with pytest.raises(HTTPException):
         visita_service.cancelar_visita(db_session, visita.visita_id, estado_esperado="pendiente")
-    saved = db_session.get(Visita, visita.visita_id)
+    saved = db_session.query(Visita).filter_by(visita_id=visita.visita_id).one()
     assert saved.estado == "entrada_registrada" and saved.entrada_registrada_en == entry
     assert saved.qr_token == "valid"
 
@@ -79,7 +79,7 @@ def test_fallo_commit_revierte_entrada(db_session, visita, monkeypatch):
     monkeypatch.setattr(db_session, "commit", fail)
     with pytest.raises(RuntimeError):
         visita_service.registrar_entrada(db_session, visita.visita_id)
-    saved = db_session.get(Visita, visita.visita_id)
+    saved = db_session.query(Visita).filter_by(visita_id=visita.visita_id).one()
     assert saved.estado == "pendiente" and saved.entrada_registrada_en is None
 
 
@@ -112,7 +112,7 @@ def test_http_roles_tenant_y_un_solo_evento_de_exito(client, db_session, visita,
     assert client.get(url + "?condominio_id=unknown", headers=guard).status_code == 404
     approved = client.get(url, headers=guard)
     assert approved.status_code == 200, approved.text
-    entry = db_session.get(Visita, "atomic").entrada_registrada_en
+    entry = db_session.query(Visita).filter_by(visita_id="atomic").one().entrada_registrada_en
     assert client.get(url, headers=guard).status_code == 400
-    assert db_session.get(Visita, "atomic").entrada_registrada_en == entry
+    assert db_session.query(Visita).filter_by(visita_id="atomic").one().entrada_registrada_en == entry
     assert len([r for r in records if r["resultado"] == "exito"]) == 1
