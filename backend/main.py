@@ -24,7 +24,8 @@ load_dotenv(Path(__file__).parents[1] / ".env")  # cargar antes de cualquier eng
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from backend.core.security_denial import SecurityDenial
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import os
@@ -71,6 +72,13 @@ app = FastAPI(
 )
 
 
+@app.exception_handler(SecurityDenial)
+async def seguridad_denegada(request, exc):
+    # El middleware conserva la denegación una sola vez antes de devolverla.
+    request.state.security_denial_reason = exc.security_reason
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=exc.headers)
+
+
 @app.on_event("startup")
 async def iniciar_auditoria():
     # Los tests controlan explícitamente el envío y no usan conexiones reales.
@@ -80,7 +88,7 @@ async def iniciar_auditoria():
     from backend.db.core.session import SessionLocal_CORE
     from backend.db.event.session import SessionLocal_EVENT
     app.state.audit_worker = asyncio.create_task(ejecutar_worker(SessionLocal_CORE, SessionLocal_EVENT))
-    logger.info("Auditoría durable: worker iniciado")
+    logger.info("Auditoría durable de visitas y seguridad: worker iniciado")
 
 
 @app.on_event("shutdown")
