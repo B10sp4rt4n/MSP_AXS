@@ -101,7 +101,7 @@ class TestSession:
         
         print(f"✅ Contraseña incorrecta rechazada: {response.json()['detail']}")
     
-    def test_endpoint_protegido_sin_token_rechaza(self, client, db_event_session):
+    def test_endpoint_protegido_sin_token_rechaza(self, client, db_event_session, db_session, db_event_engine):
         """
         TEST 1.4 — Endpoint protegido sin token rechaza
         
@@ -118,6 +118,11 @@ class TestSession:
         assert "no session" in detail
         from backend.db.event import Event
         from backend.core.event.registry import verificar_integridad_evento
+        from backend.db.core import SecurityOutbox
+        from backend.services.security_outbox import enviar_seguridad
+        from sqlalchemy.orm import sessionmaker
+        assert db_session.query(SecurityOutbox).count() == 1
+        enviar_seguridad(db_session, sessionmaker(bind=db_event_engine))
         evento = db_event_session.query(Event).filter_by(accion="denegar").one()
         assert verificar_integridad_evento(evento)
         
