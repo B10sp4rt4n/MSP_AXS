@@ -9,6 +9,7 @@ from backend.core.tenant.context import _set_postgres_tenant
 from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
 from ..services import visita_service, qr_service
+from backend.services.event_outbox import contexto_evento
 from ..schemas.preregistro import PreregistroCreate
 from backend.db.core import Usuario
 from ..core.gov.facade import puede_ejecutar_accion
@@ -70,11 +71,13 @@ def crear_preregistro(
         data.fecha_visita = qr_service.utc_now().replace(tzinfo=None)
     try:
         # Crear visita y persistir metadata opcional como evidencia
-        visita = visita_service.crear_desde_preregistro(db, data, usuario, destino=destination, casa_label=label)
+        visita = visita_service.crear_desde_preregistro(db, data, usuario, destino=destination, casa_label=label,
+            generar_qr=True, auditoria=contexto_evento(usuario, token, accion="crear", motivo="Visita preregistrada"))
 
-        # Generar QR y guardar token/vigencia en la visita
-        qr_data = qr_service.generar_qr_para_visita(visita.visita_id, fecha_visita=visita.vigencia)
-        visita_service.actualizar_qr(db, visita.visita_id, qr_data["token"], qr_data["qr_vigencia"])
+        # Visita, QR y eventos se confirmaron juntos; renderizar el token guardado.
+        qr_data = {"qr_bytes": qr_service.imagen_qr(visita.visita_id, visita.qr_token),
+                   "qr_vigencia": visita.qr_vigencia,
+                   "qr_inicio": qr_service.ventana_visita(visita.vigencia)[0]}
 
         return {
             "status": "ok",
@@ -91,6 +94,7 @@ def crear_preregistro(
 @router.get("/qr/{visita_id}")
 def reenviar_qr(
     visita_id: str,
+    request: Request,
     db: Session = Depends(get_core_db),
     db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
@@ -109,7 +113,9 @@ def reenviar_qr(
         raise HTTPException(400, "La ventana de acceso de la visita ya terminó")
     if not visita.qr_token or not visita.qr_vigencia or qr_service.as_utc(visita.qr_vigencia) <= qr_service.utc_now():
         qr_data = qr_service.generar_qr_para_visita(visita.visita_id, fecha_visita=visita.vigencia)
-        visita_service.actualizar_qr(db, visita.visita_id, qr_data["token"], qr_data["qr_vigencia"])
+        visita_service.actualizar_qr(db, visita.visita_id, qr_data["token"], qr_data["qr_vigencia"],
+            auditoria=contexto_evento(usuario, request.headers.get("Authorization", "").replace("Bearer ", ""),
+                                      entidad="qr", accion="crear", motivo="QR generado al recuperar preregistro"))
     else:
         qr_data = {
             "token": visita.qr_token,
@@ -124,3 +130,4 @@ def reenviar_qr(
         "qr_base64": base64.b64encode(qr_data["qr_bytes"]).decode(),
         "qr_vigencia": qr_data["qr_vigencia"],
     }
+

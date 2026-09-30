@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
 from backend.core.scope.msp_boundary import (
     active_msp_ids, require_condominio, require_msp_admin, require_visita,
@@ -129,9 +129,9 @@ def test_member_grant_and_revocation_only_by_operator(tenants, db_core_session, 
 
 def test_visit_routes_apply_boundary_before_mutation(tenants, db_core_session, db_gov_session):
     db, gov = db_core_session, db_gov_session
-    denied(lambda: registrar_salida("v_a1_101", db, gov, tenants["admin_b"], condominio_id="a1"))
+    denied(lambda: registrar_salida("v_a1_101", Request({"type": "http", "headers": []}), db, gov, tenants["admin_b"], condominio_id="a1"))
     denied(lambda: obtener_visita("v_a1_102", db, gov, tenants["resident_a1"]))
-    denied(lambda: reenviar_qr("v_a1_102", db, gov, tenants["resident_a1"]))
+    denied(lambda: reenviar_qr("v_a1_102", Request({"type": "http", "headers": []}), db, gov, tenants["resident_a1"]))
     assert db.query(Visita).filter_by(visita_id="v_a1_101").one().estado == "pendiente"
 
 

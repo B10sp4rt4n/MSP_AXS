@@ -13,7 +13,7 @@ Contiene:
 - Evidencia (artefactos de operación)
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Enum as SQLEnum, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Enum as SQLEnum, UniqueConstraint, Index
 from datetime import datetime
 import enum
 
@@ -244,3 +244,17 @@ class Evidencia(Base_CORE):
     guardia_id = Column(String, ForeignKey("usuarios.usuario_id"))
     metadata_json = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EventOutbox(Base_CORE):
+    """Evento capturado en la transacción CORE; el envío a EVENT es reintentable."""
+    __tablename__ = "event_outbox"
+    event_uid = Column(String, primary_key=True)
+    condominio_id = Column(String, ForeignKey("condominios_exo.condominio_id"), nullable=False)
+    payload = Column(JSON, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    delivered_at = Column(DateTime, nullable=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    next_attempt_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_error = Column(String, nullable=True)
+    __table_args__ = (Index("ix_event_outbox_pending", "condominio_id", "delivered_at", "next_attempt_at"),)

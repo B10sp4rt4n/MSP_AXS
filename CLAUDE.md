@@ -196,6 +196,16 @@ en el código — no inventado). Resumen de las que importan para arrancar:
 
 Formato: `fecha — decisión — motivo`.
 
+- **2026-09-30** — Auditoría de operaciones exitosas de visitas mediante
+  transactional outbox en CORE, confirmado junto con la operación. EVENT recibe
+  eventos con UID estable y verifica conflictos sin sobrescribir hechos. Worker
+  por proceso con SKIP LOCKED, RLS forzado por condominio, reintentos persistentes
+  y ACK sólo después del commit de EVENT. No requiere negociación entre guardias
+  ni transacción distribuida. Preregistro, QR y sus eventos usan un solo commit.
+  El rol CORE sólo actualiza campos de entrega, sin editar ni borrar el hecho.
+  Denegaciones y otros dominios aún usan registro directo; creación idempotente
+  y operación offline siguen pendientes. Ver docs/AUDITORIA_DURABLE.md.
+
 - **2026-09-30** — Las transiciones de visitas usan `UPDATE` condicional
   (compare-and-set) para comprobar estado y persistir en una operación atómica.
   Entrada exige pendiente/activa sin horas previas; QR exige además token actual,
@@ -260,3 +270,4 @@ Formato: `fecha — decisión — motivo`.
 <!-- Regla permanente: toda decisión de arquitectura tomada en esta o futuras
      sesiones se agrega arriba (fecha, decisión, motivo) ANTES de cerrar la
      tarea. -->
+
