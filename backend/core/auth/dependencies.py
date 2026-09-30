@@ -45,6 +45,7 @@ import logging
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from backend.db.core import Usuario, get_core_db
 from .jwt import decode_access_token, verify_clerk_token
@@ -72,11 +73,14 @@ def _link_clerk_user_by_email(db: Session, clerk_id: str) -> Optional[Usuario]:
             return None
         data = resp.json()
         emails = data.get("email_addresses", [])
-        email = emails[0].get("email_address") if emails else None
+        primary = data.get("primary_email_address_id")
+        email_row = next((row for row in emails if row.get("id") == primary), emails[0] if emails else {})
+        email = email_row.get("email_address")
+        email = email.strip().lower() if email else None
         if not email:
             return None
         usuario = db.query(Usuario).filter(
-            Usuario.email == email,
+            func.lower(Usuario.email) == email,
             Usuario.clerk_id.is_(None),
         ).first()
         if usuario:

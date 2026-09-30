@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
+import UsuariosCondominio from "@/components/UsuariosCondominio";
 
 type CasaResidente = { usuario_id: string; nombre: string; email: string; rol: string } | null;
 type Casa = { casa_unidad: string; residente: CasaResidente };
@@ -111,7 +112,13 @@ export default function MSPClient() {
             router={router}
           />
         ) : (
-          <TabUsuarios usuarios={todosUsuarios} />
+          <div>
+            {condominios.length === 0 ? <p className="text-gray-400">Crea un condominio para asignar personal.</p> :
+              condominios.map(c => <section key={c.condominio_id} className="mb-8">
+                <h2 className="text-lg font-semibold mb-3">{c.nombre}</h2>
+                <UsuariosCondominio condominioId={c.condominio_id} getToken={getToken} />
+              </section>)}
+          </div>
         )}
       </main>
     </div>
@@ -240,68 +247,3 @@ function TabCondominios({
   );
 }
 
-// ─── Tab Usuarios ─────────────────────────────────────────────────────────────
-
-type UsuarioFlat = {
-  usuario_id: string;
-  nombre: string;
-  email: string;
-  rol: string;
-  casa_unidad: string;
-  condominio: string;
-  condominio_id: string;
-};
-
-function TabUsuarios({ usuarios }: { usuarios: UsuarioFlat[] }) {
-  const [filtro, setFiltro] = useState("");
-
-  const filtrados = usuarios.filter(u =>
-    !filtro || u.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
-    u.email.toLowerCase().includes(filtro.toLowerCase()) ||
-    u.condominio.toLowerCase().includes(filtro.toLowerCase())
-  );
-
-  const rolColor: Record<string, string> = {
-    RESIDENTE:        "bg-blue-500/20 text-blue-300",
-    GUARDIA:          "bg-orange-500/20 text-orange-300",
-    ADMIN_CONDOMINIO: "bg-purple-500/20 text-purple-300",
-    MSP_ADMIN:        "bg-red-500/20 text-red-300",
-  };
-
-  return (
-    <div>
-      <div className="mb-4">
-        <input
-          placeholder="Buscar por nombre, email o condominio..."
-          value={filtro}
-          onChange={e => setFiltro(e.target.value)}
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500"
-        />
-      </div>
-      <p className="text-xs text-gray-500 mb-3">{filtrados.length} usuario(s)</p>
-
-      {filtrados.length === 0 ? (
-        <div className="text-center py-16 text-gray-600">
-          <p className="text-4xl mb-3">👥</p>
-          <p>Sin usuarios</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filtrados.map(u => (
-            <div key={u.usuario_id} className="bg-gray-900 border border-gray-700 rounded-xl p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium text-white text-sm">{u.nombre}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {u.email} · {u.condominio} · Casa {u.casa_unidad}
-                </p>
-              </div>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium shrink-0 ml-2 ${rolColor[u.rol] ?? "bg-gray-700 text-gray-300"}`}>
-                {u.rol}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

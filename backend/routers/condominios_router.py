@@ -7,10 +7,12 @@ Operaciones críticas:
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import List, Optional
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Optional, Literal
 from ..core.auth.dependencies import get_current_user
-from backend.db.core import Usuario, Condominio, Casa, MSP, UserTenantScope, AccessLevel, get_core_db
+from backend.db.core import Usuario, Condominio, Casa, MSP, MSPMembership, UserTenantScope, AccessLevel, get_core_db
 from backend.db.core import ScopeStatus
 from backend.db.gov import get_gov_db
 from backend.core.scope.msp_boundary import (
@@ -333,4 +335,107 @@ def listar_casas(
         "condominio_id": condominio_id,
         "total_casas": len(resultado),
         "casas": resultado,
+    }
+
+
+class PersonalCreate(BaseModel):
+    nombre: str = Field(min_length=1, max_length=200)
+    email: str = Field(min_length=3, max_length=254)
+    rol: Literal["GUARDIA", "ADMIN_CONDOMINIO"]
+
+    @field_validator("nombre")
+    @classmethod
+    def validar_nombre(cls, value):
+        value = value.strip()
+        if not value:
+            raise ValueError("Nombre requerido")
+        return value
+
+    @field_validator("email")
+    @classmethod
+    def validar_email(cls, value):
+        import re
+        value = value.strip().lower()
+        if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value):
+            raise ValueError("Email inválido")
+        return value
+
+
+@router.get("/{condominio_id}/usuarios")
+def listar_usuarios(
+    condominio_id: str,
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    """Lista identidades con asignación activa al condominio."""
+    require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
+    rows = db.query(Usuario, UserTenantScope).join(
+        UserTenantScope, UserTenantScope.usuario_id == Usuario.usuario_id
+    ).filter(
+        UserTenantScope.tenant_id == condominio_id,
+        UserTenantScope.estado == ScopeStatus.ACTIVO,
+    ).order_by(Usuario.nombre).all()
+    result = {}
+    for identity, scope in rows:
+        result[identity.usuario_id] = {
+            "usuario_id": identity.usuario_id, "nombre": identity.nombre or "",
+            "email": identity.email or "", "rol": scope.access_level.name,
+            "casa_unidad": identity.casa_unidad if identity.condominio_id == condominio_id else None,
+            "registro_pendiente": identity.clerk_id is None,
+        }
+    return list(result.values())
+
+
+@router.post("/{condominio_id}/usuarios")
+def crear_personal(
+    condominio_id: str,
+    body: PersonalCreate,
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    """Preasigna una identidad de personal; Clerk conserva su rol al vincularla."""
+    condo = require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
+    if body.rol == "ADMIN_CONDOMINIO":
+        require_msp_admin(db, db_gov, usuario, condo.msp_id)
+    existing = db.query(Usuario).filter(func.lower(Usuario.email) == body.email).with_for_update().first()
+    if existing:
+        # Sólo incorporar cuentas de autorregistro que aún carezcan de asignación.
+        # No cambiar residentes, personal existente ni operadores de otro proveedor.
+        assigned = db.query(UserTenantScope.id).filter(
+            UserTenantScope.usuario_id == existing.usuario_id
+        ).first()
+        membership = db.query(MSPMembership.id).filter(
+            MSPMembership.usuario_id == existing.usuario_id
+        ).first()
+        if (existing.condominio_id or existing.casa_id or assigned or membership
+                or (existing.rol or "").upper() != "RESIDENTE" or is_platform_operator(db_gov, existing)):
+            raise HTTPException(409, detail="Email ya asignado; no se modificó su rol ni su condominio")
+        identity = existing
+    else:
+        identity = Usuario(usuario_id=f"user_{uuid.uuid4().hex[:12]}", email=body.email,
+                           password_hash=None)
+        db.add(identity)
+    identity.nombre = body.nombre
+    identity.rol = body.rol
+    identity.msp_id = condo.msp_id
+    identity.condominio_id = condominio_id
+    identity.casa_id = None
+    identity.casa_unidad = None
+    try:
+        db.flush()
+        db.add(UserTenantScope(
+            usuario_id=identity.usuario_id, tenant_id=condominio_id,
+            access_level=AccessLevel[body.rol], estado=ScopeStatus.ACTIVO,
+            metadata_json={"assigned_by": usuario.usuario_id, "source": "panel_personal"},
+        ))
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, detail="Email ya registrado; actualiza la lista de usuarios")
+    return {
+        "usuario_id": identity.usuario_id, "nombre": identity.nombre,
+        "email": identity.email, "rol": identity.rol,
+        "registro_pendiente": identity.clerk_id is None,
     }

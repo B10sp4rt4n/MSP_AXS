@@ -6,6 +6,7 @@ import uuid
 import logging
 from fastapi import APIRouter, Request, HTTPException, Header
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from svix.webhooks import Webhook, WebhookVerificationError
 
 from backend.db.core import get_core_db, Usuario
@@ -64,7 +65,10 @@ async def clerk_webhook(
     if event_type == "user.created":
         # Extraer email primario
         emails = data.get("email_addresses", [])
-        email = emails[0]["email_address"] if emails else None
+        primary = data.get("primary_email_address_id")
+        email_row = next((row for row in emails if row.get("id") == primary), emails[0] if emails else {})
+        email = email_row.get("email_address")
+        email = email.strip().lower() if email else None
         nombre = f"{data.get('first_name', '')} {data.get('last_name', '')}".strip() or email
 
         if not email:
@@ -73,7 +77,7 @@ async def clerk_webhook(
 
         # No duplicar si ya existe
         existente = db.query(Usuario).filter(
-            (Usuario.clerk_id == clerk_id) | (Usuario.email == email)
+            (Usuario.clerk_id == clerk_id) | (func.lower(Usuario.email) == email)
         ).first()
 
         if existente:
@@ -90,7 +94,7 @@ async def clerk_webhook(
             clerk_id=clerk_id,
             email=email,
             nombre=nombre,
-            rol="residente",          # Rol por defecto — MSP_ADMIN lo cambia
+            rol="RESIDENTE",          # Rol por defecto — MSP_ADMIN lo cambia
             msp_id=DEFAULT_MSP_ID,
             password_hash=None,       # Auth via Clerk, no password local
         )
