@@ -28,6 +28,7 @@ from backend.db.core import get_core_db
 from backend.db.gov import get_gov_db
 from backend.core.scope.msp_boundary import require_visita, authorized_tenant_context
 from backend.services import visita_service
+from backend.services.event_outbox import contexto_evento
 from backend.schemas.visita import VisitaCreate, VisitaResponse
 
 # DEPRECADO - Solo para endpoints no migrados aún
@@ -120,33 +121,10 @@ def crear_visita(
         casa_unidad=label,
         entrada_inmediata=entrada_inmediata,
         destino=destination,
+        auditoria=contexto_evento(current_user, token, accion="crear", motivo="Visita creada exitosamente"),
     )
     
-    # ─────────────────────────────────────────────────────────────────────────
-    # PASO 7: Registrar evento de éxito
-    # ─────────────────────────────────────────────────────────────────────────
-    registrar_evento(
-        db=db,
-        identity=current_user,
-        session_token=token,
-        tenant_id=condominio_id,
-        entidad=EventEntity.VISITA.value,
-        entidad_id=visita.visita_id,
-        accion=EventAction.CREAR.value,
-        resultado=EventResult.EXITO.value,
-        scope_id=scope.id if scope else None,
-        motivo="Visita creada exitosamente",
-        metadata={
-            "visitante": data.nombre_visitante,
-            "casa_unidad": visita.casa_unidad,
-            "destino_id": visita.destino_id,
-            "destino_tipo": visita.destino_tipo,
-            "destino_motivo": visita.destino_motivo,
-            "vigencia": str(data.vigencia),
-            "entrada_registrada_en": str(visita.entrada_registrada_en) if visita.entrada_registrada_en else None
-        }
-    )
-    
+    # El evento de éxito queda persistido en CORE junto con la visita.
     return visita
 
 
@@ -240,6 +218,7 @@ def visitas_condominio(
 @router.patch("/{visita_id}/entrada", response_model=VisitaResponse)
 def registrar_entrada_manual(
     visita_id: str,
+    request: Request,
     db: Session = Depends(get_core_db),
     db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),
@@ -252,12 +231,15 @@ def registrar_entrada_manual(
         raise HTTPException(400, "La visita ya tiene entrada o está finalizada")
     if visita.qr_token:
         raise HTTPException(400, "Esta visita requiere validar su QR")
-    return visita_service.registrar_entrada(db, visita_id)
+    return visita_service.registrar_entrada(db, visita_id, auditoria=contexto_evento(
+        usuario, request.headers.get("Authorization", "").replace("Bearer ", ""),
+        motivo="Entrada manual registrada"))
 
 
 @router.patch("/{visita_id}/salida")
 def registrar_salida(
     visita_id: str,
+    request: Request,
     db: Session = Depends(get_core_db),
     db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),
@@ -268,7 +250,9 @@ def registrar_salida(
                            condominio_id=condominio_id)
     if visita.estado != "entrada_registrada" or not visita.entrada_registrada_en:
         raise HTTPException(400, f"No se puede registrar salida en estado '{visita.estado}'")
-    visita = visita_service.registrar_salida(db, visita_id)
+    visita = visita_service.registrar_salida(db, visita_id, auditoria=contexto_evento(
+        usuario, request.headers.get("Authorization", "").replace("Bearer ", ""),
+        motivo="Salida registrada"))
     return {"status": "ok", "visita_id": visita_id, "estado": visita.estado}
 
 
@@ -278,6 +262,7 @@ def registrar_salida(
 @router.patch("/{visita_id}/cancelar")
 def cancelar_visita(
     visita_id: str,
+    request: Request,
     db: Session = Depends(get_core_db),
     db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),
@@ -293,7 +278,9 @@ def cancelar_visita(
             raise HTTPException(403, "No autorizado para esta visita")
     if visita.estado in ["cancelada", "salida_registrada"]:
         raise HTTPException(400, f"La visita ya está en estado '{visita.estado}'")
-    visita_service.cancelar_visita(db, visita_id, estado_esperado=visita.estado)
+    visita_service.cancelar_visita(db, visita_id, estado_esperado=visita.estado,
+        auditoria=contexto_evento(usuario, request.headers.get("Authorization", "").replace("Bearer ", ""),
+                                  accion="revocar", motivo="Visita cancelada"))
     return {"status": "ok", "visita_id": visita_id, "estado": "cancelada"}
 
 
@@ -310,3 +297,4 @@ def obtener_visita(
 ):
     return require_visita(db, db_gov, usuario, visita_id, AccessLevel.RESIDENTE,
                           own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
+
