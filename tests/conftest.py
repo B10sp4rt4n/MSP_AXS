@@ -144,8 +144,6 @@ def patch_get_event_db(monkeypatch, db_event_session):
     # Patch backend.db.event.get_event_db
     import backend.db.event
     monkeypatch.setattr(backend.db.event, "get_event_db", mock_get_event_db)
-    import backend.core.aup_runtime_blocks
-    monkeypatch.setattr(backend.core.aup_runtime_blocks, "get_event_db", mock_get_event_db)
     
     yield
 
@@ -406,3 +404,10 @@ def auth_headers(login_helper):
             return {"Authorization": f"Bearer {token}"}
         return {}
     return _headers
+
+
+@pytest.fixture(autouse=True)
+def patch_security_database(monkeypatch, db_engine):
+    # Middleware usa una sesión independiente y nunca conexiones de producción.
+    from backend.services import security_outbox
+    monkeypatch.setattr(security_outbox, "SessionFactory", sessionmaker(bind=db_engine))

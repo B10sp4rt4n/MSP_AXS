@@ -26,14 +26,11 @@ AXIOMA FUNDAMENTAL:
 from typing import Callable, Optional, Set
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
-from sqlalchemy.orm import Session
 import logging
 
 from backend.core.auth.jwt import decode_access_token, verify_clerk_token
-from backend.db.event import get_event_db
-from backend.core.event.registry import registrar_evento
-from backend.core.event import EventEntity, EventAction, EventResult
 
 logger = logging.getLogger("aup.runtime")
 
@@ -76,140 +73,49 @@ class AUPSessionGuard(BaseHTTPMiddleware):
         "/debug/db",
     }
     
+    async def _conservar_rechazo(self, request, reason):
+        from backend.services.security_outbox import guardar_intento
+        try:
+            await run_in_threadpool(guardar_intento, request, reason)
+            return True
+        except Exception as exc:
+            logger.error("Rechazo de seguridad sin persistir (%s)", type(exc).__name__)
+            return False
+
     async def dispatch(self, request: Request, call_next: Callable):
-        """
-        Intercepta TODA request antes de llegar al router.
-        """
+        from backend.services.security_outbox import ruta_segura
         path = request.url.path
-        
-        # ─────────────────────────────────────────────────────────────
-        # 1. Permitir endpoints públicos
-        # ─────────────────────────────────────────────────────────────
-        # Dejar pasar preflight CORS sin requerir SESSION
-        if request.method == "OPTIONS":
+        if request.method == "OPTIONS" or path in self.PUBLIC_PATHS or path.startswith("/docs"):
             return await call_next(request)
-
-        if path in self.PUBLIC_PATHS or path.startswith("/docs"):
-            return await call_next(request)
-        
-        # ─────────────────────────────────────────────────────────────
-        # 2. Todos los demás endpoints requieren SESSION
-        # ─────────────────────────────────────────────────────────────
-        auth_header = request.headers.get("Authorization")
-        logger.debug(f"🔍 Authorization header recibido: {auth_header[:50] if auth_header else 'VACÍO'}...")
-        
-        if not auth_header:
-            logger.warning(f"🚫 AUP-01 BLOQUEADO: No SESSION en {request.method} {path}")
-            
-            # Registrar evento de denegación
-            self._registrar_denied_no_session(request)
-            
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={
-                    "detail": "AUP-01 VIOLATED: No SESSION provided",
-                    "axiom": "Nada ocurre sin sesión",
-                    "path": path,
-                    "method": request.method
-                }
-            )
-        
-        # ─────────────────────────────────────────────────────────────
-        # 3. Validar que SESSION es válida
-        # ─────────────────────────────────────────────────────────────
-        try:
-            token = auth_header.replace("Bearer ", "")
-            logger.debug(f"🔍 Token extraído: {token[:30]}... (primeros 30 chars)")
-            
-            payload = verify_clerk_token(token) or decode_access_token(token)
-            logger.debug(f"🔍 Payload después de decode: {payload}")
-
-            if not payload:
-                logger.warning(f"🚫 AUP-01 BLOQUEADO: Payload vacío/None después de decode")
-                logger.warning(f"   Token que se intentó: {token[:50]}...")
-                raise ValueError("Token inválido o expirado")
-            
-            logger.info(f"✅ AUP-01 PASADO: Token válido para identity_id={payload.get('sub')}")
-            
-            # Agregar identity_id al state de request (para uso posterior)
-            request.state.identity_id = payload.get("sub")
-            request.state.session_token = token
-            
-        except Exception as e:
-            logger.warning(f"🚫 AUP-01 BLOQUEADO: SESSION inválida en {request.method} {path}: {type(e).__name__}: {str(e)}")
-            
-            # Registrar evento de denegación
-            self._registrar_denied_no_session(request)
-            
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={
-                    "detail": "AUP-01 VIOLATED: Invalid SESSION",
-                    "axiom": "Nada ocurre sin sesión válida",
-                    "path": path,
-                    "method": request.method,
-                    "error": str(e)
-                }
-            )
-        
-        # ─────────────────────────────────────────────────────────────
-        # 4. SESSION válida → Permitir continuar
-        # ─────────────────────────────────────────────────────────────
-        logger.info(f"✅ AUP-01 PASSED: SESSION válida para {request.method} {path}")
-        return await call_next(request)
-    
-    def _registrar_denied_no_session(self, request: Request):
-        """
-        Registra evento cuando se bloquea por falta de SESSION.
-        
-        Axioma: Toda denegación deja huella.
-        """
-        try:
-            db: Session = next(get_event_db())
-            
-            # Registrar evento sin identity (porque no hay SESSION)
-            from backend.db.event import Event
-            from datetime import datetime
-            import uuid
-            from backend.core.event.registry import calcular_hash_evento, hash_session_token
-            
-            timestamp = datetime.utcnow()
-            
-            event_uid = f"evt_{uuid.uuid4().hex[:16]}"
-            session_hash = hash_session_token("")  # no se recibió sesión válida
-            hash_evento = calcular_hash_evento(
-                event_id=event_uid, identity_id="NONE", session_hash=session_hash,
-                tenant_id="NONE", entidad=EventEntity.SESSION.value,
-                entidad_id="NONE", accion=EventAction.DENEGAR.value,
-                resultado=EventResult.DENEGADO.value, timestamp=timestamp,
-            )
-            
-            evento = Event(
-                event_uid=event_uid,
-                session_hash=session_hash,
-                identity_id="NONE",  # No hay identidad sin SESSION
-                tenant_id="NONE",
-                tipo_evento=EventAction.DENEGAR.value,
-                entidad=EventEntity.SESSION.value,
-                entidad_id="NONE",
-                accion=EventAction.DENEGAR.value,
-                resultado=EventResult.DENEGADO.value,
-                motivo=f"AUP-01 VIOLATED: No SESSION en {request.method} {request.url.path}",
-                metadata_json={
-                    "path": request.url.path,
-                    "method": request.method,
-                    "client_ip": request.client.host if request.client else "unknown"
-                },
-                timestamp=timestamp,
-                hash_evento=hash_evento
-            )
-            
-            db.add(evento)
-            db.commit()
-            db.close()
-            
-        except Exception as e:
-            logger.error(f"❌ Error registrando evento DENIED_NO_SESSION: {e}")
+        auth_header = request.headers.get("Authorization", "")
+        reason = "NO_SESSION" if not auth_header else None
+        if auth_header:
+            try:
+                scheme, separator, token = auth_header.partition(" ")
+                if scheme.lower() != "bearer" or not separator or not token:
+                    raise ValueError("Formato de sesión inválido")
+                payload = verify_clerk_token(token) or decode_access_token(token)
+                if not payload or not payload.get("sub"):
+                    raise ValueError("Sesión inválida")
+                # sub aquí es una afirmación firmada; la identidad se verifica
+                # en get_current_user antes de atribuirle un evento de seguridad.
+                request.state.identity_id = payload["sub"]
+                request.state.session_token = token
+            except Exception:
+                reason = "INVALID_SESSION"
+        if reason:
+            if not await self._conservar_rechazo(request, reason):
+                return JSONResponse(status_code=503, content={"detail": "Acceso rechazado; auditoría no disponible"})
+            return JSONResponse(status_code=401, content={
+                "detail": "AUP-01 VIOLATED: No SESSION provided" if reason == "NO_SESSION" else "AUP-01 VIOLATED: Invalid SESSION",
+                "axiom": "Nada ocurre sin sesión válida", "path": ruta_segura(request), "method": request.method},
+                headers={"WWW-Authenticate": "Bearer"})
+        response = await call_next(request)
+        security_reason = getattr(request.state, "security_denial_reason", None)
+        if security_reason and response.status_code in (401, 403):
+            if not await self._conservar_rechazo(request, security_reason):
+                return JSONResponse(status_code=503, content={"detail": "Acceso rechazado; auditoría no disponible"})
+        return response
 
 
 # ═══════════════════════════════════════════════════════════════════════════

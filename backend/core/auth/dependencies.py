@@ -42,7 +42,8 @@ MIGRACIÓN FUTURA:
 from typing import Optional
 import os
 import logging
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
+from backend.core.security_denial import SecurityDenial
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -99,7 +100,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 def get_current_user(
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_core_db)
+    db: Session = Depends(get_core_db),
+    request: Request = None,
 ) -> Usuario:
     """
     ═══════════════════════════════════════════════════════════════════════
@@ -137,9 +139,10 @@ def get_current_user(
             # Lógica de negocio aquí
             pass
     """
-    credentials_exception = HTTPException(
+    credentials_exception = SecurityDenial(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="No se pudo validar las credenciales",
+        reason="UNKNOWN_IDENTITY",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -177,6 +180,8 @@ def get_current_user(
     # validate_scopes(usuario, session_scopes)
     
     # Retornar AUP_IDENTITY completa
+    if request is not None:
+        request.state.verified_identity_id = usuario.usuario_id
     return usuario
 
 

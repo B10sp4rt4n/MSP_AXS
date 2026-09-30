@@ -6,6 +6,7 @@ La creación canónica y legacy comparten gobierno y registro EVENT.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from backend.core.security_denial import SecurityDenial
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -276,7 +277,7 @@ def cancelar_visita(
     condominio_id: str | None = None,
 ):
     if usuario.rol not in ["RESIDENTE", "MSP_ADMIN", "ADMIN_CONDOMINIO"]:
-        raise HTTPException(403, "No autorizado")
+        raise SecurityDenial(403, "No autorizado", reason="ROLE_DENIED")
     level = AccessLevel.RESIDENTE if usuario.rol == "RESIDENTE" else AccessLevel.ADMIN_CONDOMINIO
     visita = require_visita(db, db_gov, usuario, visita_id, level,
                            own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
@@ -288,7 +289,7 @@ def cancelar_visita(
 
     if usuario.rol == "RESIDENTE":
         if visita.condominio_id != usuario.condominio_id or visita.casa_unidad != usuario.casa_unidad:
-            raise HTTPException(403, "No autorizado para esta visita")
+            raise SecurityDenial(403, "No autorizado para esta visita", reason="RESIDENCE_DENIED")
     if visita.estado in ["cancelada", "salida_registrada"]:
         rechazar(f"La visita ya está en estado '{visita.estado}'")
     try:

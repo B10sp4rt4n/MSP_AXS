@@ -14,8 +14,8 @@ expirado, usado, aún no vigente, conflicto al consumir y visita inexistente
 (dentro de un condominio previamente autorizado). Entrada manual, salida,
 cancelación y generación QR conservan sus rechazos por estado; creación de
 visita y generación QR conservan la denegación de gobierno.
-Sin sesión, sin autorización de condominio, preregistro y otros dominios aún
-conservan el comportamiento anterior de rechazos. No se usa un tenant ficticio
+Los rechazos de sesión y autorización usan la bandeja global descrita abajo.
+Preregistro y otros dominios todavía conservan parte del comportamiento anterior. No se usa un tenant ficticio
 ni se eleva el rol RLS para registrar intentos en una entidad ajena. No se resuelve aquí la repetición de creación
 por una respuesta HTTP perdida, ni el funcionamiento sin conexión.
 
@@ -31,8 +31,8 @@ No se almacena el QR recibido, incluso para una visita desconocida.
 
 Cada solicitud rechazada es un intento separado, con su propio UID. Los
 reintentos del worker comparten UID; no se fusionan intentos reales distintos.
-La auditoría de accesos sin sesión o sin alcance requiere un dominio de seguridad
-separado: no debe perforar el aislamiento por condominio de esta bandeja.
+Los accesos sin sesión o sin alcance usan el dominio global de seguridad
+descrito abajo, sin perforar el aislamiento por condominio de esta bandeja.
 
 ## Envío y recuperación
 
@@ -80,3 +80,41 @@ EVENT, rollback de negocio pendiente, fallo de CORE, conflicto de consumo,
 condominio ajeno/inexistente y reenvíos sin duplicar intentos. El gate PostgreSQL
 incluye un rechazo confirmado tras rollback, aislado por FORCE RLS, que compite
 con eventos exitosos en el mismo envío concurrente.
+
+## Bandeja global de seguridad
+
+`security_outbox` conserva NO_SESSION, INVALID_SESSION, UNKNOWN_IDENTITY y
+rechazos explícitos de autorización en los límites MSP/condominio/vivienda/rol.
+Es un dominio de plataforma, sin FK ni contexto de condominio. Los hechos llegan
+a EVENT con tenant_id=PLATFORM_SECURITY y se mantienen fuera de las consultas
+operativas que filtran por condominio. No existe endpoint de lectura de la cola.
+El rol de backend puede enviar estos eventos; esto no otorga permisos a usuarios
+finales ni cambia políticas RLS de visitas/evidencias/casetas.
+
+El middleware confirma el intento en una sesión CORE independiente antes de
+retornar 401/403. get_current_user marca identidad sólo después de localizar el
+usuario; sub firmado sin usuario todavía no se atribuye a una identidad.
+SecurityDenial distingue autorización de una política de negocio: no duplica el
+rechazo de la bandeja operativa como otro rechazo de seguridad. Cada request
+produce su UID; el worker cada 15 segundos toma hasta 25 globales con SKIP LOCKED.
+
+Los datos se limitan a ruta declarada por servidor (o unknown_route), método,
+motivo enumerado e identidad verificada. No incluye URI raw, parámetros, query,
+IP, QR ni JWT. Una sesión verificada conserva únicamente hash de JWT; sin
+identidad se usa hash vacío. También se eliminó la impresión de tokens y de la
+clave de firma en el verificador JWT. Si CORE falla, el acceso queda bloqueado
+con 503 sin afirmar que la auditoría se conservó.
+
+Aplicar migrations/20260930_security_outbox.sql primero en pruebas, después en
+producción antes del código. FORCE RLS admite únicamente dominio, UID y resultado
+de seguridad válidos para el rol axs_core_app. Sólo ACK/reintentos son editables;
+no se puede modificar payload ni borrar/truncar filas. El predeploy comprueba
+estos permisos. La retención y una vista para operador global quedan pendientes.
+
+Pruebas HTTP: ausencia/formato/token inválido, identidad desconocida, falta de
+alcance/rol, rutas sensibles, públicos/preflight, fallo CORE, EVENT caído y ACK
+perdido. PostgreSQL prueba transacciones independientes, otra entidad inaccesible,
+rechazo de payload ajeno por RLS, envío concurrente y recuperación sin duplicar.
+Rechazos de login público y módulos legacy que lanzan HTTPException genérica sin
+SecurityDenial conservan su comportamiento anterior; no se declara cobertura
+universal de cada 403 del sistema.

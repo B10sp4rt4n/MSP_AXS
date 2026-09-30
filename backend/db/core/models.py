@@ -258,3 +258,16 @@ class EventOutbox(Base_CORE):
     next_attempt_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     last_error = Column(String, nullable=True)
     __table_args__ = (Index("ix_event_outbox_pending", "condominio_id", "delivered_at", "next_attempt_at"),)
+
+
+class SecurityOutbox(Base_CORE):
+    """Auditoría global de sesión/alcance: deliberadamente sin FK de condominio."""
+    __tablename__ = "security_outbox"
+    event_uid = Column(String, primary_key=True)
+    payload = Column(JSON, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    delivered_at = Column(DateTime, nullable=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    next_attempt_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_error = Column(String, nullable=True)
+    __table_args__ = (Index("ix_security_outbox_pending", "delivered_at", "next_attempt_at"),)
