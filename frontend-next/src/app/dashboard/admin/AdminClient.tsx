@@ -143,13 +143,14 @@ function TabVisitas({ condominioId, getToken }: { condominioId: string; getToken
                 <div>
                   <p className="font-semibold text-white">{v.nombre_visitante}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    Casa {v.casa_unidad} · {v.tipo_visita}
+                    Destino: {v.casa_unidad} · {v.tipo_visita}
                   </p>
                 </div>
                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${estadoColor[v.estado] ?? "bg-gray-700 text-gray-300"}`}>
                   {v.estado.replace("_", " ")}
                 </span>
               </div>
+              {v.destino_motivo && <p className="text-xs text-yellow-300 mt-2">Excepción: {v.destino_motivo}</p>}
               <div className="mt-3 flex gap-4 text-xs text-gray-500">
                 <span>Entrada: {hora(v.entrada_registrada_en)}</span>
                 <span>Salida: {hora(v.salida_registrada_en)}</span>
