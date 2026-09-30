@@ -23,7 +23,7 @@ export default function GuardiaClient() {
     getToken().then(token => api.get<Condominio[]>("/condominios/", token!))
       .then((data) => {
         setCondominios(data);
-        const id = stored || data[0]?.condominio_id || "";
+        const id = data.find(c => c.condominio_id === stored)?.condominio_id || data[0]?.condominio_id || "";
         setCondominioId(id);
       })
       .catch(() => setError("No se pudieron cargar los condominios"));
@@ -111,7 +111,7 @@ export default function GuardiaClient() {
         ) : (
           <div className="space-y-3">
             {visitas.map((v) => (
-              <VisitaCard key={v.visita_id} visita={v} onRefresh={refresh} getToken={getToken} />
+              <VisitaCard key={v.visita_id} condominioId={condominioId} visita={v} onRefresh={refresh} getToken={getToken} />
             ))}
           </div>
         )}
@@ -121,10 +121,12 @@ export default function GuardiaClient() {
 }
 
 function VisitaCard({
+  condominioId,
   visita,
   onRefresh,
   getToken,
 }: {
+  condominioId: string;
   visita: Visita;
   onRefresh: () => void;
   getToken: () => Promise<string | null>;
@@ -151,7 +153,7 @@ function VisitaCard({
     setErr("");
     try {
       const token = await getToken();
-      await api.patch(`/visitas/${visita.visita_id}/salida`, {}, token!);
+      await api.patch(`/visitas/${visita.visita_id}/salida?condominio_id=${encodeURIComponent(condominioId)}`, {}, token!);
       onRefresh();
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Error al registrar salida");
