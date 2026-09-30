@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
@@ -9,6 +9,7 @@ interface QRResult {
   visita_id: string;
   qr_base64: string;
   qr_vigencia: string;
+  qr_inicio: string | null;
 }
 
 export default function PreregistroClient() {
@@ -21,9 +22,30 @@ export default function PreregistroClient() {
     placa: "",
     notas: "",
   });
+  const [programada, setProgramada] = useState(false);
+  const [horaServidor, setHoraServidor] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [qr, setQr] = useState<QRResult | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    getToken().then(token => api.get<{ utc: string }>("/preregistro/reloj", token!))
+      .then(({ utc }) => {
+        if (!active) return;
+        const origin = Date.parse(utc);
+        const elapsedStart = performance.now();
+        const update = () => {
+          const now = new Date(origin + performance.now() - elapsedStart);
+          const pad = (value: number) => String(value).padStart(2, "0");
+          setHoraServidor(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`);
+        };
+        update();
+        timer = setInterval(update, 1000);
+      }).catch(() => { if (active) setError("No se pudo consultar la hora del servidor. Recarga la página."); });
+    return () => { active = false; if (timer) clearInterval(timer); };
+  }, [getToken]);
 
   const set = (field: string, value: string) =>
     setForm((f) => ({ ...f, [field]: value }));
@@ -31,7 +53,7 @@ export default function PreregistroClient() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const fechaVisita = new Date(form.fecha_visita);
-    if (!Number.isFinite(fechaVisita.getTime()) || fechaVisita.getTime() <= Date.now()) {
+    if (programada && (!Number.isFinite(fechaVisita.getTime()) || fechaVisita.getTime() <= new Date(horaServidor).getTime())) {
       setError("La fecha y hora de visita deben ser posteriores a la hora actual.");
       return;
     }
@@ -41,7 +63,7 @@ export default function PreregistroClient() {
       const token = await getToken();
       const payload = {
         nombre_visitante: form.nombre_visitante,
-        fecha_visita: fechaVisita.toISOString(),
+        fecha_visita: programada ? fechaVisita.toISOString() : undefined,
         tipo_visita: form.tipo_visita,
         placa: form.placa || undefined,
         notas: form.notas || undefined,
@@ -57,7 +79,7 @@ export default function PreregistroClient() {
 
   const compartirWhatsApp = async () => {
     if (!qr) return;
-    const texto = `🏠 *Preregistro de visita*\n\nVisitante: ${form.nombre_visitante}\nFecha: ${new Date(form.fecha_visita).toLocaleString("es-MX")}\nID: ${qr.visita_id}\n\nPresenta este código QR al guardia al llegar.`;
+    const texto = `🏠 *Preregistro de visita*\n\nVisitante: ${form.nombre_visitante}\nAcceso: ${qr.qr_inicio ? new Date(qr.qr_inicio).toLocaleString("es-MX") : "Ahora"} — ${new Date(qr.qr_vigencia).toLocaleString("es-MX")}\nID: ${qr.visita_id}\n\nPresenta este código QR al guardia al llegar.`;
 
     // Intentar Web Share API (soporta imagen en móvil)
     if (navigator.canShare) {
@@ -97,6 +119,7 @@ export default function PreregistroClient() {
           </div>
           <p className="mt-4 font-semibold text-white">{form.nombre_visitante}</p>
           <p className="text-sm text-gray-400 mt-1">
+            {qr.qr_inicio && <>Válido desde: {new Date(qr.qr_inicio).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}<br /></>}
             Válido hasta: {new Date(qr.qr_vigencia).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
           </p>
           <div className="mt-6 space-y-3">
@@ -143,12 +166,25 @@ export default function PreregistroClient() {
           </div>
 
           <div>
-            <label className="text-xs text-gray-400 mb-1 block">Fecha y hora de visita *</label>
-            <input required type="datetime-local"
-              value={form.fecha_visita} onChange={(e) => set("fecha_visita", e.target.value)}
+            <label className="flex items-center gap-2 text-sm text-gray-300 mb-3">
+              <input type="checkbox" checked={programada} onChange={e => {
+                setProgramada(e.target.checked);
+                if (e.target.checked) set("fecha_visita", horaServidor);
+              }} />
+              Programar para otra fecha
+            </label>
+            <label className="text-xs text-gray-400 mb-1 block">
+              {programada ? "Fecha y hora de visita (hora local) *" : "Fecha y hora del servidor (hora local)"}
+            </label>
+            <input required={programada} readOnly={!programada} type="datetime-local"
+              value={programada ? form.fecha_visita : horaServidor} onChange={(e) => set("fecha_visita", e.target.value)}
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
             />
           </div>
+
+          <p className="text-xs text-gray-400">
+            {programada ? "Acceso desde 30 minutos antes hasta 60 minutos después de la visita." : "Visita inmediata: hora fijada por el servidor y QR válido durante 60 minutos."}
+          </p>
 
           <div>
             <label className="text-xs text-gray-400 mb-1 block">Tipo de visita</label>
@@ -186,7 +222,7 @@ export default function PreregistroClient() {
 
           {error && <p role="alert" className="text-red-400 text-sm">{error}</p>}
 
-          <button type="submit" disabled={loading}
+          <button type="submit" disabled={loading || !horaServidor}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm mt-2"
           >
             {loading ? "Generando QR..." : "Generar QR de Acceso"}

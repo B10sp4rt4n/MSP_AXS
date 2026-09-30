@@ -21,6 +21,11 @@ logger = logging.getLogger("axs.preregistro")
 router = APIRouter(prefix="/preregistro", tags=["Preregistro"])
 
 
+@router.get("/reloj")
+def reloj_servidor(usuario: Usuario = Depends(get_current_user)):
+    return {"utc": qr_service.utc_now()}
+
+
 @router.post("/crear")
 def crear_preregistro(
     data: PreregistroCreate,
@@ -57,19 +62,22 @@ def crear_preregistro(
         raise HTTPException(403, detail=f"Gobierno denegó preregistro: {motivo}")
     # ═══════════════════════════════════════════════════════════════════
 
+    if data.fecha_visita is None:
+        data.fecha_visita = qr_service.utc_now().replace(tzinfo=None)
     try:
         # Crear visita y persistir metadata opcional como evidencia
         visita = visita_service.crear_desde_preregistro(db, data, usuario)
 
         # Generar QR y guardar token/vigencia en la visita
-        qr_data = qr_service.generar_qr_para_visita(visita.visita_id)
+        qr_data = qr_service.generar_qr_para_visita(visita.visita_id, fecha_visita=visita.vigencia)
         visita_service.actualizar_qr(db, visita.visita_id, qr_data["token"], qr_data["qr_vigencia"])
 
         return {
             "status": "ok",
             "visita_id": visita.visita_id,
             "qr_base64": base64.b64encode(qr_data["qr_bytes"]).decode(),
-            "qr_vigencia": qr_data["qr_vigencia"],
+            "qr_vigencia": qr_service.as_utc(qr_data["qr_vigencia"]),
+            "qr_inicio": qr_data["qr_inicio"],
         }
     except Exception as exc:
         logger.exception("Failed to create preregistro")
@@ -90,24 +98,20 @@ def reenviar_qr(
     visita = require_visita(db, db_gov, usuario, visita_id, level,
                            own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
 
-    # Si el QR no existe o está expirado, regenerar
-    if not visita.qr_token or not visita.qr_vigencia or visita.qr_vigencia < datetime.utcnow():
-        qr_data = qr_service.generar_qr_para_visita(visita.visita_id)
+    if visita.estado not in ["pendiente", "activa"]:
+        raise HTTPException(400, "No se puede recuperar QR de una visita cancelada o finalizada")
+    qr_inicio, window_end = qr_service.ventana_visita(visita.vigencia) if visita.vigencia else (None, None)
+    if window_end is not None and qr_service.utc_now() >= window_end:
+        raise HTTPException(400, "La ventana de acceso de la visita ya terminó")
+    if not visita.qr_token or not visita.qr_vigencia or qr_service.as_utc(visita.qr_vigencia) <= qr_service.utc_now():
+        qr_data = qr_service.generar_qr_para_visita(visita.visita_id, fecha_visita=visita.vigencia)
         visita_service.actualizar_qr(db, visita.visita_id, qr_data["token"], qr_data["qr_vigencia"])
     else:
-        # Construir el QR actual
-        remaining_minutes = max(
-            int((visita.qr_vigencia - datetime.utcnow()).total_seconds() / 60),
-            1
-        )
-        img_blob = qr_service.generar_qr_para_visita(
-            visita.visita_id,
-            minutos_vigencia=remaining_minutes
-        )
         qr_data = {
             "token": visita.qr_token,
             "qr_vigencia": visita.qr_vigencia,
-            "qr_bytes": img_blob["qr_bytes"]
+            "qr_inicio": qr_inicio,
+            "qr_bytes": qr_service.imagen_qr(visita.visita_id, visita.qr_token),
         }
 
     return {

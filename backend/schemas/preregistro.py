@@ -5,7 +5,7 @@ from datetime import datetime
 
 class PreregistroCreate(BaseModel):
     nombre_visitante: str
-    fecha_visita: datetime
+    fecha_visita: Optional[datetime] = None
     tipo_visita: str
     notas: Optional[str] = None
     placa: Optional[str] = None
@@ -13,6 +13,8 @@ class PreregistroCreate(BaseModel):
 
     @validator("fecha_visita")
     def fecha_debe_ser_futura(cls, v):
+        if v is None:
+            return None
         if v.tzinfo is not None:
             from datetime import timezone
             now = datetime.now(timezone.utc)
@@ -20,6 +22,9 @@ class PreregistroCreate(BaseModel):
             now = datetime.utcnow()
         if v <= now:
             raise ValueError("La fecha de visita debe ser en el futuro")
+        if v.tzinfo is not None:
+            from datetime import timezone
+            return v.astimezone(timezone.utc).replace(tzinfo=None)
         return v
 
     class Config:
