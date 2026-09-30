@@ -30,13 +30,18 @@ export default function PreregistroClient() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const fechaVisita = new Date(form.fecha_visita);
+    if (!Number.isFinite(fechaVisita.getTime()) || fechaVisita.getTime() <= Date.now()) {
+      setError("La fecha y hora de visita deben ser posteriores a la hora actual.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
       const token = await getToken();
       const payload = {
         nombre_visitante: form.nombre_visitante,
-        fecha_visita: new Date(form.fecha_visita).toISOString(),
+        fecha_visita: fechaVisita.toISOString(),
         tipo_visita: form.tipo_visita,
         placa: form.placa || undefined,
         notas: form.notas || undefined,
@@ -179,7 +184,7 @@ export default function PreregistroClient() {
             />
           </div>
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
+          {error && <p role="alert" className="text-red-400 text-sm">{error}</p>}
 
           <button type="submit" disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm mt-2"
