@@ -38,7 +38,30 @@ def check(connection):
     if len(rows) != 3 or any(not r["relrowsecurity"] or r["owns_table"] or
                              not r["has_crud"] or r["can_truncate"] or not r["has_policy"] for r in rows):
         raise RuntimeError("CORE no tiene las tres tablas protegidas con RLS y permisos operativos")
-    return {"role": role["role"], "tables": sorted(r["relname"] for r in rows), "gate": "PASS"}
+    outbox = connection.execute(text("""
+        SELECT c.relrowsecurity, c.relforcerowsecurity,
+               pg_get_userbyid(c.relowner)=current_user AS owns_table,
+               has_table_privilege(current_user,c.oid,'SELECT') AND
+               has_table_privilege(current_user,c.oid,'INSERT') AS can_enqueue,
+               has_table_privilege(current_user,c.oid,'DELETE') OR
+               has_table_privilege(current_user,c.oid,'TRUNCATE') OR
+               has_column_privilege(current_user,c.oid,'payload','UPDATE') OR
+               has_column_privilege(current_user,c.oid,'event_uid','UPDATE') OR
+               has_column_privilege(current_user,c.oid,'condominio_id','UPDATE') OR
+               has_column_privilege(current_user,c.oid,'created_at','UPDATE') AS can_alter_fact,
+               has_column_privilege(current_user,c.oid,'delivered_at','UPDATE') AND
+               has_column_privilege(current_user,c.oid,'attempts','UPDATE') AND
+               has_column_privilege(current_user,c.oid,'next_attempt_at','UPDATE') AND
+               has_column_privilege(current_user,c.oid,'last_error','UPDATE') AS can_ack,
+               EXISTS(SELECT 1 FROM pg_policy p WHERE p.polrelid=c.oid) AS has_policy
+        FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+        WHERE n.nspname='public' AND c.relname='event_outbox'
+    """)).mappings().one_or_none()
+    if not outbox or not outbox["relrowsecurity"] or not outbox["relforcerowsecurity"] or \
+            outbox["owns_table"] or not outbox["can_enqueue"] or outbox["can_alter_fact"] or \
+            not outbox["can_ack"] or not outbox["has_policy"]:
+        raise RuntimeError("La bandeja de auditoría no tiene RLS forzado y permisos limitados")
+    return {"role": role["role"], "tables": sorted([r["relname"] for r in rows] + ["event_outbox"]), "gate": "PASS"}
 
 
 def main():
@@ -64,3 +87,4 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"FAIL: no se pudo verificar CORE ({type(exc).__name__})", file=sys.stderr)
         sys.exit(1)
+
