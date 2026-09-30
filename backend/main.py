@@ -28,6 +28,8 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import os
+import asyncio
+from contextlib import suppress
 
 _log_level = logging.DEBUG if os.getenv("ENVIRONMENT") != "production" else logging.INFO
 logging.basicConfig(
@@ -67,6 +69,27 @@ app = FastAPI(
     description="Sistema de gestión de accesos con arquitectura AUP completa (SESSION + SCOPE + EVENT + GOV)",
     version="3.0.0-aup-gov"
 )
+
+
+@app.on_event("startup")
+async def iniciar_auditoria():
+    # Los tests controlan explícitamente el envío y no usan conexiones reales.
+    if os.getenv("TESTING") == "1" or engine_core.dialect.name != "postgresql":
+        return
+    from backend.services.event_outbox import ejecutar_worker
+    from backend.db.core.session import SessionLocal_CORE
+    from backend.db.event.session import SessionLocal_EVENT
+    app.state.audit_worker = asyncio.create_task(ejecutar_worker(SessionLocal_CORE, SessionLocal_EVENT))
+    logger.info("Auditoría durable: worker iniciado")
+
+
+@app.on_event("shutdown")
+async def detener_auditoria():
+    task = getattr(app.state, "audit_worker", None)
+    if task:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
 
 # ============================================================
 #   🌍 CORS: Permitir requests desde cualquier origen
