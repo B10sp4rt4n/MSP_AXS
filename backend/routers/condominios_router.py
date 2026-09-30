@@ -32,7 +32,7 @@ class CondominioCreate(BaseModel):
 
 class CasaCreate(BaseModel):
     numero: str
-    tipo: Optional[str] = "casa"   # casa / depto / local
+    tipo: Literal["casa", "depto", "local", "administracion", "mantenimiento", "area_comun"] = "casa"
     descripcion: Optional[str] = None
 
 
@@ -196,6 +196,9 @@ def crear_condominio(
     )
     
     db.add(nuevo_condo)
+    db.flush()
+    for tipo, nombre in [("administracion", "Administración"), ("mantenimiento", "Mantenimiento"), ("area_comun", "Área común")]:
+        db.add(Casa(casa_id=f"dest_{uuid.uuid4().hex[:12]}", condominio_id=condominio_id, numero=nombre, tipo=tipo))
     db.commit()
     db.refresh(nuevo_condo)
     
@@ -261,6 +264,9 @@ def asignar_residente(
     casa = db.query(Casa).filter(Casa.casa_id == casa_id, Casa.condominio_id == condominio_id).first()
     if not casa:
         raise HTTPException(404, detail="Casa no encontrada")
+
+    if casa.tipo not in {"casa", "depto", "local"}:
+        raise HTTPException(400, detail="Los residentes requieren una vivienda")
 
     # Verificar que el email no esté registrado
     existe = db.query(Usuario).filter(Usuario.email == body.email.strip()).first()
@@ -494,6 +500,8 @@ def editar_usuario(
             ).with_for_update().first()
             if not casa:
                 raise HTTPException(400, detail="La vivienda no pertenece a este condominio")
+            if casa.tipo not in {"casa", "depto", "local"}:
+                raise HTTPException(400, detail="Los residentes requieren una vivienda")
             occupied = db.query(Usuario.usuario_id).filter(
                 Usuario.casa_id == casa.casa_id, Usuario.rol == "RESIDENTE",
                 Usuario.usuario_id != usuario_id,
@@ -525,3 +533,16 @@ def editar_usuario(
         db.rollback()
         raise HTTPException(409, detail="Email ya registrado; actualiza la lista")
     return {"status": "ok", "usuario_id": identity.usuario_id}
+
+
+@router.get("/{condominio_id}/destinos")
+def listar_destinos(
+    condominio_id: str,
+    db: Session = Depends(get_core_db),
+    db_gov: Session = Depends(get_gov_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.GUARDIA)
+    return [{"destino_id": c.casa_id, "nombre": c.numero, "tipo": c.tipo}
+            for c in db.query(Casa).filter(Casa.condominio_id == condominio_id)
+            .order_by(Casa.numero).all()]
