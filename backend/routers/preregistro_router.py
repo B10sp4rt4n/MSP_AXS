@@ -40,6 +40,10 @@ def crear_preregistro(
     require_condominio(db, db_gov, usuario, usuario.condominio_id, AccessLevel.RESIDENTE)
     _set_postgres_tenant(db, usuario.condominio_id)
 
+    label, destination = visita_service.resolver_destino(
+        db, usuario.condominio_id, destino_id=usuario.casa_id,
+        casa_unidad=usuario.casa_unidad, residente=True,
+    )
     # ═══════════════════════════════════════════════════════════════════
     # AUP_GOV: Evaluar política ANTES de crear preregistro
     # Axioma: Gobierno precede a operación
@@ -66,7 +70,7 @@ def crear_preregistro(
         data.fecha_visita = qr_service.utc_now().replace(tzinfo=None)
     try:
         # Crear visita y persistir metadata opcional como evidencia
-        visita = visita_service.crear_desde_preregistro(db, data, usuario)
+        visita = visita_service.crear_desde_preregistro(db, data, usuario, destino=destination, casa_label=label)
 
         # Generar QR y guardar token/vigencia en la visita
         qr_data = qr_service.generar_qr_para_visita(visita.visita_id, fecha_visita=visita.vigencia)
