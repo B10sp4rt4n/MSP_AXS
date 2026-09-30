@@ -21,6 +21,7 @@ from .models import (
     Visita,
     Evidencia,
     EventOutbox,
+    SecurityOutbox,
 )
 
 __all__ = [
@@ -43,4 +44,5 @@ __all__ = [
     "Visita",
     "Evidencia",
     "EventOutbox",
+    "SecurityOutbox",
 ]
