@@ -136,6 +136,14 @@ def enviar_ciclo(core_factory, event_factory):
         except Exception as exc:
             logger.warning("No se pudo procesar la bandeja (%s)", type(exc).__name__)
 
+    # Cola global deliberadamente fuera de los recorridos por condominio.
+    try:
+        from backend.services.security_outbox import enviar_seguridad
+        with core_factory() as db:
+            enviar_seguridad(db, event_factory)
+    except Exception as exc:
+        logger.warning("No se pudo procesar seguridad (%s)", type(exc).__name__)
+
 
 async def ejecutar_worker(core_factory, event_factory):
     while True:
