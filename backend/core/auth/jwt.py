@@ -117,10 +117,10 @@ def verify_clerk_token(token: str) -> Optional[Dict[str, Any]]:
         )
         return payload
     except JWTError as e:
-        logger.warning(f"Clerk JWT error: {type(e).__name__}: {e}")
+        logger.warning("Clerk JWT rechazado (%s)", type(e).__name__)
         return None
     except Exception as e:
-        logger.warning(f"Clerk verify error inesperado: {type(e).__name__}: {e}")
+        logger.warning("No se pudo verificar Clerk JWT (%s)", type(e).__name__)
         return None
 
 
@@ -183,20 +183,14 @@ def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
     logger = logging.getLogger("axs.jwt")
     
     try:
-        logger.debug(f"🔍 Decodificando token: {token[:30]}...")
-        logger.debug(f"🔍 SECRET_KEY usado: {SECRET_KEY[:20]}... (primeros 20 chars)")
-        logger.debug(f"🔍 ALGORITHM: {ALGORITHM}")
         
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        logger.info(f"✅ Token decodificado exitosamente. identity_id: {payload.get('sub')}")
+        logger.debug("Token verificado")
         return payload
     except JWTError as e:
         # Token inválido, expirado o manipulado
-        logger.warning(f"❌ JWT Error al decodificar: {type(e).__name__}: {str(e)}")
-        logger.warning(f"   Token: {token[:50]}...")
-        logger.warning(f"   Error details: {repr(e)}")
+        logger.warning("JWT rechazado (%s)", type(e).__name__)
         return None
     except Exception as e:
-        logger.error(f"❌ Error inesperado en decode_access_token: {type(e).__name__}: {str(e)}")
+        logger.error("No se pudo verificar JWT (%s)", type(e).__name__)
         return None
-
