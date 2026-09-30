@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
+import type { Condominio } from "@/lib/types";
 
 type ResultadoQR = {
   status: string;
@@ -21,10 +22,24 @@ export default function ValidarQRClient() {
   const streamRef = useRef<MediaStream | null>(null);
   const animRef = useRef<number>(0);
 
+  const [condominios, setCondominios] = useState<Condominio[]>([]);
+  const [condominioId, setCondominioId] = useState("");
   const [escaneando, setEscaneando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoQR | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    getToken().then(token => api.get<Condominio[]>("/condominios/", token!))
+      .then(data => {
+        setCondominios(data);
+        const stored = localStorage.getItem("axs_condominio_id");
+        const id = data.find(c => c.condominio_id === stored)?.condominio_id
+          || data[0]?.condominio_id || "";
+        setCondominioId(id);
+        if (!id) setError("Tu cuenta no tiene un condominio asignado.");
+      }).catch((e: unknown) => setError(e instanceof Error ? e.message : "No se pudieron cargar los condominios."));
+  }, [getToken]);
 
   const detener = useCallback(() => {
     cancelAnimationFrame(animRef.current);
@@ -34,6 +49,10 @@ export default function ValidarQRClient() {
   }, []);
 
   const procesarQR = useCallback(async (texto: string) => {
+    if (!condominioId) {
+      setError("Selecciona el condominio antes de validar.");
+      return;
+    }
     const partes = texto.split("|");
     if (partes.length !== 3 || partes[0] !== "AXS") {
       setError("QR no reconocido. Debe ser un QR generado por AX-S.");
@@ -47,7 +66,7 @@ export default function ValidarQRClient() {
         setError("Sesión expirada. Recarga la página e inicia sesión de nuevo.");
         return;
       }
-      const res = await api.get<ResultadoQR>(`/qr/validar/${visita_id}/${token}`, authToken);
+      const res = await api.get<ResultadoQR>(`/qr/validar/${encodeURIComponent(visita_id)}/${encodeURIComponent(token)}?condominio_id=${encodeURIComponent(condominioId)}`, authToken);
       setResultado(res);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "";
@@ -60,7 +79,7 @@ export default function ValidarQRClient() {
     } finally {
       setLoading(false);
     }
-  }, [getToken]);
+  }, [getToken, condominioId]);
 
   useEffect(() => {
     if (!escaneando) return;
@@ -134,6 +153,20 @@ export default function ValidarQRClient() {
 
       <main className="p-4 max-w-sm mx-auto">
 
+        {!escaneando && !loading && !resultado && (
+          <div className="mt-4">
+            <label htmlFor="qr-condominio" className="text-sm text-gray-400">Condominio</label>
+            <select id="qr-condominio" value={condominioId}
+              onChange={e => {
+                setCondominioId(e.target.value);
+                localStorage.setItem("axs_condominio_id", e.target.value);
+              }}
+              className="mt-2 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
+              {condominios.map(c => <option key={c.condominio_id} value={c.condominio_id}>{c.nombre}</option>)}
+            </select>
+          </div>
+        )}
+
         {/* Resultado aprobado */}
         {resultado && (
           <div className="text-center mt-8">
@@ -202,8 +235,8 @@ export default function ValidarQRClient() {
                 <p className="text-gray-400 text-sm mb-10">
                   Escanea el QR que generó el residente para autorizar la entrada
                 </p>
-                <button onClick={() => setEscaneando(true)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg">
+                <button disabled={!condominioId} onClick={() => setEscaneando(true)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-4 rounded-xl text-lg">
                   Abrir cámara
                 </button>
               </div>
