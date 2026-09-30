@@ -23,7 +23,17 @@ async function request<T>(path: string, { method = "GET", body, token }: Request
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(error.detail || `Error ${res.status}`);
+    const detail: unknown = error.detail;
+    const message = typeof detail === "string" ? detail
+      : Array.isArray(detail) ? detail.map(item => {
+          if (typeof item === "string") return item;
+          if (item && typeof item === "object" && "msg" in item && typeof item.msg === "string") {
+            return item.msg.replace(/^Value error, /, "");
+          }
+          return "";
+        }).filter(Boolean).join("; ")
+      : "";
+    throw new Error(message || `Error ${res.status}`);
   }
 
   return res.json();
