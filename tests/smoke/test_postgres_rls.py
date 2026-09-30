@@ -316,3 +316,98 @@ def test_qr_window_normalizes_offsets_to_utc():
     assert qr_service.as_utc(datetime(2026, 10, 1, 18)) == scheduled
     generated = qr_service.generar_qr_para_visita("test", fecha_visita=scheduled)
     assert qr_service.as_utc(generated["qr_vigencia"]) == end
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("race", ["qr", "manual", "salida", "cancelar", "regenerar"])
+def test_transiciones_concurrentes_con_rls(race):
+    """Dos sesiones leen pendiente: sólo un UPDATE puede consumir ese estado."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from fastapi import HTTPException
+
+    url = os.getenv("AXS_TEST_POSTGRES_URL")
+    if not url:
+        pytest.skip("Requiere AXS_TEST_POSTGRES_URL de PostgreSQL desechable")
+    engine = create_engine(url)
+    assert engine.dialect.name == "postgresql"
+    with engine.connect() as connection:
+        assert not connection.execute(text(
+            "SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname = current_user"
+        )).scalar_one()
+    schema = f"axs_race_{uuid.uuid4().hex[:12]}"
+    scoped = engine.execution_options(schema_translate_map={None: schema})
+    barrier = Barrier(2)
+    original_entry = datetime.utcnow() if race == "salida" else None
+    try:
+        with engine.begin() as connection:
+            connection.execute(text(f"CREATE SCHEMA {schema}"))
+        Base_CORE.metadata.create_all(scoped, tables=[
+            MSP.__table__, Condominio.__table__, Casa.__table__, Visita.__table__,
+        ])
+        with Session(scoped) as db:
+            db.add(MSP(msp_id="a", nombre="A"))
+            db.flush()
+            db.add_all([Condominio(condominio_id=c, msp_id="a", nombre=c) for c in ("a1", "a2")])
+            db.flush()
+            db.add(Visita(visita_id="race", condominio_id="a1", nombre_visitante="Concurrente",
+                         estado="entrada_registrada" if race == "salida" else "pendiente",
+                         entrada_registrada_en=original_entry,
+                         qr_token=None if race in ("manual", "salida") else "valid",
+                         qr_vigencia=datetime.utcnow() + timedelta(minutes=30),
+                         vigencia=datetime.utcnow()))
+            db.commit()
+        with engine.begin() as connection:
+            connection.execute(text(f"ALTER TABLE {schema}.visitas ENABLE ROW LEVEL SECURITY"))
+            connection.execute(text(f"ALTER TABLE {schema}.visitas FORCE ROW LEVEL SECURITY"))
+            connection.execute(text(
+                f"CREATE POLICY tenant_visitas ON {schema}.visitas "
+                "USING (condominio_id = current_setting('app.tenant_id', true)) "
+                "WITH CHECK (condominio_id = current_setting('app.tenant_id', true))"
+            ))
+
+        def worker(index):
+            with Session(scoped) as db:
+                _set_postgres_tenant(db, "a1")
+                stale = db.query(Visita).filter_by(visita_id="race").one()
+                expected = stale.estado
+                barrier.wait(timeout=15)  # ambas solicitudes ya leyeron el mismo estado
+                try:
+                    if race == "salida":
+                        saved = visita_service.registrar_salida(db, "race")
+                    elif race == "cancelar" and index == 1:
+                        saved = visita_service.cancelar_visita(db, "race", estado_esperado=expected)
+                    elif race == "regenerar" and index == 1:
+                        saved = visita_service.actualizar_qr(db, "race", "replacement",
+                                                           datetime.utcnow() + timedelta(minutes=30))
+                    else:
+                        saved = visita_service.registrar_entrada(db, "race",
+                            qr_token=None if race == "manual" else "valid")
+                    return ("ok", saved.estado, saved.entrada_registrada_en, saved.salida_registrada_en)
+                except HTTPException as exc:
+                    assert exc.status_code == 400
+                    return ("denied",)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(worker, [0, 1]))
+        winners = [r for r in results if r[0] == "ok"]
+        assert len(winners) == 1, results
+        with Session(scoped) as db:
+            _set_postgres_tenant(db, "a1")
+            saved = db.query(Visita).filter_by(visita_id="race").one()
+            assert (saved.estado, saved.entrada_registrada_en, saved.salida_registrada_en) == winners[0][1:]
+            if race == "salida":
+                assert saved.entrada_registrada_en == original_entry
+            if saved.estado == "pendiente":
+                assert saved.qr_token == "replacement" and saved.entrada_registrada_en is None
+        # El servicio tampoco permite mutaciones desde otro tenant, aun con ID conocido.
+        with Session(scoped) as other:
+            _set_postgres_tenant(other, "a2")
+            with pytest.raises(HTTPException):
+                visita_service.registrar_entrada(other, "race", qr_token="valid")
+        with Session(scoped) as no_context:
+            assert no_context.query(Visita).count() == 0
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
+        engine.dispose()
