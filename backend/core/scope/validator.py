@@ -24,6 +24,7 @@ FUNCIÓN CENTRAL:
 """
 
 from typing import Optional, List
+from backend.core.security_denial import SecurityDenial
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 import logging
@@ -232,7 +233,7 @@ def requerir_scope(
         HTTPException 403: Si no tiene scope válido
     """
     if not validar_scope(db, usuario, tenant_id, required_level):
-        raise HTTPException(
+        raise SecurityDenial(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=mensaje_error or f"Sin acceso al recurso solicitado en este condominio"
         )
