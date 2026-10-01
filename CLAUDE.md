@@ -298,4 +298,11 @@ Formato: `fecha — decisión — motivo`.
 - No atribuir identidad por correo presentado. No guardar correo, contraseña ni token de un intento rechazado. Respuesta genérica 401; CORE no disponible devuelve 503 sin acceso.
 - Entrega por el worker existente, con UUID estable y deduplicación. Migración versionada 20260930_login_security.sql extiende sólo la lista de motivos; no modifica privilegios ni políticas de tenants.
 - El frontend Next actual usa SignIn de Clerk: sus fallos de contraseña suceden en Clerk y NO llaman /auth/login. Este cambio no declara cobertura de esos fallos externos; no aceptar reportes del navegador como evidencia de autenticación verificable.
-- Pendientes: integración verificable de eventos de autenticación Clerk y rechazos de permisos de módulos antiguos.
+- Pendiente: integración verificable de eventos de autenticación Clerk.
+
+
+## Auditoría de autorización legacy — 1-oct-2026
+- Tenant context, requerir_scope y autoridad GLOBAL meta-operativa usan SecurityDenial y la cola global existente; se conservan los niveles y reglas de autorización.
+- El canario QR rechaza alcance antes de GOV/negocio/EVENT y deja de escribir bajo un tenant solicitado sin autorización. La auditoría se confirma en CORE independiente y falla cerrado con 503.
+- Sin cambios de esquema/RLS ni permisos nuevos. GOV y éxito del canario conservan su envío directo anterior.
+- Fallos de SignIn externo se consultan en Clerk. El catálogo verificado no ofrece eventos sign_in; no simular evidencia mediante reportes del navegador. Centralización pendiente de una fuente verificable disponible.
