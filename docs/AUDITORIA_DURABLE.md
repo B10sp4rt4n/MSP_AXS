@@ -115,6 +115,19 @@ Pruebas HTTP: ausencia/formato/token inválido, identidad desconocida, falta de
 alcance/rol, rutas sensibles, públicos/preflight, fallo CORE, EVENT caído y ACK
 perdido. PostgreSQL prueba transacciones independientes, otra entidad inaccesible,
 rechazo de payload ajeno por RLS, envío concurrente y recuperación sin duplicar.
-Rechazos de login público y módulos legacy que lanzan HTTPException genérica sin
-SecurityDenial conservan su comportamiento anterior; no se declara cobertura
-universal de cada 403 del sistema.
+El login local público conserva INVALID_CREDENTIALS mediante la misma cola.
+Los validadores de contexto de tenant, requerir_scope, autoridad GLOBAL de
+meta-operaciones y el rechazo de alcance del canario QR usan SecurityDenial.
+El canario no escribe un evento operativo en el tenant que acaba de denegar.
+Las reglas de autorización, respuestas 400 de validación y niveles permanecen iguales.
+GOV y éxito del canario mantienen su envío directo anterior; no se declara
+cobertura durable universal de cada evento o 403 del sistema.
+
+El SignIn del frontend utiliza Clerk y sus fallos no llaman /auth/login.
+Se consultan en Application Logs de Clerk; centralización pendiente, pues el
+catálogo de webhooks revisado no ofrece sign_in. No aceptar telemetría del
+navegador como prueba de un fallo de autenticación verificado.
+
+tests/test_security_outbox.py cubre también meta ASSIGN/REVOKE/LIST sin
+autoridad GLOBAL, canario sin alcance con EVENT/GOV inaccesibles, fallo CORE
+cerrado y reglas de scope ausente/revocado/insuficiente/permitido.
