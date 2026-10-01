@@ -23,6 +23,7 @@ AXIOMA:
 
 from typing import Optional
 from fastapi import Depends, HTTPException, status
+from backend.core.security_denial import SecurityDenial
 from sqlalchemy.orm import Session
 from sqlalchemy import event, text
 import logging
@@ -109,7 +110,7 @@ def set_tenant_context(
             f"TENANT-CONTEXT: sin scope - usuario={current_user.usuario_id} "
             f"tenant={tenant_id}"
         )
-        raise HTTPException(
+        raise SecurityDenial(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Sin acceso al tenant {tenant_id}"
         )
@@ -195,7 +196,7 @@ def require_tenant_context(required_level: AccessLevel = AccessLevel.LECTURA):
         tenant_id = tenant_id.strip()
 
         if not validar_scope(db, current_user, tenant_id, required_level):
-            raise HTTPException(
+            raise SecurityDenial(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Requiere nivel {required_level.value} en tenant {tenant_id}"
             )
