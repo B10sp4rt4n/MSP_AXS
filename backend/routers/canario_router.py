@@ -49,6 +49,7 @@ from backend.db.gov import get_gov_db
 from backend.db.event import get_event_db
 from backend.core.auth.dependencies import get_current_user
 from backend.core.scope.validator import validar_scope
+from backend.core.security_denial import SecurityDenial
 from backend.core.gov.facade import puede_ejecutar_accion
 from backend.core.event.registry import registrar_evento
 from backend.core.event import EventEntity, EventAction, EventResult
@@ -186,25 +187,13 @@ def generar_qr_gobernado(
     if not tiene_scope:
         logger.warning(f"🚫 PASO 2/5 FALLÓ: Sin SCOPE en tenant {body.tenant_id}")
         
-        # Registrar evento de denegación
-        registrar_evento(
-            db=db_event,
-            identity=usuario,
-            session_token=token,
-            tenant_id=body.tenant_id,
-            entidad=EventEntity.SCOPE.value,
-            entidad_id=usuario.usuario_id,
-            accion=EventAction.DENEGAR.value,
-            resultado=EventResult.DENEGADO.value,
-            motivo="Sin SCOPE activo en tenant",
-            metadata={"tenant_solicitado": body.tenant_id}
-        )
-        
-        raise HTTPException(
+        # Dominio global: el tenant solicitado aún no está autorizado.
+        raise SecurityDenial(
             status_code=403,
-            detail="Sin alcance en este tenant"
+            detail="Sin alcance en este tenant",
+            reason="SCOPE_DENIED"
         )
-    
+
     logger.info(f"✅ PASO 2/5: SCOPE validado (tenant={body.tenant_id})")
     
     # ─────────────────────────────────────────────────────────────────────
