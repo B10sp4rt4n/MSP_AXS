@@ -11,6 +11,7 @@ NO suavizar errores.
 NO permitir excepciones.
 """
 
+from backend.core.security_denial import SecurityDenial
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
@@ -42,9 +43,10 @@ def validate_global_authority(db: Session, actor_identity_id: str) -> None:
     ).first()
     
     if not authority:
-        raise HTTPException(
+        raise SecurityDenial(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tiene authority GLOBAL para acciones meta-operativas"
+            detail="No tiene authority GLOBAL para acciones meta-operativas",
+            reason="PLATFORM_DENIED"
         )
 
 
