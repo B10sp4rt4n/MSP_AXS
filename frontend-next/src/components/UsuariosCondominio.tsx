@@ -41,7 +41,7 @@ function UsuariosDelCondominio({ condominioId, getToken }: Props) {
   useEffect(() => {
     let active = true;
     setLoading(true); setError(""); setUsuarios([]);
-    setShowForm(false); setEditing(null); setMessage(""); setCasas([]);
+    setShowForm(false); setEditing(null); setCasas([]);
     getToken().then(token => {
       if (!token) throw new Error("Sin sesión; vuelve a iniciar sesión");
       return api.get<Usuario[]>(`/condominios/${encodeURIComponent(condominioId)}/usuarios`, token);
