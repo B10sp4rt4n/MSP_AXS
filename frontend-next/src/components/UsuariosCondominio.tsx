@@ -8,9 +8,16 @@ type Usuario = {
   casa_unidad: string | null; casa_id: string | null; registro_pendiente: boolean;
 };
 
-export default function UsuariosCondominio({ condominioId, getToken }: {
+type Props = {
   condominioId: string; getToken: () => Promise<string | null>;
-}) {
+};
+
+export default function UsuariosCondominio(props: Props) {
+  // Cada condominio tiene su propia carga, formularios y mensajes.
+  return <UsuariosDelCondominio key={props.condominioId} {...props} />;
+}
+
+function UsuariosDelCondominio({ condominioId, getToken }: Props) {
   const [editing, setEditing] = useState<Usuario | null>(null);
   const [editForm, setEditForm] = useState({ nombre: "", email: "", rol: "GUARDIA", casa_id: "" });
   const [casas, setCasas] = useState<{ casa_id: string; numero: string; tipo: string }[]>([]);
@@ -26,11 +33,15 @@ export default function UsuariosCondominio({ condominioId, getToken }: {
   const [message, setMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [form, setForm] = useState({ nombre: "", email: "", rol: "GUARDIA" });
-  const cargar = useCallback(() => setRevision(r => r + 1), []);
+  const cargar = useCallback(() => {
+    setLoading(true);
+    setRevision(r => r + 1);
+  }, []);
 
   useEffect(() => {
     let active = true;
     setLoading(true); setError(""); setUsuarios([]);
+    setShowForm(false); setEditing(null); setCasas([]);
     getToken().then(token => {
       if (!token) throw new Error("Sin sesión; vuelve a iniciar sesión");
       return api.get<Usuario[]>(`/condominios/${encodeURIComponent(condominioId)}/usuarios`, token);
@@ -92,6 +103,17 @@ export default function UsuariosCondominio({ condominioId, getToken }: {
   const labels: Record<string, string> = {
     GUARDIA: "Guardia", ADMIN_CONDOMINIO: "Administrador", RESIDENTE: "Residente", LECTURA: "Lectura",
   };
+  if (loading) {
+    return <p role="status" className="text-gray-400 text-sm">Cargando usuarios...</p>;
+  }
+  if (error) {
+    return (
+      <div>
+        <p role="alert" className="text-red-400 text-sm mb-3">{error}</p>
+        <button onClick={cargar} className="text-blue-400 text-xs">Reintentar</button>
+      </div>
+    );
+  }
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -169,9 +191,8 @@ export default function UsuariosCondominio({ condominioId, getToken }: {
           </div>
         </form>
       )}
-      {error && <p role="alert" className="text-red-400 text-sm mb-3">{error}</p>}
       <button onClick={cargar} className="text-blue-400 text-xs mb-3">Actualizar</button>
-      {loading ? <p className="text-gray-400 text-sm">Cargando...</p> : !error && usuarios.length === 0
+      {usuarios.length === 0
         ? <p className="text-gray-500">Sin usuarios asignados</p>
         : <div className="space-y-2">{usuarios.map(u => (
           <div key={u.usuario_id} className="bg-gray-900 border border-gray-700 rounded-xl p-4">

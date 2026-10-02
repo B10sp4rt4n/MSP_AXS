@@ -312,3 +312,9 @@ Formato: `fecha — decisión — motivo`.
 - Cada envío corre en un proceso nuevo. Se rechaza una conexión TCP real y se termina el worker con os._exit después del commit EVENT y antes del commit CORE.
 - Se comprueban payload/UID/hora estables, permanencia del negocio, cola pendiente tras caída, recuperación sin duplicados y aislamiento del otro tenant.
 - No se cambia código de producción, esquema Neon ni disponibilidad de servicios. Esto verifica recuperación de aplicación; no certifica failover del proveedor ni respaldo/restauración.
+
+## Interfaz de usuarios sin autorización — 1-oct-2026
+- Prueba manual con cuenta residente: consulta GET de usuarios bloqueada; EVENT confirmó SCOPE_DENIED con identidad verificada a las 2026-10-02 01:43:31 UTC.
+- UsuariosCondominio muestra contador, alta, edición y lista sólo tras una carga exitosa. Carga/error tienen vistas propias; el error conserva Reintentar sin afirmar que existen cero usuarios.
+- El componente interno se monta por condominio mediante key; formularios y resultados anteriores no pasan a otra entidad. La recarga cierra formularios; las confirmaciones de alta/edición se conservan en el mismo condominio.
+- Backend mantiene toda la autorización y la auditoría: estos ajustes visuales no conceden permisos.
