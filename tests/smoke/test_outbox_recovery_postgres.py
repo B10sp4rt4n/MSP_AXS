@@ -50,7 +50,7 @@ def publish(db, payload):
     if mode == "crash":
         os._exit(86)  # EVENT commit confirmado; CORE sigue sin commit.
 with sessionmaker(bind=core)() as db:
-    now = datetime.utcnow() + timedelta(minutes=10)
+    now = datetime.utcnow() + timedelta(minutes={"outage": 10, "crash": 20, "recover": 30}[mode])
     if os.environ["AXS_RECOVERY_KIND"] == "visita":
         result = enviar_pendientes(db, "a1", factory, now=now, publisher=publish)
     else:
