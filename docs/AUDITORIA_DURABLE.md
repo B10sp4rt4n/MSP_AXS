@@ -131,3 +131,24 @@ navegador como prueba de un fallo de autenticación verificado.
 tests/test_security_outbox.py cubre también meta ASSIGN/REVOKE/LIST sin
 autoridad GLOBAL, canario sin alcance con EVENT/GOV inaccesibles, fallo CORE
 cerrado y reglas de scope ausente/revocado/insuficiente/permitido.
+
+## Ejercicio de recuperación de procesos
+
+`tests/smoke/test_outbox_recovery_postgres.py` corre en el gate PostgreSQL
+desechable para las bandejas operativa y global. Cada fase inicia un proceso
+nuevo, con conexiones independientes de CORE y EVENT y FORCE RLS sin bypass:
+
+1. Conexión TCP rechazada: el envío falla realmente con OperationalError;
+   el evento sigue en CORE y el registro de entrada conserva su hora.
+2. EVENT confirma y el proceso termina con os._exit antes del ACK/commit CORE:
+   EVENT contiene un hecho, CORE conserva el pendiente.
+3. Un proceso nuevo reenvía, verifica el contenido existente y confirma CORE.
+4. Un envío adicional no crea más eventos. UID, payload, hash y hora se conservan;
+   otro tenant no puede leer visita ni bandeja operativa.
+
+Ejecutar en PostgreSQL de pruebas mediante AXS_TEST_POSTGRES_URL, nunca con
+conexiones de producción. El gate ejecuta el ejercicio en cada PR.
+No requiere detener Neon o Railway ni nuevas migraciones.
+El alcance es recuperación de la aplicación ante conexión rechazada y muerte
+del worker; failover del proveedor, backup/restauración y prueba manual con
+la cuenta residente son verificaciones separadas.
