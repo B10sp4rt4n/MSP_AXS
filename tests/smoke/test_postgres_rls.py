@@ -10,7 +10,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from backend.core.tenant.context import _set_postgres_tenant
-from backend.db.core import Base_CORE, Condominio, MSP, Visita, Casa
+from backend.db.core import Base_CORE, Condominio, MSP, Visita, Casa, Usuario
 from backend.services import visita_service
 
 
@@ -41,7 +41,7 @@ def test_visitas_aisladas_tras_commit_y_refresh():
         with engine.begin() as connection:
             connection.execute(text(f"CREATE SCHEMA {schema}"))
         Base_CORE.metadata.create_all(tenant_engine, tables=[
-            MSP.__table__, Condominio.__table__, Casa.__table__, Visita.__table__,
+            MSP.__table__, Condominio.__table__, Casa.__table__, Usuario.__table__, Visita.__table__,
         ])
         with Session(tenant_engine) as db:
             db.add_all([MSP(msp_id="a", nombre="A"), MSP(msp_id="b", nombre="B")])
@@ -343,7 +343,7 @@ def test_transiciones_concurrentes_con_rls(race):
         with engine.begin() as connection:
             connection.execute(text(f"CREATE SCHEMA {schema}"))
         Base_CORE.metadata.create_all(scoped, tables=[
-            MSP.__table__, Condominio.__table__, Casa.__table__, Visita.__table__,
+            MSP.__table__, Condominio.__table__, Casa.__table__, Usuario.__table__, Visita.__table__,
         ])
         with Session(scoped) as db:
             db.add(MSP(msp_id="a", nombre="A"))

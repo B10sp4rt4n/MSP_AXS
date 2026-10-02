@@ -18,4 +18,6 @@ CORE serializa los cambios de reglas, las autorizaciones y las entradas mediante
 
 ## Validación
 
-207 pruebas de backend correctas, incluidas 10 nuevas de reglas, autorización y aislamiento. 13 pruebas PostgreSQL se omitieron en la ejecución local porque requieren un servidor desechable. Frontend: compilación de producción y TypeScript correctos; el componente nuevo pasa ESLint. Los archivos existentes conservan advertencias/errores previos de ESLint sobre efectos y dependencias.
+207 pruebas de backend correctas, incluidas 10 nuevas de reglas, autorización y aislamiento. 14 pruebas PostgreSQL se omitieron en la ejecución local porque requieren un servidor desechable. Frontend: compilación de producción y TypeScript correctos; el componente nuevo pasa ESLint. Los archivos existentes conservan advertencias/errores previos de ESLint sobre efectos y dependencias.
+
+Las 11 pruebas nuevas también pasaron en CI con PostgreSQL 16, incluida la serialización concurrente de una regla y una entrada. Las fixtures de pruebas anteriores incluyen ahora usuarios, dependencia de la nueva referencia de autorización.
