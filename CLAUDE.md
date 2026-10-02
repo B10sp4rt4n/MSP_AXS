@@ -293,6 +293,14 @@ Formato: `fecha — decisión — motivo`.
      sesiones se agrega arriba (fecha, decisión, motivo) ANTES de cerrar la
      tarea. -->
 
+## Etiqueta de auditoría y desarrollo aislado — 2-oct-2026
+- `ruta_segura` prioriza FULL sobre PARTIAL: GET visita por ID registra `/visitas/{visita_id}`, sin IDs ni query strings. Se conserva el fallback para métodos sin coincidencia completa. No se reescriben eventos históricos.
+- 40 pruebas locales de outbox/configuración pasaron. Los ensayos HTTP A/B previos se realizaron en producción; no certifican el entorno nuevo.
+- Neon: rama `axs-development-20261002` (`br-blue-frog-b5o2ccsk`), endpoint `ep-withered-resonance-b59tusv3`; clon de producción con datos heredados.
+- Railway: proyecto separado `AXS Development`, servicio `axs-development-backend`, URLs CORE/EVENT/GOV y clave local propias guardadas sin desplegar. El environment predeterminado se llama `production`, pero pertenece al proyecto nuevo.
+- Predeploy guardado en el servicio: validar las cuatro URLs contra el endpoint nuevo y después CORE RLS. `APP_ENV=development`; `ENVIRONMENT=production` conserva desactivado `/debug/db`. No modificar este último sin corregir antes la exposición de credenciales.
+- Pendientes conexión del repositorio, autenticación/frontend de desarrollo, dominio, despliegue y ensayo A/B nuevo. Detalle e identificadores: `docs/DEVELOPMENT_SETUP.md`. Producción no se modificó.
+
 ## Auditoría del login local — 30-sep-2026
 - POST /auth/login conserva ambos rechazos (usuario ausente o contraseña incorrecta) en security_outbox, motivo INVALID_CREDENTIALS, identidad NONE y dominio PLATFORM_SECURITY.
 - No atribuir identidad por correo presentado. No guardar correo, contraseña ni token de un intento rechazado. Respuesta genérica 401; CORE no disponible devuelve 503 sin acceso.
