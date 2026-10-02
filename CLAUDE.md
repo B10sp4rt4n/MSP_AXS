@@ -306,3 +306,9 @@ Formato: `fecha — decisión — motivo`.
 - El canario QR rechaza alcance antes de GOV/negocio/EVENT y deja de escribir bajo un tenant solicitado sin autorización. La auditoría se confirma en CORE independiente y falla cerrado con 503.
 - Sin cambios de esquema/RLS ni permisos nuevos. GOV y éxito del canario conservan su envío directo anterior.
 - Fallos de SignIn externo se consultan en Clerk. El catálogo verificado no ofrece eventos sign_in; no simular evidencia mediante reportes del navegador. Centralización pendiente de una fuente verificable disponible.
+
+## Recuperación de auditoría tras muerte del worker — 1-oct-2026
+- Se añade ejercicio PostgreSQL desechable con CORE y EVENT en esquemas separados y conexiones independientes, rol sin bypass y FORCE RLS.
+- Cada envío corre en un proceso nuevo. Se rechaza una conexión TCP real y se termina el worker con os._exit después del commit EVENT y antes del commit CORE.
+- Se comprueban payload/UID/hora estables, permanencia del negocio, cola pendiente tras caída, recuperación sin duplicados y aislamiento del otro tenant.
+- No se cambia código de producción, esquema Neon ni disponibilidad de servicios. Esto verifica recuperación de aplicación; no certifica failover del proveedor ni respaldo/restauración.
