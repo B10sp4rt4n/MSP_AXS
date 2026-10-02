@@ -318,3 +318,10 @@ Formato: `fecha — decisión — motivo`.
 - UsuariosCondominio muestra contador, alta, edición y lista sólo tras una carga exitosa. Carga/error tienen vistas propias; el error conserva Reintentar sin afirmar que existen cero usuarios.
 - El componente interno se monta por condominio mediante key; formularios y resultados anteriores no pasan a otra entidad. La recarga cierra formularios; las confirmaciones de alta/edición se conservan en el mismo condominio.
 - Backend mantiene toda la autorización y la auditoría: estos ajustes visuales no conceden permisos.
+
+## Aislamiento entre proveedores por HTTP — 1-oct-2026
+- Los proveedores demo A y B existen en CORE con un administrador activo por proveedor. No se modifican sus cuentas durante el ensayo.
+- Nuevo ensayo PostgreSQL desechable: dos proveedores, administradores, usuarios y visitas; conexiones CORE/EVENT separadas, rol sin bypass, FORCE RLS.
+- Comprueba accesos y entradas propios; 14 cruces simétricos de consultas/mutaciones/ampliación de membresía; revocación por operador y tres rechazos posteriores con exactamente el mismo JWT todavía válido.
+- Cada rechazo conserva negocio/scopes/membresías y outbox operativo, deja un hecho global con identidad verificada y entrega a EVENT sin duplicados.
+- El alcance del ensayo es API y persistencia con autenticación JWT local. La navegación y autenticación Clerk de las cuentas demo requieren validación manual separada.
