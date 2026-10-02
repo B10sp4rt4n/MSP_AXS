@@ -2,6 +2,9 @@ export interface Visita {
   visita_id: string;
   condominio_id: string;
   nombre_visitante: string;
+  proposito?: string | null;
+  autorizada_por?: string | null;
+  autorizada_en?: string | null;
   casa_unidad: string;
   destino_id?: string | null;
   destino_tipo?: string | null;

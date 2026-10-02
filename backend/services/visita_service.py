@@ -7,6 +7,7 @@ import uuid
 
 from backend.db.core import Visita, Evidencia, Casa
 from backend.services.event_outbox import encolar_visita
+from backend.services.reglas_acceso import validar_reglas, obtener_reglas
 from fastapi import HTTPException
 from ..utils.hash_tools import calcular_hash_sha256
 from ..utils.file_storage import guardar_archivo
@@ -23,12 +24,17 @@ def generar_visita_id() -> str:
 # ---------------------------------------------------------
 # Crear visita (ADMIN_CONDOMINIO)
 # ---------------------------------------------------------
-def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Optional[str] = None, *, entrada_inmediata: bool = False, destino: dict | None = None, auditoria: dict | None = None) -> Visita:
+def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Optional[str] = None, *, entrada_inmediata: bool = False, destino: dict | None = None, auditoria: dict | None = None, autorizador_id: str | None = None) -> Visita:
+    proposito = (getattr(data, "proposito", None) or "").strip() or None
+    validar_reglas(db, condominio_id, data.tipo_visita, proposito, entrada=entrada_inmediata)
     visita_id = generar_visita_id()
     visita = Visita(
         visita_id=visita_id,
         condominio_id=condominio_id,
         nombre_visitante=getattr(data, "nombre_visitante", None),
+        proposito=proposito,
+        autorizada_por=autorizador_id if not entrada_inmediata else None,
+        autorizada_en=datetime.utcnow() if autorizador_id and not entrada_inmediata else None,
         casa_unidad=casa_unidad,
         tipo_visita=getattr(data, "tipo_visita", None),
         vigencia=getattr(data, "vigencia", None),
@@ -91,6 +97,14 @@ def _guardar_transicion(db, visita_id, query, values, conflict, *, auditoria=Non
 # Registrar entrada
 # ---------------------------------------------------------
 def registrar_entrada(db: Session, visita_id: str, *, qr_token: str | None = None, auditoria: dict | None = None) -> Visita:
+    visita = db.query(Visita).filter(Visita.visita_id == visita_id).one_or_none()
+    if visita is None:
+        raise HTTPException(404, "Visita no encontrada")
+    obtener_reglas(db, visita.condominio_id, bloquear=True)
+    db.refresh(visita)
+    validar_reglas(db, visita.condominio_id, visita.tipo_visita, visita.proposito,
+                   entrada=True, autorizada_por=visita.autorizada_por, autorizada_en=visita.autorizada_en,
+                   fecha_visita=visita.vigencia)
     now = datetime.utcnow()
     query = db.query(Visita).filter(
         Visita.visita_id == visita_id,
@@ -168,6 +182,8 @@ def crear_desde_preregistro(db: Session, data: Any, usuario: Any, *, destino: di
 
     nombre_visitante = _normalize_str(getattr(data, "nombre_visitante", None))
     tipo_visita = _normalize_str(getattr(data, "tipo_visita", None))
+    proposito = _normalize_str(getattr(data, "proposito", None))
+    validar_reglas(db, condominio_id, tipo_visita, proposito)
     vigencia = getattr(data, "fecha_visita", None)
 
     try:
@@ -176,6 +192,9 @@ def crear_desde_preregistro(db: Session, data: Any, usuario: Any, *, destino: di
             visita_id=visita_id,
             condominio_id=condominio_id,
             nombre_visitante=nombre_visitante,
+            proposito=proposito,
+            autorizada_por=usuario.usuario_id,
+            autorizada_en=datetime.utcnow(),
             casa_unidad=casa_label or casa_unidad,
             tipo_visita=tipo_visita,
             vigencia=vigencia,
@@ -295,4 +314,3 @@ def resolver_destino(db, condominio_id, *, destino_id=None, casa_unidad=None,
         raise HTTPException(400, "El destino no es una vivienda válida" if residente else "Tipo de destino inválido")
     return casa.numero, {"destino_id": casa.casa_id, "destino_tipo": "vivienda" if casa.tipo in VIVIENDAS else "comun",
                          "destino_motivo": None}
-

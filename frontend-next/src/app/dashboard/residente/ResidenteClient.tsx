@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import { AutorizarVisita } from "@/components/ReglasAcceso";
 import { api } from "@/lib/api";
 import type { Visita, Condominio } from "@/lib/types";
 
@@ -151,6 +152,8 @@ export default function ResidenteClient() {
                     {v.estado}
                   </span>
                 </div>
+                {v.proposito && <p className="text-xs text-gray-300 mt-2">Propósito: {v.proposito}</p>}
+                {["pendiente", "activa"].includes(v.estado) && (!v.autorizada_por || !v.proposito) && <AutorizarVisita visitaId={v.visita_id} condominioId={condominioId} proposito={v.proposito} onSaved={() => loadVisitas(condominioId)} />}
                 <div className="mt-2 text-xs text-gray-500">
                   <span>Agendada: {hora(v.created_at)}</span>
                 </div>

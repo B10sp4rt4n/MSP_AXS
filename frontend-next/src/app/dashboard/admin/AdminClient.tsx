@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
+import ConfigurarReglasAcceso, { AutorizarVisita } from "@/components/ReglasAcceso";
 import UsuariosCondominio from "@/components/UsuariosCondominio";
 import type { Visita, Condominio, CasasResponse, CasaItem, ResidenteCasa } from "@/lib/types";
 
 const CONDOMINIO_KEY = "axs_condominio_id";
-type Tab = "visitas" | "casas" | "usuarios";
+type Tab = "visitas" | "casas" | "usuarios" | "reglas";
 
 export default function AdminClient() {
   const router = useRouter();
@@ -50,7 +51,7 @@ export default function AdminClient() {
 
       {/* Tabs */}
       <div className="border-b border-gray-800 px-4 flex gap-1">
-        {(["visitas", "casas", "usuarios"] as Tab[]).map(t => (
+        {(["visitas", "casas", "usuarios", "reglas"] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -60,7 +61,7 @@ export default function AdminClient() {
                 : "text-gray-400 hover:text-white"
             }`}
           >
-            {t === "visitas" ? "Visitas" : t === "casas" ? "Viviendas / Destinos" : "Usuarios"}
+            {t === "visitas" ? "Visitas" : t === "casas" ? "Viviendas / Destinos" : t === "usuarios" ? "Usuarios" : "Reglas de acceso"}
           </button>
         ))}
       </div>
@@ -71,6 +72,7 @@ export default function AdminClient() {
         {condominioId && tab === "visitas" && <TabVisitas condominioId={condominioId} getToken={getToken} />}
         {condominioId && tab === "casas"   && <TabCasas   condominioId={condominioId} getToken={getToken} />}
         {condominioId && tab === "usuarios"&& <UsuariosCondominio key={condominioId} condominioId={condominioId} getToken={getToken} />}
+        {condominioId && tab === "reglas" && <ConfigurarReglasAcceso key={condominioId} condominioId={condominioId} />}
       </main>
     </div>
   );
@@ -150,6 +152,8 @@ function TabVisitas({ condominioId, getToken }: { condominioId: string; getToken
                   {v.estado.replace("_", " ")}
                 </span>
               </div>
+              {v.proposito && <p className="text-xs text-gray-300 mt-2">Propósito: {v.proposito}</p>}
+              {["pendiente", "activa"].includes(v.estado) && (!v.autorizada_por || !v.proposito) && <AutorizarVisita visitaId={v.visita_id} condominioId={condominioId} proposito={v.proposito} onSaved={cargar} />}
               {v.destino_motivo && <p className="text-xs text-yellow-300 mt-2">Excepción: {v.destino_motivo}</p>}
               <div className="mt-3 flex gap-4 text-xs text-gray-500">
                 <span>Entrada: {hora(v.entrada_registrada_en)}</span>

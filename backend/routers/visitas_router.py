@@ -28,6 +28,9 @@ from backend.core.scope.msp_boundary import require_visita, authorized_tenant_co
 from backend.services import visita_service
 from backend.services.event_outbox import contexto_evento, rechazar_operacion
 from backend.schemas.visita import VisitaCreate, VisitaResponse
+from backend.schemas.reglas_acceso import AutorizarVisita
+from backend.services.reglas_acceso import validar_reglas, obtener_reglas
+from datetime import datetime
 
 # DEPRECADO - Solo para endpoints no migrados aún
 from backend.core.security import verificar_rol
@@ -100,15 +103,24 @@ def crear_visita(
     # ─────────────────────────────────────────────────────────────────────────
     # PASO 6: Ejecutar acción de negocio
     # ─────────────────────────────────────────────────────────────────────────
-    visita = visita_service.crear_visita(
-        db,
-        data,
-        condominio_id=condominio_id,
-        casa_unidad=label,
-        entrada_inmediata=entrada_inmediata,
-        destino=destination,
-        auditoria=contexto_evento(current_user, token, accion="crear", motivo="Visita creada exitosamente"),
-    )
+    # Un GUARDIA no puede convertir una creación alternativa en autorización.
+    autorizador_id = None
+    if not entrada_inmediata:
+        if current_user.rol == "GUARDIA":
+            raise SecurityDenial(403, "El vigilante no puede emitir autorizaciones", reason="ROLE_DENIED")
+        autorizador_id = current_user.usuario_id
+    try:
+        visita = visita_service.crear_visita(
+            db, data, condominio_id=condominio_id, casa_unidad=label,
+            entrada_inmediata=entrada_inmediata, destino=destination,
+            autorizador_id=autorizador_id,
+            auditoria=contexto_evento(current_user, token, accion="crear", motivo="Visita creada exitosamente"),
+        )
+    except HTTPException as exc:
+        if exc.status_code in (400, 403):
+            rechazar_operacion(db, current_user, token, condominio_id, "pending",
+                detail=str(exc.detail), status_code=exc.status_code, accion="crear")
+        raise
     
     # El evento de éxito queda persistido en CORE junto con la visita.
     return visita
@@ -228,8 +240,9 @@ def registrar_entrada_manual(
             usuario, request.headers.get("Authorization", "").replace("Bearer ", ""),
             motivo="Entrada manual registrada"))
     except HTTPException as exc:
-        if exc.status_code == 400:
-            rechazar(str(exc.detail))
+        if exc.status_code in (400, 403):
+            rechazar_operacion(db, usuario, token, tenant_id, visita_id,
+                              detail=str(exc.detail), status_code=exc.status_code)
         raise
 
 
@@ -316,3 +329,31 @@ def obtener_visita(
 ):
     return require_visita(db, db_gov, usuario, visita_id, AccessLevel.RESIDENTE,
                           own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
+
+
+@router.patch("/{visita_id}/autorizar", response_model=VisitaResponse)
+def autorizar_visita(visita_id: str, data: AutorizarVisita, request: Request,
+                     condominio_id: str | None = None,
+                     db: Session = Depends(get_core_db), db_gov: Session = Depends(get_gov_db),
+                     usuario: Usuario = Depends(get_current_user)):
+    if usuario.rol not in ["RESIDENTE", "ADMIN_CONDOMINIO", "MSP_ADMIN"]:
+        raise SecurityDenial(403, "El vigilante no puede autorizar visitas", reason="ROLE_DENIED")
+    level = AccessLevel.RESIDENTE if usuario.rol == "RESIDENTE" else AccessLevel.ADMIN_CONDOMINIO
+    visita = require_visita(db, db_gov, usuario, visita_id, level,
+                           own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
+    obtener_reglas(db, visita.condominio_id, bloquear=True)
+    db.refresh(visita)
+    if visita.estado not in ["pendiente", "activa"] or visita.entrada_registrada_en:
+        raise HTTPException(400, "Sólo se autoriza una visita pendiente de entrada")
+    proposito = (data.proposito if data.proposito is not None else visita.proposito or "").strip() or None
+    validar_reglas(db, visita.condominio_id, visita.tipo_visita, proposito)
+    visita.proposito = proposito
+    visita.autorizada_por = usuario.usuario_id
+    visita.autorizada_en = datetime.utcnow()
+    from backend.services.event_outbox import encolar_visita
+    encolar_visita(db, visita, contexto_evento(usuario,
+        request.headers.get("Authorization", "").replace("Bearer ", ""),
+        accion="autorizar", motivo="Visita autorizada por residente o administración"))
+    db.commit()
+    db.refresh(visita)
+    return visita

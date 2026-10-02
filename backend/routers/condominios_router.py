@@ -20,6 +20,11 @@ from backend.core.scope.msp_boundary import (
 )
 from ..core.gov.facade import puede_ejecutar_accion
 import uuid
+from backend.schemas.reglas_acceso import ReglasAcceso
+from backend.services.reglas_acceso import obtener_reglas
+from backend.core.tenant.context import _set_postgres_tenant
+from backend.core.security_denial import SecurityDenial
+from backend.services.event_outbox import contexto_evento, encolar_evento
 
 router = APIRouter(prefix="/condominios", tags=["condominios"])
 
@@ -67,6 +72,33 @@ class CondominioResponse(BaseModel):
     msp_id: str
     total_usuarios: int = 0
     casas: List[CasaResponse] = []
+
+
+@router.get("/{condominio_id}/reglas-acceso", response_model=ReglasAcceso)
+def consultar_reglas_acceso(condominio_id: str, db: Session = Depends(get_core_db),
+                            db_gov: Session = Depends(get_gov_db),
+                            usuario: Usuario = Depends(get_current_user)):
+    require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.RESIDENTE)
+    _, reglas = obtener_reglas(db, condominio_id)
+    return reglas
+
+
+@router.put("/{condominio_id}/reglas-acceso", response_model=ReglasAcceso)
+def configurar_reglas_acceso(condominio_id: str, data: ReglasAcceso, request: Request,
+                            db: Session = Depends(get_core_db), db_gov: Session = Depends(get_gov_db),
+                            usuario: Usuario = Depends(get_current_user)):
+    if usuario.rol not in ["ADMIN_CONDOMINIO", "MSP_ADMIN"]:
+        raise SecurityDenial(403, "Sólo la administración configura las reglas", reason="ROLE_DENIED")
+    require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
+    _set_postgres_tenant(db, condominio_id)
+    condo, anteriores = obtener_reglas(db, condominio_id, bloquear=True)
+    condo.reglas_acceso = data.model_dump()
+    encolar_evento(db, condominio_id, condominio_id, contexto_evento(usuario,
+        request.headers.get("Authorization", "").replace("Bearer ", ""),
+        entidad="policy", accion="configurar", motivo="Reglas de acceso del condominio actualizadas"),
+        metadata={"antes": anteriores.model_dump(), "despues": data.model_dump()})
+    db.commit()
+    return data
 
 
 @router.get("/", response_model=List[CondominioResponse])

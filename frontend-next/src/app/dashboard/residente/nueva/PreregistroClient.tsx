@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import { CampoProposito, useReglasAcceso } from "@/components/ReglasAcceso";
 import { api } from "@/lib/api";
 
 interface QRResult {
@@ -17,11 +18,14 @@ export default function PreregistroClient() {
   const { getToken } = useAuth();
   const [form, setForm] = useState({
     nombre_visitante: "",
+    proposito: "",
     fecha_visita: "",
     tipo_visita: "visita_personal",
     placa: "",
     notas: "",
   });
+  const { reglas } = useReglasAcceso();
+  const requiereProposito = !!(reglas?.exigir_proposito && reglas.tipos_visita.includes(form.tipo_visita));
   const [programada, setProgramada] = useState(false);
   const [horaServidor, setHoraServidor] = useState("");
   const [loading, setLoading] = useState(false);
@@ -63,6 +67,7 @@ export default function PreregistroClient() {
       const token = await getToken();
       const payload = {
         nombre_visitante: form.nombre_visitante,
+        proposito: form.proposito || undefined,
         fecha_visita: programada ? fechaVisita.toISOString() : undefined,
         tipo_visita: form.tipo_visita,
         placa: form.placa || undefined,
@@ -186,6 +191,7 @@ export default function PreregistroClient() {
             {programada ? "Acceso desde 30 minutos antes hasta 60 minutos después de la visita." : "Visita inmediata: hora fijada por el servidor y QR válido durante 60 minutos."}
           </p>
 
+          <CampoProposito value={form.proposito} onChange={v => set("proposito", v)} required={requiereProposito} />
           <div>
             <label className="text-xs text-gray-400 mb-1 block">Tipo de visita</label>
             <div className="grid grid-cols-3 gap-2">
