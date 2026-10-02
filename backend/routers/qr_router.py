@@ -140,8 +140,8 @@ def validar_qr(
             auditoria=contexto_evento(usuario, session_token, entidad="qr", accion="validar",
                                       motivo="QR validado y entrada registrada"))
     except HTTPException as exc:
-        if exc.status_code == 400:
-            rechazar(str(exc.detail))
+        if exc.status_code in (400, 403):
+            rechazar(str(exc.detail), status_code=exc.status_code)
         raise
 
     return {

@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from backend.core.tenant.context import _set_postgres_tenant
-from backend.db.core import Base_CORE, MSP, Condominio, Casa, Visita, EventOutbox
+from backend.db.core import Base_CORE, MSP, Condominio, Casa, Usuario, Visita, EventOutbox
 from backend.db.event import Base_EVENT, Event
 from backend.services import visita_service
 from backend.services.event_outbox import contexto_evento, enviar_pendientes, publicar_evento, rechazar_operacion
@@ -32,7 +32,7 @@ def test_workers_concurrentes_rls_y_reenvio():
         with engine.begin() as conn:
             assert not conn.execute(text("SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname=current_user")).scalar_one()
             conn.execute(text(f"CREATE SCHEMA {schema}"))
-        Base_CORE.metadata.create_all(scoped, tables=[MSP.__table__, Condominio.__table__, Casa.__table__, Visita.__table__, EventOutbox.__table__])
+        Base_CORE.metadata.create_all(scoped, tables=[MSP.__table__, Condominio.__table__, Casa.__table__, Usuario.__table__, Visita.__table__, EventOutbox.__table__])
         Base_EVENT.metadata.create_all(scoped)
         with factory() as db:
             db.add(MSP(msp_id="a", nombre="A"))

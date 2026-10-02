@@ -72,6 +72,8 @@ class Condominio(Base_CORE):
     condominio_id = Column(String, unique=True, index=True)
     msp_id = Column(String, ForeignKey("msps_exo.msp_id"))
     nombre = Column(String)
+    reglas_acceso = Column(JSON, nullable=True)
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -212,6 +214,9 @@ class Visita(Base_CORE):
     visita_id = Column(String, unique=True, index=True)
     condominio_id = Column(String, ForeignKey("condominios_exo.condominio_id"))
     nombre_visitante = Column(String)
+    proposito = Column(Text, nullable=True)
+    autorizada_por = Column(String, ForeignKey("usuarios.usuario_id"), nullable=True)
+    autorizada_en = Column(DateTime, nullable=True)
     destino_id = Column(String, ForeignKey("casas.casa_id"), nullable=True)
     destino_tipo = Column(String, nullable=True)
     destino_motivo = Column(Text, nullable=True)

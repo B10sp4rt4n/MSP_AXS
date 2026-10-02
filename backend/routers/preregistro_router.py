@@ -86,6 +86,8 @@ def crear_preregistro(
             "qr_vigencia": qr_service.as_utc(qr_data["qr_vigencia"]),
             "qr_inicio": qr_data["qr_inicio"],
         }
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("Failed to create preregistro")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error creando preregistro") from exc
@@ -130,4 +132,3 @@ def reenviar_qr(
         "qr_base64": base64.b64encode(qr_data["qr_bytes"]).decode(),
         "qr_vigencia": qr_data["qr_vigencia"],
     }
-

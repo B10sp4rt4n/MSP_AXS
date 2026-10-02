@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import { CampoProposito, useReglasAcceso } from "@/components/ReglasAcceso";
 import { api } from "@/lib/api";
 import type { Condominio } from "@/lib/types";
 
@@ -15,11 +16,15 @@ export default function NuevaVisitaClient() {
   const [condominioId, setCondominioId] = useState("");
   const [form, setForm] = useState({
     nombre_visitante: "",
+    proposito: "",
     destino_id: "",
     destino_motivo: "",
     tipo_visita: "eventual",
     placa: "",
   });
+  const { reglas, error: reglasError } = useReglasAcceso(condominioId);
+  const aplica = reglas?.tipos_visita.includes(form.tipo_visita);
+  const requiereAutorizacion = !!(aplica && reglas?.exigir_autorizacion);
   const [destinos, setDestinos] = useState<{ destino_id: string; nombre: string; tipo: string }[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogError, setCatalogError] = useState("");
@@ -56,6 +61,7 @@ export default function NuevaVisitaClient() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!condominioId) return;
+    if (requiereAutorizacion) { setError("Este condominio exige autorización previa. Usa una visita autorizada."); return; }
     if (!form.destino_id || catalogLoading || catalogError) { setError("Selecciona un destino del catálogo"); return; }
     setLoading(true);
     setError("");
@@ -154,6 +160,10 @@ export default function NuevaVisitaClient() {
             </div>
           </div>
 
+          <CampoProposito value={form.proposito} onChange={v => set("proposito", v)} required={!!(aplica && reglas?.exigir_proposito)} />
+          {reglasError && <p role="alert" className="text-yellow-300 text-sm">No se pudieron consultar las reglas. El servidor las verificará al registrar.</p>}
+          {requiereAutorizacion && <p role="status" className="text-yellow-300 text-sm">Se exige autorización previa. El residente puede preregistrar la visita; la administración puede autorizar una visita pendiente. Valida después su QR o registra la entrada de la visita autorizada.</p>}
+
           {/* Placa (opcional) */}
           <div>
             <label className="text-xs text-gray-400 mb-1 block">Placa vehicular (opcional)</label>
@@ -170,7 +180,7 @@ export default function NuevaVisitaClient() {
 
           <button
             type="submit"
-            disabled={loading || catalogLoading || !!catalogError || !form.destino_id}
+            disabled={loading || catalogLoading || !!catalogError || !form.destino_id || requiereAutorizacion}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm mt-2"
           >
             {loading ? "Registrando..." : "Registrar Entrada"}

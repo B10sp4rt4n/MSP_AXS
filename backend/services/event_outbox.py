@@ -44,6 +44,8 @@ def encolar_evento(db, condominio_id, entidad_id, contexto, *, resultado="exito"
 def encolar_visita(db, visita, contexto):
     """No hace commit: una falla aquí revierte también la operación de visita."""
     metadata = {"visita_id": visita.visita_id, "estado": visita.estado,
+        "proposito": visita.proposito, "autorizada_por": visita.autorizada_por,
+        "autorizada_en": visita.autorizada_en.isoformat() if visita.autorizada_en else None,
         "destino_id": visita.destino_id, "destino_tipo": visita.destino_tipo,
         "casa_unidad": visita.casa_unidad,
         "entrada_registrada_en": visita.entrada_registrada_en.isoformat() if visita.entrada_registrada_en else None,
