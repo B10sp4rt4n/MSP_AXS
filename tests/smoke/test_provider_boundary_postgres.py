@@ -68,7 +68,7 @@ def test_proveedores_http_cruces_revocacion_y_auditoria(db_gov_session, monkeypa
                     access_level=AccessLevel.GUARDIA, estado=ScopeStatus.ACTIVO))
                 db.add(Casa(casa_id="home_" + m, condominio_id=m + "1", numero="101", tipo="casa"))
                 db.add(Visita(visita_id="v_" + m, condominio_id=m + "1",
-                    nombre_visitante="Visitor " + m, estado="pendiente",
+                    nombre_visitante="Visitor " + m, estado="pendiente", tipo_visita="eventual", casa_unidad="101",
                     vigencia=datetime.utcnow() + timedelta(days=1)))
             db.commit()
         with engine.begin() as conn:
@@ -101,14 +101,14 @@ def test_proveedores_http_cruces_revocacion_y_auditoria(db_gov_session, monkeypa
                 for model in (MSP, Condominio, Casa, Usuario, MSPMembership, UserTenantScope):
                     result[model.__tablename__] = [
                         tuple(getattr(row, c.name) for c in model.__table__.columns)
-                        for row in db.query(model).order_by(model.id).all()
+                        for row in db.query(model).order_by(*model.__table__.primary_key.columns).all()
                     ]
                 for tenant in ("a1", "b1"):
                     _set_postgres_tenant(db, tenant)
                     for model in (Visita, EventOutbox):
                         result[(tenant, model.__tablename__)] = [
                             tuple(getattr(row, c.name) for c in model.__table__.columns)
-                            for row in db.query(model).order_by(model.id).all()
+                            for row in db.query(model).order_by(*model.__table__.primary_key.columns).all()
                         ]
             return result
         expected = []
