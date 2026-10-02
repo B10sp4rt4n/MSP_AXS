@@ -38,4 +38,4 @@ jobs:
       - name: Verify RLS and transaction context
         env:
           AXS_TEST_POSTGRES_URL: postgresql+psycopg://axs_rls_ci:ci-only@localhost:5432/axs_rls_ci
-        run: python -m pytest -q --no-cov tests/smoke/test_postgres_rls.py tests/smoke/test_tenant_isolation.py tests/smoke/test_event_outbox_postgres.py tests/smoke/test_security_outbox_postgres.py tests/smoke/test_outbox_recovery_postgres.py
+        run: python -m pytest -q --no-cov tests/smoke/test_postgres_rls.py tests/smoke/test_tenant_isolation.py tests/smoke/test_event_outbox_postgres.py tests/smoke/test_security_outbox_postgres.py tests/smoke/test_outbox_recovery_postgres.py tests/smoke/test_provider_boundary_postgres.py

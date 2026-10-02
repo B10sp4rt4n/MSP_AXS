@@ -152,3 +152,24 @@ No requiere detener Neon o Railway ni nuevas migraciones.
 El alcance es recuperación de la aplicación ante conexión rechazada y muerte
 del worker; failover del proveedor, backup/restauración y prueba manual con
 la cuenta residente son verificaciones separadas.
+
+## Ensayo completo de proveedores
+
+`tests/smoke/test_provider_boundary_postgres.py` añade al gate PostgreSQL un
+flujo HTTP con dos proveedores, cada uno con administrador, condominio, usuario
+y visita sintéticos. El acceso propio funciona y la entrada propia se registra.
+
+Los cruces A hacia B y B hacia A cubren usuarios, visita por ID conocido,
+salida, alta de vivienda, edición de cuenta, alta de condominio en otro
+proveedor e intento de ampliar membresía. Cada rechazo debe conservar todas
+las columnas de las entidades relevantes, scopes, membresías y bandeja operativa,
+además de dejar exactamente una fila de seguridad con identidad verificada.
+
+El operador revoca la membresía A. Su JWT se conserva sin renovación:
+auth/me sigue válido, las listas de proveedores/condominios quedan vacías y
+consulta de usuarios, salida y alta de vivienda se rechazan. B sigue operando.
+Los 17 rechazos se entregan a EVENT con integridad y sin duplicados.
+
+No se dan de alta ni revocan cuentas de producción. El ensayo usa JWT local,
+API real y PostgreSQL desechable, sin bypass y con FORCE RLS; no sustituye la
+prueba manual de autenticación Clerk y navegación de las cuentas demo.
