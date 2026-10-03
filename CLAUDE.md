@@ -293,6 +293,20 @@ Formato: `fecha — decisión — motivo`.
      sesiones se agrega arriba (fecha, decisión, motivo) ANTES de cerrar la
      tarea. -->
 
+## Despliegue de desarrollo y frontend — 2-oct-2026
+- Backend separado desplegado en `axs-development-backend-production.up.railway.app`: predeploy endpoints/RLS PASS, health 200, debug/db 404 y visita sin sesión 401.
+- Frontend separado `axs-development-frontend` en AXS Development, raíz `/frontend-next`, misma rama del PR #25. El usuario agregó claves Clerk de desarrollo en ambos servicios.
+- Fijado Node 22 mediante variables del servicio para resolver Node 18 incompatible. Gate de build movido de comando inline a `frontend-next/scripts/check-development.cjs` por interpretación de comillas en Railpack; exige API nueva y claves test. Cinco escenarios locales pasaron.
+- Dominios contienen `production` por el nombre predeterminado del environment; pertenecen al proyecto separado. Pendientes confirmar frontend/login y repetir A/B. Ver `docs/DEVELOPMENT_SETUP.md`.
+
+## Etiqueta de auditoría y desarrollo aislado — 2-oct-2026
+- `ruta_segura` prioriza FULL sobre PARTIAL: GET visita por ID registra `/visitas/{visita_id}`, sin IDs ni query strings. Se conserva el fallback para métodos sin coincidencia completa. No se reescriben eventos históricos.
+- 40 pruebas locales de outbox/configuración pasaron. Los ensayos HTTP A/B previos se realizaron en producción; no certifican el entorno nuevo.
+- Neon: rama `axs-development-20261002` (`br-blue-frog-b5o2ccsk`), endpoint `ep-withered-resonance-b59tusv3`; clon de producción con datos heredados.
+- Railway: proyecto separado `AXS Development`, servicio `axs-development-backend`, URLs CORE/EVENT/GOV y clave local propias guardadas sin desplegar. El environment predeterminado se llama `production`, pero pertenece al proyecto nuevo.
+- Predeploy guardado en el servicio: validar las cuatro URLs contra el endpoint nuevo y después CORE RLS. `APP_ENV=development`; `ENVIRONMENT=production` conserva desactivado `/debug/db`. No modificar este último sin corregir antes la exposición de credenciales.
+- Pendientes conexión del repositorio, autenticación/frontend de desarrollo, dominio, despliegue y ensayo A/B nuevo. Detalle e identificadores: `docs/DEVELOPMENT_SETUP.md`. Producción no se modificó.
+
 ## Auditoría del login local — 30-sep-2026
 - POST /auth/login conserva ambos rechazos (usuario ausente o contraseña incorrecta) en security_outbox, motivo INVALID_CREDENTIALS, identidad NONE y dominio PLATFORM_SECURITY.
 - No atribuir identidad por correo presentado. No guardar correo, contraseña ni token de un intento rechazado. Respuesta genérica 401; CORE no disponible devuelve 503 sin acceso.
@@ -325,3 +339,18 @@ Formato: `fecha — decisión — motivo`.
 - Comprueba accesos y entradas propios; 14 cruces simétricos de consultas/mutaciones/ampliación de membresía; revocación por operador y tres rechazos posteriores con exactamente el mismo JWT todavía válido.
 - Cada rechazo conserva negocio/scopes/membresías y outbox operativo, deja un hecho global con identidad verificada y entrega a EVENT sin duplicados.
 - El alcance del ensayo es API y persistencia con autenticación JWT local. La navegación y autenticación Clerk de las cuentas demo requieren validación manual separada.
+
+
+## Development aislado y creación/cancelación automática — 3-oct-2026
+- Frontend y backend operativos en proyecto Railway AXS Development y rama Neon axs-development-20261002; producción original no modificada.
+- Usuario comprobó 14 consultas A/B con Clerk y cancelaciones cruzadas 403; originales pendientes. Auditoría confirmada directamente en CORE/EVENT.
+- 50 pruebas focalizadas pasaron; nuevo ensayo HTTP parametrizado cubre creación/cancelación propia, cruces y cuerpo mal dirigido con auditoría durable.
+- Runner scripts/development_visit_smoke.ts ejecutó contra API development con JWT local breve y referencia interna de secreto: PASS 20 checks en ejecución final. Primera ejecución completó A; segunda reutilizó A y completó B usando Administración porque B no tiene vivienda. Dos nuevas visitas canceladas por sus propios administradores, originales pendientes.
+- Confirmados cuatro eventos operativos y seis de rechazo, entregados en primer intento y sin duplicados por UID en EVENT. Sin ampliar roles/scopes ni alterar catálogo.
+- Runner sin dominio/cron, restart NEVER y referencia de secreto vaciada tras ejecución. PR #25 permanece draft sin merge. Evidencia detallada y límites en docs/DEVELOPMENT_SETUP.md.
+
+## Integración de aislamiento y reglas optativas — 3-oct-2026
+- PR #25 fusionado a main (`b9f9bf9`); despliegue Railway de producción `85af1a5d-201d-4198-b807-9e4f81489438` SUCCESS. Salud 200, debug/db 404, visitas sin sesión 401 y worker de auditoría iniciado. Este registro actualiza el estado histórico de borrador anterior.
+- PR #24 actualizado con ese main sin conflictos. Suite local: 220 passed, 14 skipped (PostgreSQL requerido). Las nuevas reglas y autorizaciones se validan en el gate PostgreSQL de CI, incluida concurrencia.
+- Migración `migrations/20261002_reglas_acceso.sql`: sólo añade reglas_acceso a condominios_exo y proposito/autorizada_por/autorizada_en a visitas. No habilita reglas ni autoriza visitas históricas. Aplicar en CORE de development y producción antes de desplegar código que consulte esas columnas.
+- Salvador autorizó el 3-oct actualizar, migrar, integrar PR #24 y verificar despliegues. Cada condominio conserva la decisión de activar sus reglas; vigilantes no pueden omitirlas.

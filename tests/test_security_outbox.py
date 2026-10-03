@@ -11,6 +11,20 @@ from backend.db.event import Event
 from backend.services import security_outbox
 
 
+@pytest.mark.parametrize("method,expected", [
+    ("GET", "/visitas/{visita_id}"),
+    ("POST", "/visitas/{condominio_id}"),
+    ("DELETE", "/visitas/{condominio_id}"),
+])
+def test_ruta_auditada_prioriza_metodo_sin_exponer_identificadores(client, db_session, method, expected):
+    response = client.request(method, "/visitas/private-id?token=private-query")
+    assert response.status_code == 401
+    row = db_session.query(SecurityOutbox).one()
+    assert row.payload["metadata_json"]["route"] == expected
+    assert row.payload["metadata_json"]["method"] == method
+    assert "private-" not in str(row.payload)
+
+
 @pytest.mark.parametrize("authorization", [None, "Basic password-secret", "Bearer jwt-secret"])
 def test_sesion_ausente_o_invalida_se_conserva(client, db_session, authorization, caplog):
     caplog.set_level(logging.DEBUG)
@@ -55,6 +69,7 @@ def test_falta_de_alcance_no_escribe_en_condominio_ajeno(client, db_session, usu
     assert row.payload["motivo"] == "SCOPE_DENIED"
     assert row.payload["identity_id"] == usuario_base.usuario_id
     assert row.payload["metadata_json"]["identity_verified"]
+    assert row.payload["metadata_json"]["route"] == "/visitas/{visita_id}"
     assert "foreign" not in str(row.payload) and token not in str(row.payload)
     assert db_session.query(EventOutbox).count() == 0
 
