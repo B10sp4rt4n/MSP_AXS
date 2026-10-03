@@ -13,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import DBAPIError
 
 from backend.core.tenant.context import _set_postgres_tenant
-from backend.db.core import Base_CORE, MSP, Condominio, Casa, Visita, SecurityOutbox
+from backend.db.core import Base_CORE, MSP, Condominio, Casa, Usuario, Visita, SecurityOutbox
 from backend.db.event import Base_EVENT, Event
 from backend.services.security_outbox import guardar_intento, enviar_seguridad
 
@@ -32,7 +32,7 @@ def test_seguridad_independiente_con_rls_y_workers_concurrentes():
         with engine.begin() as conn:
             assert not conn.execute(text("SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname=current_user")).scalar_one()
             conn.execute(text(f"CREATE SCHEMA {schema}"))
-        Base_CORE.metadata.create_all(scoped, tables=[MSP.__table__, Condominio.__table__, Casa.__table__, Visita.__table__, SecurityOutbox.__table__])
+        Base_CORE.metadata.create_all(scoped, tables=[MSP.__table__, Condominio.__table__, Casa.__table__, Usuario.__table__, Visita.__table__, SecurityOutbox.__table__])
         Base_EVENT.metadata.create_all(scoped)
         with factory() as db:
             db.add(MSP(msp_id="a", nombre="A"))

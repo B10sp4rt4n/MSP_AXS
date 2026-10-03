@@ -348,3 +348,9 @@ Formato: `fecha — decisión — motivo`.
 - Runner scripts/development_visit_smoke.ts ejecutó contra API development con JWT local breve y referencia interna de secreto: PASS 20 checks en ejecución final. Primera ejecución completó A; segunda reutilizó A y completó B usando Administración porque B no tiene vivienda. Dos nuevas visitas canceladas por sus propios administradores, originales pendientes.
 - Confirmados cuatro eventos operativos y seis de rechazo, entregados en primer intento y sin duplicados por UID en EVENT. Sin ampliar roles/scopes ni alterar catálogo.
 - Runner sin dominio/cron, restart NEVER y referencia de secreto vaciada tras ejecución. PR #25 permanece draft sin merge. Evidencia detallada y límites en docs/DEVELOPMENT_SETUP.md.
+
+## Integración de aislamiento y reglas optativas — 3-oct-2026
+- PR #25 fusionado a main (`b9f9bf9`); despliegue Railway de producción `85af1a5d-201d-4198-b807-9e4f81489438` SUCCESS. Salud 200, debug/db 404, visitas sin sesión 401 y worker de auditoría iniciado. Este registro actualiza el estado histórico de borrador anterior.
+- PR #24 actualizado con ese main sin conflictos. Suite local: 220 passed, 14 skipped (PostgreSQL requerido). Las nuevas reglas y autorizaciones se validan en el gate PostgreSQL de CI, incluida concurrencia.
+- Migración `migrations/20261002_reglas_acceso.sql`: sólo añade reglas_acceso a condominios_exo y proposito/autorizada_por/autorizada_en a visitas. No habilita reglas ni autoriza visitas históricas. Aplicar en CORE de development y producción antes de desplegar código que consulte esas columnas.
+- Salvador autorizó el 3-oct actualizar, migrar, integrar PR #24 y verificar despliegues. Cada condominio conserva la decisión de activar sus reglas; vigilantes no pueden omitirlas.

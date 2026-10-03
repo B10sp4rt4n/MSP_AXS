@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, Field
 from typing import Optional
 from datetime import datetime
 
@@ -7,6 +7,7 @@ class PreregistroCreate(BaseModel):
     nombre_visitante: str
     fecha_visita: Optional[datetime] = None
     tipo_visita: str
+    proposito: str | None = Field(default=None, max_length=500)
     notas: Optional[str] = None
     placa: Optional[str] = None
     documento: Optional[str] = None

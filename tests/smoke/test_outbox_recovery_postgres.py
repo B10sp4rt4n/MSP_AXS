@@ -18,7 +18,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from backend.core.tenant.context import _set_postgres_tenant
-from backend.db.core import Base_CORE, MSP, Condominio, Casa, Visita, EventOutbox, SecurityOutbox
+from backend.db.core import Base_CORE, MSP, Condominio, Casa, Usuario, Visita, EventOutbox, SecurityOutbox
 from backend.db.event import Base_EVENT, Event
 from backend.core.event.registry import verificar_integridad_evento
 from backend.services.event_outbox import contexto_evento, encolar_visita
@@ -85,7 +85,7 @@ def test_caida_tcp_muerte_worker_y_recuperacion_sin_duplicados(kind):
             conn.execute(text(f"CREATE SCHEMA {core_schema}"))
             conn.execute(text(f"CREATE SCHEMA {event_schema}"))
         Base_CORE.metadata.create_all(core, tables=[
-            MSP.__table__, Condominio.__table__, Casa.__table__, Visita.__table__,
+            MSP.__table__, Condominio.__table__, Casa.__table__, Usuario.__table__, Visita.__table__,
             EventOutbox.__table__, SecurityOutbox.__table__,
         ])
         Base_EVENT.metadata.create_all(event)
