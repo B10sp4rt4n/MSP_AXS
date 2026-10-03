@@ -31,16 +31,26 @@ La rama Neon es una copia de producción creada el 2 de octubre a las 15:58 UTC:
 
 No almacenar URLs con contraseñas en el repositorio. No se copiaron credenciales de Clerk, webhooks ni Cloudinary de producción.
 
-## Activación pendiente
+## Activación inicial y estado actualizado
 
-El servicio tiene start command, healthcheck y predeploy guardados directamente en Railway, pero todavía no tiene repositorio conectado, despliegue ni dominio. El predeploy es `python scripts/check_development_config.py && python scripts/check_core_rls.py`. Para activarlo:
+El backend ya tiene conectado el repositorio a `fix/audit-route-development-20261002` y fue desplegado. URL: `https://axs-development-backend-production.up.railway.app`. El predeploy verificó endpoints de desarrollo y CORE RLS (PASS). HTTP: `/health` 200, `/debug/db` 404, consulta de visita sin sesión 401. El predeploy es `python scripts/check_development_config.py && python scripts/check_core_rls.py`. Procedimiento para despliegues:
 
 1. Conectar `B10sp4rt4n/MSP_AXS` a una rama que contenga estos archivos; verificar que el predeploy del servicio conserve ambas comprobaciones. La configuración de producción `railway.json` no se modificó.
 2. Configurar autenticación de desarrollo y el frontend con la URL del backend nuevo; añadir su origen exacto a `ALLOWED_ORIGINS`.
 3. Desplegar únicamente en el proyecto `AXS Development`. El predeploy valida endpoint/base de las cuatro URLs y después valida RLS del rol CORE. Los errores detienen el despliegue.
 4. Repetir los ensayos A/B contra la URL nueva, incluyendo consultas propias 200, cruces 403, cancelaciones cruzadas sin cambios y entrega outbox → EVENT.
 
-Las comprobaciones realizadas sobre la API original pertenecen a producción. No certifican este servicio todavía sin desplegar.
+Los ensayos A/B previos contra la API original pertenecen a producción. Sigue pendiente repetirlos con autenticación en desarrollo.
+
+## Frontend de desarrollo
+
+- Servicio Railway `axs-development-frontend`, UUID `4467b13c-61d4-4807-8e49-8c11e384278a`, en el mismo proyecto separado. Raíz `/frontend-next`; misma rama del backend.
+- Dominio reservado: `https://axs-development-frontend-production.up.railway.app`. Su generación no prueba que el frontend esté disponible.
+- `NEXT_PUBLIC_API_URL` apunta explícitamente al backend nuevo. `ALLOWED_ORIGINS` del backend incluye este origen y localhost:3000.
+- El usuario agregó claves Clerk Development en ambos servicios. La comprobación de build valida prefijos de prueba; no acredita por sí misma que ambas claves correspondan a una misma instancia ni valida credenciales contra Clerk.
+- Fijados `RAILPACK_NODE_VERSION=22` y `NIXPACKS_NODE_VERSION=22` únicamente en el servicio nuevo. Fallo inicial confirmado: Node 18.20.5 incompatible con Next 16.3.6. Segundo fallo: comillas del comando inline interpretadas incorrectamente por Railpack.
+- Build corregido: `node scripts/check-development.cjs && npm run build`; start `npm run start -- --hostname 0.0.0.0 --port $PORT`. Guard valida APP_ENV, destino API exacto y claves Clerk test sin imprimir valores. Cinco escenarios locales pasaron.
+- Pendientes confirmar build/despliegue frontend, login y correspondencia de las identidades A/B en Neon development. No reatribuir roles/scopes sólo para conseguir acceso.
 
 ## Corrección de ruta de auditoría
 
