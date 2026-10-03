@@ -339,3 +339,12 @@ Formato: `fecha — decisión — motivo`.
 - Comprueba accesos y entradas propios; 14 cruces simétricos de consultas/mutaciones/ampliación de membresía; revocación por operador y tres rechazos posteriores con exactamente el mismo JWT todavía válido.
 - Cada rechazo conserva negocio/scopes/membresías y outbox operativo, deja un hecho global con identidad verificada y entrega a EVENT sin duplicados.
 - El alcance del ensayo es API y persistencia con autenticación JWT local. La navegación y autenticación Clerk de las cuentas demo requieren validación manual separada.
+
+
+## Development aislado y creación/cancelación automática — 3-oct-2026
+- Frontend y backend operativos en proyecto Railway AXS Development y rama Neon axs-development-20261002; producción original no modificada.
+- Usuario comprobó 14 consultas A/B con Clerk y cancelaciones cruzadas 403; originales pendientes. Auditoría confirmada directamente en CORE/EVENT.
+- 50 pruebas focalizadas pasaron; nuevo ensayo HTTP parametrizado cubre creación/cancelación propia, cruces y cuerpo mal dirigido con auditoría durable.
+- Runner scripts/development_visit_smoke.ts ejecutó contra API development con JWT local breve y referencia interna de secreto: PASS 20 checks en ejecución final. Primera ejecución completó A; segunda reutilizó A y completó B usando Administración porque B no tiene vivienda. Dos nuevas visitas canceladas por sus propios administradores, originales pendientes.
+- Confirmados cuatro eventos operativos y seis de rechazo, entregados en primer intento y sin duplicados por UID en EVENT. Sin ampliar roles/scopes ni alterar catálogo.
+- Runner sin dominio/cron, restart NEVER y referencia de secreto vaciada tras ejecución. PR #25 permanece draft sin merge. Evidencia detallada y límites en docs/DEVELOPMENT_SETUP.md.
