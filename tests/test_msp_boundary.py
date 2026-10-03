@@ -156,3 +156,83 @@ def test_http_visita_resuelve_tenant_antes_de_buscar(tenants, db_core_session, d
             assert client.get("/visitas/v_b1?condominio_id=b1", headers=headers).status_code == 403
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.parametrize("actor,own,other", [
+    ("admin_a", "a1", "b1"), ("admin_b", "b1", "a1"),
+])
+def test_http_create_cancel_and_denial_audit_both_directions(
+    tenants, db_core_session, db_gov_session, db_event_session, monkeypatch,
+    actor, own, other,
+):
+    """Real HTTP handlers/auth, isolated SQLite stores; no deployed Clerk/RLS claim."""
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
+    from backend.main import app
+    from backend.core.auth.jwt import create_access_token
+    from backend.db.core import Casa, SecurityOutbox, get_core_db
+    from backend.db.event import get_event_db
+    from backend.db.gov import Policy, PolicyScope, get_gov_db
+    from backend.services import security_outbox
+
+    db = db_core_session
+    db.add_all([Casa(casa_id=f"home_{tenant}", condominio_id=tenant,
+                     numero="101", tipo="casa") for tenant in (own, other)])
+    db.commit()
+    db_gov_session.add(Policy(policy_id="allow_create_for_test", nombre="Create",
+        ambito=PolicyScope.GLOBAL, accion_objetivo="crear_visita", limites={},
+        estado=GovStatus.ACTIVO))
+    db_gov_session.commit()
+    monkeypatch.setattr(security_outbox, "SessionFactory", sessionmaker(bind=db.bind))
+    app.dependency_overrides[get_core_db] = lambda: db
+    app.dependency_overrides[get_event_db] = lambda: db_event_session
+    app.dependency_overrides[get_gov_db] = lambda: db_gov_session
+    headers = {"Authorization": f"Bearer {create_access_token(actor, 'MSP_ADMIN')}"}
+    body = {"condominio_id": own, "nombre_visitante": "Automated isolation test",
+            "tipo_visita": "eventual", "destino_id": f"home_{own}",
+            "vigencia": (datetime.utcnow() + timedelta(days=1)).isoformat()}
+    try:
+        with TestClient(app) as client:
+            before = db.query(Visita).count()
+            created = client.post(f"/visitas/{own}", headers=headers, json=body)
+            assert created.status_code == 200, created.text
+            visit_id = created.json()["visita_id"]
+            assert created.json()["condominio_id"] == own
+            assert created.json()["estado"] == "pendiente"
+            assert db.query(Visita).count() == before + 1
+
+            cross = client.post(f"/visitas/{other}", headers=headers,
+                json={**body, "condominio_id": other, "destino_id": f"home_{other}"})
+            assert cross.status_code == 403
+            assert db.query(Visita).count() == before + 1
+            spoof = client.post(f"/visitas/{own}", headers=headers,
+                                json={**body, "condominio_id": other})
+            assert spoof.status_code == 400
+            assert db.query(Visita).count() == before + 1
+
+            owner = "admin_b" if actor == "admin_a" else "admin_a"
+            other_headers = {"Authorization": f"Bearer {create_access_token(owner, 'MSP_ADMIN')}"}
+            rejected = client.patch(f"/visitas/{visit_id}/cancelar?condominio_id={own}",
+                                    headers=other_headers)
+            assert rejected.status_code == 403
+            db.expire_all()
+            assert db.query(Visita).filter_by(visita_id=visit_id).one().estado == "pendiente"
+
+            denials = db.query(SecurityOutbox).order_by(SecurityOutbox.created_at).all()
+            assert len(denials) == 2
+            assert [(row.payload["identity_id"], row.payload["metadata_json"]["route"],
+                     row.payload["metadata_json"]["method"]) for row in denials] == [
+                (actor, "/visitas/{condominio_id}", "POST"),
+                (owner, "/visitas/{visita_id}/cancelar", "PATCH"),
+            ]
+            assert all(row.payload["motivo"] == "SCOPE_DENIED" and
+                       row.payload["metadata_json"]["identity_verified"] for row in denials)
+
+            cancelled = client.patch(f"/visitas/{visit_id}/cancelar?condominio_id={own}",
+                                     headers=headers)
+            assert cancelled.status_code == 200, cancelled.text
+            own_read = client.get(f"/visitas/{visit_id}?condominio_id={own}", headers=headers)
+            assert own_read.status_code == 200
+            assert own_read.json()["estado"] == "cancelada"
+    finally:
+        app.dependency_overrides.clear()

@@ -18,11 +18,15 @@ REASONS = {"NO_SESSION", "INVALID_SESSION", "UNKNOWN_IDENTITY", "SCOPE_DENIED",
 def ruta_segura(request):
     # Antes de autenticación aún no hay route en scope. Sólo evaluar patrones;
     # nunca ejecutar el endpoint ni guardar path_params, query o ruta raw.
+    partial_path = None
     for route in request.app.routes:
         match, _ = route.matches(request.scope)
-        if match in (Match.FULL, Match.PARTIAL):
+        if match == Match.FULL:
             return getattr(route, "path", "unknown_route")
-    return "unknown_route"
+        if match == Match.PARTIAL and partial_path is None:
+            partial_path = getattr(route, "path", "unknown_route")
+    # Sólo usar la coincidencia sin método cuando no existe una ruta completa.
+    return partial_path or "unknown_route"
 
 
 def guardar_intento(request, reason, *, factory=None):
