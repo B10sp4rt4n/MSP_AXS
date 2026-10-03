@@ -360,3 +360,9 @@ Formato: `fecha — decisión — motivo`.
 - Autorización explícita de Salvador permitió conectar backend y frontend de AXS Development a main fijado en `2bc5cef`: deployments `6a2a9004-1c29-4f27-b820-06eec2496c0f` y `594a1343-bd28-4542-b8b6-9d0f5539f577`, ambos SUCCESS. Futuros pushes no actualizan servicios fijados automáticamente.
 - Ensayo `scripts/development_rules_smoke.ts` preparado, NO ejecutado: revisión automática bloqueó crear función nueva por infraestructura y mutaciones temporales no específicamente aprobadas. Se preparó sólo en development una visita pendiente sin autorización y guardia sintético sin login; su scope fue revocado tras el bloqueo. Reglas originales sin cambio y visitas demo A/B pendientes.
 - Autorización pendiente y procedimiento exacto en docs/DEVELOPMENT_RULES_VALIDATION.md. No atribuir PASS de CI ni despliegue SUCCESS al ensayo funcional aún no ejecutado.
+
+## Ensayo de reglas autorizado y completado — 3-oct-2026
+- Salvador autorizó explícitamente la función y las mutaciones temporales. Runner development `axs-development-rules-smoke`, servicio `2ba158cd-83c2-4c05-8d49-c93f2c243061`, deployment `ac0b5298-49d1-4954-bf14-f2418236dda5`: PASS, 21 comprobaciones.
+- Propósito ausente y entrada sin autorización bloqueados; GUARDIA no cambia reglas/autoriza, B no accede a A. Admin A autoriza, GUARDIA entra/sale, doble entrada bloqueada.
+- 11 eventos entregados en un intento sin errores; cada UID aparece una sola vez en EVENT. Configuración efectiva de A restaurada, B sin cambios, originales A/B pendientes. Visita sintética finalizada y scope sintético REVOCADO. Referencia de secreto vaciada sin redeploy; función sin dominio/cron/reinicio.
+- Sólo development recibió fixtures/reglas temporales. Producción no contiene fixtures ni reglas activas. Detalles y límites JWT local vs Clerk/UI en docs/DEVELOPMENT_RULES_VALIDATION.md; este cierre sustituye el estado pendiente anterior.

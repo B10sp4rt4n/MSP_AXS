@@ -11,7 +11,7 @@ Salvador autorizó explícitamente conectar ambos servicios de AXS Development a
 
 Fuente `B10sp4rt4n/MSP_AXS@main`, fijada al commit; futuros pushes no despliegan automáticamente estos servicios. Variables y conexiones de desarrollo preservadas. Predeploy de backend verificó endpoint independiente; worker de auditoría inició. Producción no se modificó durante esta actualización.
 
-## Ejecución propuesta, todavía NO realizada
+## Preparación inicial (histórica; ejecución completada abajo)
 
 `scripts/development_rules_smoke.ts` es un ejecutor único para Railway/Bun, sin servidor, dominio ni cron. API y endpoint de development fijos. JWT local de cinco minutos con identidades permitidas explícitas; el backend resuelve sus permisos actuales. No imprime tokens ni secretos. No valida creación ni navegación mediante Clerk.
 
@@ -32,3 +32,18 @@ Fixtures preparadas únicamente en `patient-tree-68362559`, rama development `br
 Tras el rechazo, el scope GUARDIA quedó REVOCADO. La visita nueva y las originales `axs_demo_visit_a` y `axs_demo_visit_b` siguen pendientes, sin autorización ni entrada/salida. No se cambiaron reglas del condominio.
 
 Una ejecución concluida no debe repetirse: el script exige fixture pendiente y fecha reciente. PASS/FAIL se interpreta en `AXS_RULES_RESULT`; la salida de proceso no dispara reintentos automáticos de mutaciones. Restauración fallida requiere revisión directa de la configuración antes de reintentar.
+
+## Ejecución autorizada y cierre — 3-oct-2026, 22:43 UTC
+
+Salvador autorizó explícitamente crear la función y los cambios temporales del ensayo después del rechazo inicial. Servicio `axs-development-rules-smoke` / `2ba158cd-83c2-4c05-8d49-c93f2c243061`, deployment `ac0b5298-49d1-4954-bf14-f2418236dda5`, Bun 1.4.0. Sin dominio/cron; restart NEVER. La creación inicial sin secreto sólo registró WAITING. La ejecución con referencia interna del secreto terminó PASS con 21 comprobaciones entre 22:43:44 y 22:43:58 UTC.
+
+- GUARDIA no cambió reglas ni autorizó la visita: 403. Admin B no consultó reglas de A: 403.
+- Creación con entrada inmediata sin propósito: 403 y cero visitas creadas por ese intento. Fixture con propósito pero sin autorización: entrada 403 y estado pendiente intacto.
+- Admin A autorizó la fixture: 200, identidad y fecha persistidas. GUARDIA registró entrada 200; repetición 400; salida 200. Fixture final `salida_registrada`, con autorización, entrada y salida persistidas.
+- Configuración efectiva anterior de A restaurada: propósito/autorización false y catálogo de tipos original. El JSON explícito reemplaza el NULL inicial con comportamiento equivalente. B conserva NULL. Las visitas originales A/B siguen pendientes sin autorización ni entrada/salida.
+- Scope sintético REVOCADO al terminar; AXS_TEST_SECRET vaciado sin redesplegar. No hay reinicios automáticos. El script exige fixture nueva/pendiente antes de cualquier nueva ejecución.
+- Producción verificada en sólo lectura: cero filas de esta identidad/visita sintética y cero reglas activas.
+
+Auditoría directa CORE/EVENT: 8 hechos en event_outbox (5 éxitos: activar/restaurar configuración, autorizar, entrada, salida; 3 rechazos: propósito ausente, autorización ausente, doble entrada) y 3 hechos en security_outbox (2 ROLE_DENIED, 1 SCOPE_DENIED). Los 11 entregados en un intento, last_error NULL. Consulta en `aup_event.events_aup` por los 11 UID devolvió exactamente una copia de cada uno.
+
+Este resultado valida API desplegada, persistencia y auditoría con JWT local breve. No acredita navegación ni autorización mediante sesión Clerk/UI, lectores físicos o biometría.
