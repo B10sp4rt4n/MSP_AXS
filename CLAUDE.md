@@ -293,6 +293,12 @@ Formato: `fecha — decisión — motivo`.
      sesiones se agrega arriba (fecha, decisión, motivo) ANTES de cerrar la
      tarea. -->
 
+## Despliegue de desarrollo y frontend — 2-oct-2026
+- Backend separado desplegado en `axs-development-backend-production.up.railway.app`: predeploy endpoints/RLS PASS, health 200, debug/db 404 y visita sin sesión 401.
+- Frontend separado `axs-development-frontend` en AXS Development, raíz `/frontend-next`, misma rama del PR #25. El usuario agregó claves Clerk de desarrollo en ambos servicios.
+- Fijado Node 22 mediante variables del servicio para resolver Node 18 incompatible. Gate de build movido de comando inline a `frontend-next/scripts/check-development.cjs` por interpretación de comillas en Railpack; exige API nueva y claves test. Cinco escenarios locales pasaron.
+- Dominios contienen `production` por el nombre predeterminado del environment; pertenecen al proyecto separado. Pendientes confirmar frontend/login y repetir A/B. Ver `docs/DEVELOPMENT_SETUP.md`.
+
 ## Etiqueta de auditoría y desarrollo aislado — 2-oct-2026
 - `ruta_segura` prioriza FULL sobre PARTIAL: GET visita por ID registra `/visitas/{visita_id}`, sin IDs ni query strings. Se conserva el fallback para métodos sin coincidencia completa. No se reescriben eventos históricos.
 - 40 pruebas locales de outbox/configuración pasaron. Los ensayos HTTP A/B previos se realizaron en producción; no certifican el entorno nuevo.
