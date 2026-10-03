@@ -27,10 +27,18 @@ Sesión user_e958ee085354, rol GUARDIA, scope existente ACTIVO exclusivo condo_9
   sec_2c29ed9da7804a90a0fe9a76c96d0c0c (autorización denegada),
   sec_c92140e53a4f4000b201743b74df8f12 (configuración denegada).
 
+## GUARDIA con reglas activas: caso positivo completado
+
+- ADMIN_CONDOMINIO user_77a30a67d93e inició sesión Clerk con contraseña y verificación de dispositivo por canal seguro. Activó ambas reglas en Sistema Solar mediante UI.
+- Fixture nueva axs_ui_guard_authorized_20261003 preparada por SQL en development: proveedor/Mantenimiento, propósito ficticio, vigente y sin autorización/QR/entrada. Administración autorizó por UI: autorizada_por user_77a30a67d93e, autorizada_en 23:31:34.283Z.
+- Tras cerrar administración e iniciar sesión Clerk nuevamente como user_e958ee085354, GUARDIA registró entrada por UI a 23:36:24.512Z y salida a 23:36:41.414Z, con ambas reglas activas. Estado final salida_registrada.
+- Limpieza SQL condicionada restauró exactamente reglas_acceso NULL en Sistema Solar. No se modificaron roles/scopes ni otras visitas.
+- Cuatro eventos operativos adicionales entregados en un intento sin error y una copia por UID en EVENT: evt_73d7bfcc03024a0eb28f2c9108c65116 (configurar), evt_89ae2a2b8f2b4056b67665a1c5f9bf25 (autorizar), evt_fa0807717bd445be89cdb56d4739c1eb (entrada), evt_f0d299f2ce874b8a834ffa4209b209f9 (salida). Total de los ensayos UI documentados: 18 eventos entregados sin duplicados; cambios SQL de preparación/limpieza no se cuentan como eventos de API.
+
 ## Alcance y pendientes
 
-Se acreditan autenticación Clerk real, preregistro/QR de residente, configuración/autorización de Admin A, operación GUARDIA con reglas apagadas y rechazos GUARDIA con reglas activas. La entrada positiva con reglas activas se hizo como Admin A; la equivalente con GUARDIA + Clerk aún requiere una visita autorizada por administración de Sistema Solar. El ensayo API anterior sí cubrió ese caso con JWT local y guardia sintético.
+Se acreditan autenticación Clerk real, preregistro/QR de residente, configuración/autorización de Admin A, operación GUARDIA con reglas apagadas y rechazos GUARDIA con reglas activas. También se acredita entrada positiva con reglas activas mediante GUARDIA + Clerk, tras autorización UI de ADMIN_CONDOMINIO de Sistema Solar. El ensayo API anterior cubrió ese caso con JWT local y guardia sintético.
 
 La UI permite abrir rutas administrativas y presenta botones de mutación a RESIDENTE/GUARDIA; el backend las rechaza correctamente. Conviene ocultar o deshabilitar esos controles según permisos y explicar la restricción antes del envío. No se acreditan escaneo por cámara, biometría ni hardware.
 
-Capturas guardadas: axs-clerk-residente-20261003.jpg, axs-clerk-acceso-20261003.jpg, axs-clerk-guardia-permisos-20261003.jpg. Ninguna captura incluye contraseñas, códigos OTP ni tokens QR.
+Capturas guardadas: axs-clerk-residente-20261003.jpg, axs-clerk-acceso-20261003.jpg, axs-clerk-guardia-permisos-20261003.jpg, axs-clerk-guardia-autorizada-20261003.jpg. Ninguna captura incluye contraseñas, códigos OTP ni tokens QR.
