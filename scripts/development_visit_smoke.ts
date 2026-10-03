@@ -43,8 +43,9 @@ async function run() {
     const me = await request(actor, "GET", "/auth/me", 200);
     check(me.usuario_id === actor && me.rol === "MSP_ADMIN", "Identity mismatch");
     const houseResponse = await request(actor, "GET", `/condominios/${own}/casas`, 200);
-    const home = houseResponse.casas.find((h: any) => h.tipo === "casa");
-    check(!!home?.casa_id, "Own residential destination required");
+    const home = houseResponse.casas.find((h: any) => h.tipo === "casa") ??
+      houseResponse.casas.find((h: any) => h.tipo === "administracion");
+    check(!!home?.casa_id, "Own catalog destination required");
     const label = `${RUN} ${side.toUpperCase()}`;
     const body = { condominio_id: own, nombre_visitante: label, tipo_visita: "eventual",
       destino_id: home.casa_id, vigencia: new Date(Date.now() + 86400000).toISOString() };
