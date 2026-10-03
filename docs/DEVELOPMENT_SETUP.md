@@ -40,20 +40,32 @@ El backend ya tiene conectado el repositorio a `fix/audit-route-development-2026
 3. Desplegar únicamente en el proyecto `AXS Development`. El predeploy valida endpoint/base de las cuatro URLs y después valida RLS del rol CORE. Los errores detienen el despliegue.
 4. Repetir los ensayos A/B contra la URL nueva, incluyendo consultas propias 200, cruces 403, cancelaciones cruzadas sin cambios y entrega outbox → EVENT.
 
-Los ensayos A/B previos contra la API original pertenecen a producción. Sigue pendiente repetirlos con autenticación en desarrollo.
+Los ensayos previos contra la API original pertenecen a producción. Los ensayos nuevos de development del 3-oct-2026 se documentan abajo por separado.
 
 ## Frontend de desarrollo
 
 - Servicio Railway `axs-development-frontend`, UUID `4467b13c-61d4-4807-8e49-8c11e384278a`, en el mismo proyecto separado. Raíz `/frontend-next`; misma rama del backend.
-- Dominio reservado: `https://axs-development-frontend-production.up.railway.app`. Su generación no prueba que el frontend esté disponible.
+- Dominio activo: `https://axs-development-frontend-production.up.railway.app`. Frontend desplegado; `/health` devuelve 200. Login y navegación A/B verificados por el usuario el 3-oct-2026.
 - `NEXT_PUBLIC_API_URL` apunta explícitamente al backend nuevo. `ALLOWED_ORIGINS` del backend incluye este origen y localhost:3000.
 - El usuario agregó claves Clerk Development en ambos servicios. La comprobación de build valida prefijos de prueba; no acredita por sí misma que ambas claves correspondan a una misma instancia ni valida credenciales contra Clerk.
 - Fijados `RAILPACK_NODE_VERSION=22` y `NIXPACKS_NODE_VERSION=22` únicamente en el servicio nuevo. Fallo inicial confirmado: Node 18.20.5 incompatible con Next 16.3.6. Segundo fallo: comillas del comando inline interpretadas incorrectamente por Railpack.
 - Build corregido: `node scripts/check-development.cjs && npm run build`; start `npm run start -- --hostname 0.0.0.0 --port $PORT`. Guard valida APP_ENV, destino API exacto y claves Clerk test sin imprimir valores. Cinco escenarios locales pasaron.
-- Pendientes confirmar build/despliegue frontend, login y correspondencia de las identidades A/B en Neon development. No reatribuir roles/scopes sólo para conseguir acceso.
+- Frontend desplegado correctamente con Node 22 y healthcheck `/health`. Las sesiones Clerk de A/B se resolvieron a sus identidades existentes durante las consultas autenticadas y auditoría. No se reatribuyeron roles/scopes.
 
 ## Corrección de ruta de auditoría
 
 `ruta_segura` busca todas las coincidencias `FULL` antes de usar la primera `PARTIAL`. Así GET `/visitas/{visita_id}` deja de registrarse con la plantilla POST `/visitas/{condominio_id}`. Se preserva la sanitización: no se guardan IDs concretos ni query strings. No se reescriben hechos históricos.
 
 Validación local: 40 pruebas de `test_security_outbox.py` y `test_development_config.py` pasaron con SQLite aislado y `TESTING=1`. Incluyen métodos GET/POST/DELETE, rechazo autenticado 403, endpoint de producción rechazado en cada variable y prohibición del fallback EVENT ausente. No se ejecutaron contra producción.
+
+
+## Evidencia development — 3-oct-2026
+
+- Sesiones Clerk manuales: 14 consultas simétricas de casas/usuarios/listas de visitas y visitas por ID, propios 200 y cruces 403. Cancelaciones cruzadas 403; ambas visitas ficticias originales siguen pendientes. 11 rechazos entregados y encontrados en EVENT, incluyendo un intento adicional realizado todavía con A.
+- Automatización local: 50 pruebas pasaron en SQLite aislado, incluidas dos parametrizaciones HTTP de creación/cancelación propias, creación cruzada 403, cuerpo con otro condominio 400, cancelación cruzada 403 sin cambio y auditoría con identidad/ruta/método. Comando: `TESTING=1 python -m pytest tests/test_msp_boundary.py tests/test_destinos_visitas.py tests/test_security_outbox.py tests/test_development_config.py -q --override-ini addopts='' --tb=short`.
+- API desplegada: runner `scripts/development_visit_smoke.ts` ejecutado dentro del proyecto Railway separado. Función `axs-development-visit-smoke`, servicio `d34e653f-5bab-4c9e-96fc-b90de8d0536d`, deployment `b798674b-017f-4a65-b8fb-45cdd9a43532`, resultado PASS con 20 comprobaciones en ejecución final.
+- Autenticación del runner: JWT local HS256 ya admitido por el backend, expira en 5 minutos y sujeto limitado en el código a las dos identidades demo; el backend resuelve usuario y permisos reales. No reemplaza una prueba de creación mediante Clerk/UI. Secreto inyectado exclusivamente mediante referencia al backend development, nunca impreso. API y endpoint development fijos; sin URL pública, cron ni reinicios automáticos. Tras finalizar se vació AXS_TEST_SECRET sin redesplegar: un despliegue posterior requiere volver a configurar la referencia.
+- Primera ejecución completó A y se detuvo al exigir vivienda en B. B sólo tiene destinos comunes; se ajustó el runner para aceptar Administración existente. La ejecución final reutilizó la visita A cancelada, sin duplicarla. La cancelación cruzada de A pendiente quedó verificada en primera ejecución; la de B pendiente en la segunda. No se alteró el catálogo para conseguir que pasara.
+- Visitas nuevas: `VIS-4ced9e365c` en A (vivienda 101), `VIS-7dad7600d5` en B (Administración). Ambas quedaron canceladas por su propio administrador. Exactamente una visita por marcador A/B en CORE.
+- Auditoría de ambas ejecuciones: 4 hechos de negocio (dos creaciones y dos cancelaciones) y 6 SCOPE_DENIED; cada uno entregado en un intento, last_error NULL. Reintentos de peticiones denegadas son hechos distintos. Comprobados por UID en EVENT sin duplicados.
+- PR #25 sigue en draft; no se fusionó a main ni se cambió el proyecto de producción.
