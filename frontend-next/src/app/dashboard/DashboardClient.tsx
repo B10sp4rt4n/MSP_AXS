@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { UserButton, useAuth, useUser } from "@clerk/nextjs";
 import { api } from "@/lib/api";
+import { PORTAL_ROLES } from "@/lib/portal-roles";
 
 interface MeResponse {
   rol: string;
@@ -17,53 +18,69 @@ const PORTALES: {
   href: string;
   icon: string;
   desc: string;
-  roles: string[];
+  roles: readonly string[];
 }[] = [
   {
     title: "Portal Guardia",
     href: "/dashboard/guardia",
     icon: "🛡️",
     desc: "Registrar entradas, salidas y validar QR",
-    roles: ["GUARDIA", "MSP_ADMIN", "ADMIN_CONDOMINIO"],
+    roles: PORTAL_ROLES.guardia,
   },
   {
     title: "Portal Residente",
     href: "/dashboard/residente",
     icon: "🏠",
     desc: "Preregistrar visitas y generar QR de acceso",
-    roles: ["RESIDENTE", "MSP_ADMIN", "ADMIN_CONDOMINIO"],
+    roles: PORTAL_ROLES.residente,
   },
   {
     title: "Panel Admin",
     href: "/dashboard/admin",
     icon: "⚙️",
     desc: "Visitas, casas y usuarios del condominio",
-    roles: ["ADMIN_CONDOMINIO", "MSP_ADMIN"],
+    roles: PORTAL_ROLES.admin,
   },
   {
     title: "Dashboard MSP",
     href: "/dashboard/msp",
     icon: "🏢",
     desc: "Vista global de condominios y usuarios del sistema",
-    roles: ["MSP_ADMIN"],
+    roles: PORTAL_ROLES.msp,
   },
 ];
 
 export default function DashboardClient() {
   const { user } = useUser();
-  const { getToken } = useAuth();
-  const [me, setMe] = useState<MeResponse | null>(null);
+  const { getToken, userId, isLoaded } = useAuth();
+  const [profile, setProfile] = useState<{ userId: string; data: MeResponse } | null>(null);
+  const [failure, setFailure] = useState<{ userId: string; message: string } | null>(null);
+  const me = profile && profile.userId === userId ? profile.data : null;
+  const error = failure && failure.userId === userId ? failure.message : "";
 
   useEffect(() => {
+    if (!isLoaded || !userId) return;
+    let active = true;
     getToken()
-      .then((token) => token ? api.get<MeResponse>("/auth/me", token) : null)
-      .then((data) => { if (data) setMe(data); })
-      .catch(() => {});
-  }, [getToken]);
+      .then((token) => {
+        if (!token) throw new Error("Sin sesión");
+        return api.get<MeResponse>("/auth/me", token);
+      })
+      .then((data) => {
+        if (active) { setProfile({ userId, data }); setFailure(null); }
+      })
+      .catch(() => {
+        if (active) {
+          setProfile(null);
+          setFailure({ userId, message: "No pudimos comprobar tus permisos. Intenta de nuevo." });
+        }
+      });
+    return () => { active = false; };
+  }, [getToken, userId, isLoaded]);
 
   const portales = me
     ? PORTALES.filter((p) => p.roles.includes(me.rol))
-    : PORTALES; // mientras carga, muestra todos (fallback graceful)
+    : [];
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -86,6 +103,11 @@ export default function DashboardClient() {
       </header>
 
       <main className="p-6 max-w-4xl mx-auto">
+        {!me && !error && <p role="status" className="text-gray-400">Comprobando permisos...</p>}
+        {error && <div role="alert" className="text-red-400">
+          <p>{error}</p>
+          <a href="/dashboard" className="text-blue-400">Reintentar</a>
+        </div>}
         {me?.condominio_id === null && me?.rol === "RESIDENTE" && (
           <div className="mb-4 bg-yellow-900/30 border border-yellow-700 rounded-xl p-4 text-sm text-yellow-300">
             Tu cuenta aún no tiene una casa asignada. Contacta al administrador de tu condominio.
