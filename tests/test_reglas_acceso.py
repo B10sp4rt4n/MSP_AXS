@@ -230,3 +230,79 @@ def test_rule_change_and_entry_serialized_in_postgres(setup):
             assert future.result(timeout=10) == 403
     setup.expire_all()
     assert setup.query(Visita).one().entrada_registrada_en is None
+
+
+def test_dos_guardias_mismo_qr_postgres(setup):
+    """Dos sesiones independientes compiten por el mismo QR: sólo una gana."""
+    if setup.get_bind().dialect.name != 'postgresql':
+        pytest.skip('Requiere PostgreSQL para competencia real entre sesiones')
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from sqlalchemy.orm import Session
+    from types import SimpleNamespace
+    from fastapi import HTTPException
+    from backend.services.visita_service import registrar_entrada
+    from backend.services.event_outbox import contexto_evento, rechazar_operacion
+    now = datetime.utcnow()
+    pending(setup, qr_token='same-qr', qr_vigencia=now+timedelta(minutes=60), vigencia=now)
+    barrier = Barrier(2)
+    def scan(actor):
+        with Session(setup.get_bind()) as db:
+            user = SimpleNamespace(usuario_id=actor)
+            barrier.wait(timeout=10)
+            try:
+                registrar_entrada(db, 'old', qr_token='same-qr',
+                    auditoria=contexto_evento(user, 'test-session', entidad='qr', accion='validar'))
+                return 200
+            except HTTPException as exc:
+                # Misma conservación de rechazo que la ruta HTTP tras scope.
+                try:
+                    rechazar_operacion(db, user, 'test-session', 'a', 'old',
+                        detail=exc.detail, entidad='qr', accion='validar', status_code=exc.status_code)
+                except HTTPException as denied:
+                    return denied.status_code
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(scan, ['guard-1','guard-2']))
+    assert sorted(results) == [200,400]
+    setup.expire_all()
+    assert setup.query(Visita).one().entrada_registrada_en is not None
+    events = setup.query(EventOutbox).all()
+    assert sorted(e.payload['resultado'] for e in events) == ['denegado','exito']
+    assert {e.payload['identity_id'] for e in events} == {'guard-1','guard-2'}
+
+
+def test_carga_concurrente_acotada_postgres(setup, request):
+    """24 visitas, 8 workers; entrada/salida/lectura con conexiones propias."""
+    if setup.get_bind().dialect.name != 'postgresql':
+        pytest.skip('Requiere PostgreSQL para carga concurrente')
+    from concurrent.futures import ThreadPoolExecutor
+    from time import perf_counter
+    from statistics import median
+    from sqlalchemy.orm import Session
+    from types import SimpleNamespace
+    from backend.services.visita_service import registrar_entrada, registrar_salida
+    from backend.services.event_outbox import contexto_evento
+    now=datetime.utcnow()
+    for i in range(24):
+        pending(setup,visita_id=f'load-{i}',qr_token=f'token-{i}',
+                vigencia=now,qr_vigencia=now+timedelta(hours=1))
+    def cycle(i):
+        started=perf_counter()
+        with Session(setup.get_bind()) as db:
+            audit=contexto_evento(SimpleNamespace(usuario_id=f'load-guard-{i}'),'test')
+            row=registrar_entrada(db,f'load-{i}',qr_token=f'token-{i}',auditoria=audit)
+            assert row.entrada_registrada_en is not None
+            assert db.query(Visita).filter_by(condominio_id='a').count() == 24
+            registrar_salida(db,f'load-{i}',auditoria=audit)
+        return (perf_counter()-started)*1000
+    started=perf_counter()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        latency=list(pool.map(cycle,range(24)))
+    elapsed=perf_counter()-started
+    setup.expire_all()
+    assert setup.query(Visita).filter_by(estado='salida_registrada').count() == 24
+    events=setup.query(EventOutbox).all()
+    assert len(events) == len({e.event_uid for e in events}) == 48
+    assert all(e.payload['resultado']=='exito' for e in events)
+    # Emitir mediciones sin umbrales artificiales; no es prueba de capacidad productiva.
+    request.config.pluginmanager.get_plugin('terminalreporter').write_line(f'AXS_LOAD visits=24 workers=8 seconds={elapsed:.3f} median_ms={median(latency):.2f} max_ms={max(latency):.2f}')
