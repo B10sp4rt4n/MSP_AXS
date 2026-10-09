@@ -5,7 +5,8 @@ from backend.core.auth.dependencies import get_current_user
 from backend.core.scope.msp_boundary import require_condominio
 from backend.core.tenant.context import _set_postgres_tenant
 from backend.db.core import AccessLevel, EventOutbox, Usuario, get_core_db
-from backend.db.event import Event, get_event_db
+from backend.db.event import Event
+from backend.db.event.session import get_event_db
 from backend.db.gov import get_gov_db
 from backend.services.qr_service import as_utc
 
