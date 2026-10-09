@@ -164,6 +164,8 @@ app.include_router(qr_router.router)
 app.include_router(evidencias_router.router)
 app.include_router(preregistro_router.router)
 app.include_router(condominios_router.router)
+from backend.routers import provider_offboarding_router
+app.include_router(provider_offboarding_router.router)
 
 # ✅ Router Meta-Operativo v1.0 (CONGELADO)
 # NO usa middleware de tenant (dominio separado)
