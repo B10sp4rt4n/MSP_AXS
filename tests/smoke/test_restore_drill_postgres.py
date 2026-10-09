@@ -41,10 +41,9 @@ def test_backup_restore_and_stale_authorization_quarantine(tmp_path, request):
     admin = create_engine(raw)
     engine = create_engine(raw, connect_args={'options': f'-csearch_path={schema}'})
     archive = tmp_path / 'synthetic.dump'
-    env = {**os.environ, 'PGHOST': url.host, 'PGPORT': str(url.port or 5432),
+    env = {**{k: v for k, v in os.environ.items() if not k.startswith('PG')}, 'PGHOST': url.host, 'PGPORT': str(url.port or 5432),
            'PGDATABASE': url.database, 'PGUSER': url.username,
-           'PGPASSWORD': url.password or '', 'PGCONNECT_TIMEOUT': '5',
-           'PGOPTIONS': '', 'PGSERVICE': ''}
+           'PGPASSWORD': url.password or '', 'PGCONNECT_TIMEOUT': '5'}
     metadata = [Base_CORE.metadata, Base_GOV.metadata, Base_EVENT.metadata]
     table_names = sorted({t.name for m in metadata for t in m.tables.values()})
 
@@ -58,7 +57,8 @@ def test_backup_restore_and_stale_authorization_quarantine(tmp_path, request):
         start = perf_counter()
         result = subprocess.run(args, env=env, capture_output=True, timeout=60)
         # Do not leak connection credentials or row values in command output.
-        assert result.returncode == 0, (args[0], result.returncode)
+        if result.returncode:
+            raise RuntimeError(f'{args[0]} failed with exit code {result.returncode}')
         return perf_counter() - start
 
     try:
