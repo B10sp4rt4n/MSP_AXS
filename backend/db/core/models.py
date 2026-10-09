@@ -276,3 +276,13 @@ class SecurityOutbox(Base_CORE):
     next_attempt_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     last_error = Column(String, nullable=True)
     __table_args__ = (Index("ix_security_outbox_pending", "delivered_at", "next_attempt_at"),)
+
+
+class RecoveryCheckpoint(Base_CORE):
+    """Recovery audit/checkpoint; incident identifier comes from deployment config."""
+    __tablename__ = 'recovery_checkpoints'
+    incident_id = Column(String, primary_key=True)
+    phase = Column(String, nullable=False, default='locked')
+    release_nonce = Column(String, nullable=True)
+    report = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
