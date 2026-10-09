@@ -23,6 +23,13 @@ jobs:
     - run: npm install --no-save --package-lock=false playwright@1.58.2
     - run: npx playwright install --with-deps chromium
     - run: node tests/provider-console.browser.cjs
+      env:
+        AXS_SCREENSHOT_DIR: screenshots/provider-console
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: provider-console-responsive
+        path: frontend-next/screenshots/provider-console/
 
   frontend-roles:
     runs-on: ubuntu-latest

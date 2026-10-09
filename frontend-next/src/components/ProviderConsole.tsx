@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { api } from '@/lib/api';
 import { basePath, blockers, closeOperation, mexicoTime, type Contract, type Inventory, type Operation, type Snapshot } from '@/lib/provider-contracts';
@@ -21,6 +21,13 @@ function ContractPanel() {
   const [error, setError] = useState('');
   const [receipt, setReceipt] = useState<Record<string, unknown> | null>(null);
   const [pending, setPending] = useState<Operation | null>(null);
+  const confirmation = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (pending) {
+      confirmation.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+      confirmation.current?.focus({ preventScroll: true });
+    }
+  }, [pending]);
   const [reason, setReason] = useState('');
   const [provider, setProvider] = useState('');
   const [evidence, setEvidence] = useState('');
@@ -83,8 +90,8 @@ function ContractPanel() {
       <a href="/dashboard" className="text-blue-300">← Inicio</a>
       <header><h1 className="text-2xl font-bold">Contratos de proveedores</h1>
         <p className="text-gray-300 mt-2">Baja, recontratación e historial por condominio. Exclusivo del operador de plataforma.</p></header>
-      <form onSubmit={e => { e.preventDefault(); void load(); }} className="flex items-end gap-3">
-        <label className="flex-1">ID del condominio<input className={inputClass} value={tenant} disabled={busy || !!pending}
+      <form onSubmit={e => { e.preventDefault(); void load(); }} className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+        <label className="flex-1 min-w-0">ID del condominio<input className={inputClass} value={tenant} disabled={busy || !!pending}
           onChange={e => { setTenant(e.target.value); setSnapshot(null); setReceipt(null); }} required /></label>
         <button className={buttonClass} disabled={busy || !!pending}>Consultar</button>
       </form>
@@ -92,7 +99,7 @@ function ContractPanel() {
       {error && <p role="alert" className="text-amber-300">{error}</p>}
       {receipt && <section role="status" className="border border-green-700 rounded p-4">
         <h2 className="font-bold">Comprobante recibido</h2><pre className="whitespace-pre-wrap break-all text-xs mt-2">{JSON.stringify(receipt, null, 2)}</pre></section>}
-      {pending && <section aria-label="Confirmar operación" className="border border-amber-500 rounded p-4 space-y-3">
+      {pending && <section ref={confirmation} tabIndex={-1} aria-label="Confirmar operación" className="border border-amber-500 rounded p-4 space-y-3 break-words scroll-mt-4">
         <h2 className="font-bold">{pending.label}</h2><p>Condominio: {selected}</p>
         <p>La baja revoca los permisos del proveedor y conserva los propios del condominio. Un contrato nuevo requiere otorgar permisos nuevos al personal.</p>
         <details><summary>Datos de la solicitud</summary><pre className="text-xs whitespace-pre-wrap break-all">{JSON.stringify(pending.body, null, 2)}</pre></details>
@@ -100,7 +107,7 @@ function ContractPanel() {
         <button disabled={busy} onClick={() => setPending(null)}>Cancelar</button>
       </section>}
       {snapshot && <>
-        <section className="border border-gray-700 rounded p-4 space-y-2">
+        <section className="border border-gray-700 rounded p-4 space-y-2 break-words">
           <h2 className="font-bold">{selected} · {snapshot.inventory.msp_id ? `Proveedor: ${snapshot.inventory.msp_id}` : 'Sin proveedor vigente'}</h2>
           <p>{current ? `Contrato ${current.version} · ${current.contract_id}` : snapshot.inventory.msp_id ? 'Relación anterior sin contrato versionado' : 'Puedes iniciar un contrato nuevo'}</p>
           {unknown.length > 0 && <p className="text-amber-300">Baja bloqueada: revisa procedencia de permisos {unknown.map(s => s.scope_id).join(', ')}.</p>}
