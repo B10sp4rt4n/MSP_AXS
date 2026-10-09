@@ -66,7 +66,8 @@ function ContractPanel() {
     if (opening.current?.key !== key) opening.current = { key, id: crypto.randomUUID() };
     setPending({ method: 'post', path: `${basePath(selected)}/proveedor/contratos`,
       body: { contract_id: opening.current.id, msp_id: provider.trim(), evidence_ref: evidence.trim() },
-      label: `Abrir contrato nuevo con ${provider.trim()}` });
+      label: `Abrir contrato nuevo con ${provider.trim()}`,
+      description: 'Se abrirá un contrato independiente. Los permisos revocados de contratos anteriores seguirán revocados; debes otorgar permisos nuevos al personal.' });
   }
   async function execute() {
     if (!pending || lock.current) return;
@@ -101,7 +102,7 @@ function ContractPanel() {
         <h2 className="font-bold">Comprobante recibido</h2><pre className="whitespace-pre-wrap break-all text-xs mt-2">{JSON.stringify(receipt, null, 2)}</pre></section>}
       {pending && <section ref={confirmation} tabIndex={-1} aria-label="Confirmar operación" className="border border-amber-500 rounded p-4 space-y-3 break-words scroll-mt-4">
         <h2 className="font-bold">{pending.label}</h2><p>Condominio: {selected}</p>
-        <p>La baja revoca los permisos del proveedor y conserva los propios del condominio. Un contrato nuevo requiere otorgar permisos nuevos al personal.</p>
+        <p>{pending.description}</p>
         <details><summary>Datos de la solicitud</summary><pre className="text-xs whitespace-pre-wrap break-all">{JSON.stringify(pending.body, null, 2)}</pre></details>
         <button className={buttonClass} disabled={busy} onClick={() => void execute()}>Confirmar operación</button>{' '}
         <button disabled={busy} onClick={() => setPending(null)}>Cancelar</button>
@@ -124,7 +125,8 @@ function ContractPanel() {
           </form>}
           {current && <form className="space-y-3" onSubmit={e => { e.preventDefault(); setPending({ method: 'post',
             path: `${basePath(selected)}/proveedor/contratos/${encodeURIComponent(current.contract_id)}/personal/${encodeURIComponent(person.trim())}`,
-            body: { evidence_ref: evidence.trim() }, label: `Otorgar permiso nuevo a ${person.trim()}` }); }}>
+            body: { evidence_ref: evidence.trim() }, label: `Otorgar permiso nuevo a ${person.trim()}`,
+            description: `Se otorgará un permiso vinculado al contrato ${current.version}. Los permisos revocados de contratos anteriores seguirán revocados.` }); }}>
             <h2 className="font-semibold">Reincorporar personal existente</h2>
             <label className="block">ID del guardia o administrador<input className={inputClass} value={person} onChange={e => setPerson(e.target.value)} required /></label>
             <label className="block">Referencia de autorización<input className={inputClass} value={evidence} onChange={e => setEvidence(e.target.value)} required maxLength={500} /></label>
@@ -135,7 +137,8 @@ function ContractPanel() {
             <form className="space-y-3 mt-3" onSubmit={e => { e.preventDefault(); setPending({method: 'put',
               path: `${basePath(selected)}/permisos/${scopeId}/procedencia`,
               body: { kind, evidence_ref: evidence.trim(), ...(kind === 'msp' ? {msp_id: snapshot.inventory.msp_id} : {}) },
-              label: `Registrar permiso ${scopeId} como ${kind === 'msp' ? 'del proveedor' : 'propio del condominio'}`}); }}>
+              label: `Registrar permiso ${scopeId} como ${kind === 'msp' ? 'del proveedor' : 'propio del condominio'}`,
+              description: 'Se registrará la procedencia del permiso con la evidencia indicada. Una procedencia registrada no puede cambiarse aquí.'}); }}>
               <label className="block">Permiso<select className={inputClass} value={scopeId} onChange={e => setScopeId(e.target.value)} required>
                 <option value="">Selecciona</option>{snapshot.inventory.scopes.filter(s => !['msp','condominio'].includes(s.origin.kind ?? '')).map(s => <option key={s.scope_id} value={s.scope_id}>{s.scope_id} · {s.usuario_id}</option>)}
               </select></label>
