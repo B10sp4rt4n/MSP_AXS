@@ -32,7 +32,9 @@ async function request<T>(path: string, { method = "GET", body, token }: Request
           }
           return "";
         }).filter(Boolean).join("; ")
-      : "";
+      : detail && typeof detail === "object" && "message" in detail && typeof detail.message === "string"
+        ? `${detail.message}${"scope_ids" in detail && Array.isArray(detail.scope_ids) ? ` (permisos: ${detail.scope_ids.join(", ")})` : ""}`
+        : "";
     throw new Error(message || `Error ${res.status}`);
   }
 
