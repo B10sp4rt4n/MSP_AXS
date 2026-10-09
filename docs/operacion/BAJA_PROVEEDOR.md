@@ -22,8 +22,9 @@ como locales ni ejecutar esta operación.
    ni permisos de otros condominios. Las autoridades de plataforma siguen siendo
    independientes de la relación comercial.
 5. Repetir la solicitud devuelve el mismo comprobante sin otro evento. Si ahora
-   hay otro proveedor devuelve 409. Reutilizar por SQL una relación ya cerrada no
-   inicia un contrato nuevo: se rechaza hasta implementar contratos versionados.
+   hay otro proveedor devuelve 409 para la ruta legacy. En relaciones versionadas
+   se exige `contract_id`: un cierre ya realizado devuelve su comprobante sin
+   afectar un contrato posterior. Ver CONTRATOS_PROVEEDOR.md para la recontratación.
 
 Las autorizaciones operativas que pasan por require_condominio y la baja toman
 el mismo bloqueo de fila. Una solicitud ya autorizada termina antes de la baja;
