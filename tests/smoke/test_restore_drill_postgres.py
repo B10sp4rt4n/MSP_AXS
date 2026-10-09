@@ -106,6 +106,14 @@ def test_backup_restore_and_stale_authorization_quarantine(tmp_path, request):
             db.query(UserTenantScope).update({UserTenantScope.estado: ScopeStatus.REVOCADO})
             db.commit()
             assert enviar_pendientes(db, 'a', lambda: Session(engine)) == 1
+            guard = db.query(Usuario).filter_by(usuario_id='guard').one()
+            with pytest.raises(HTTPException) as denied:
+                require_condominio(db, db, guard, 'a', AccessLevel.GUARDIA)
+            assert denied.value.status_code == 403
+            with pytest.raises(HTTPException) as denied:
+                registrar_entrada(db, 'pending', qr_token='qr-pending')
+            assert denied.value.status_code == 400
+            db.rollback()
         after = snapshot(schema)
         assert before != after
         engine.dispose()
