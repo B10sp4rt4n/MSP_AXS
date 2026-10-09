@@ -9,6 +9,7 @@ from backend.db.core import (
 )
 from backend.db.gov import Authority, AuthorityType, GovStatus
 from backend.core.scope.validator import nivel_suficiente
+from backend.core.scope.provider_contract import origin_is_current
 
 
 def is_platform_operator(db_gov: Session, usuario: Usuario) -> bool:
@@ -58,7 +59,7 @@ def require_condominio(
         UserTenantScope.tenant_id == condominio_id,
         UserTenantScope.estado == ScopeStatus.ACTIVO,
     ).all()
-    if not any(nivel_suficiente(scope.access_level, level) for scope in scopes):
+    if not any(nivel_suficiente(scope.access_level, level) and origin_is_current(db, scope, condo) for scope in scopes):
         raise SecurityDenial(403, "Sin acceso al condominio", reason="SCOPE_DENIED")
     return condo
 
@@ -120,11 +121,11 @@ def require_visita(
 
 
 def _admin_condominios(db: Session, usuario: Usuario) -> set[str]:
-    return {row[0] for row in db.query(UserTenantScope.tenant_id).filter(
+    return {scope.tenant_id for scope in db.query(UserTenantScope).filter(
         UserTenantScope.usuario_id == usuario.usuario_id,
         UserTenantScope.estado == ScopeStatus.ACTIVO,
         UserTenantScope.access_level.in_([AccessLevel.ADMIN_CONDOMINIO, AccessLevel.MSP_ADMIN]),
-    ).all()}
+    ).all() if origin_is_current(db, scope)}
 
 
 def _is_msp_admin_for(db: Session, usuario: Usuario, condominio_id: str) -> bool:
