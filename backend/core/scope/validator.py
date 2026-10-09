@@ -109,12 +109,15 @@ def validar_scope(
     """
     
     # Buscar AUP_SCOPE activo
-    scope = db.query(UserTenantScope).filter(
+    scopes = db.query(UserTenantScope).filter(
         UserTenantScope.usuario_id == usuario.usuario_id,
         UserTenantScope.tenant_id == tenant_id,
         UserTenantScope.estado == ScopeStatus.ACTIVO
-    ).first()
-    
+    ).all()
+
+    from backend.core.scope.provider_contract import origin_is_current
+    scope = next((s for s in scopes if nivel_suficiente(s.access_level, required_level)
+                  and origin_is_current(db, s)), None)
     if not scope:
         logger.warning(
             f"AUP_SCOPE no encontrado: usuario={usuario.usuario_id} "

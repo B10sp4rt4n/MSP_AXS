@@ -12,6 +12,7 @@ from .models import (
     AccessLevel,
     # Modelos
     MSP,
+    ProviderContract,
     Condominio,
     Casa,
     Usuario,
@@ -35,6 +36,7 @@ __all__ = [
     "AccessLevel",
     # Modelos
     "MSP",
+    "ProviderContract",
     "Condominio",
     "Casa",
     "Usuario",
