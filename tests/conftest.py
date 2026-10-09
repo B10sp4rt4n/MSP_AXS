@@ -208,6 +208,8 @@ def client(db_session, db_event_session, db_gov_session):
 
     app.dependency_overrides[get_core_db] = lambda: db_session
     app.dependency_overrides[get_event_db] = lambda: db_event_session
+    from backend.db.event.session import get_event_db as canonical_event_db
+    app.dependency_overrides[canonical_event_db] = lambda: db_event_session
     app.dependency_overrides[get_gov_db] = lambda: db_gov_session
     try:
         with TestClient(app) as test_client:
