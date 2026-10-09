@@ -101,3 +101,97 @@ def test_preregistro_destino_asignado_y_rechazo_inexistente(client, people, db_g
     assert client.post("/preregistro/crear", headers=h,
                        json={"nombre_visitante": "Blocked", "tipo_visita": "visita_personal"}).status_code == 400
     assert people.query(Visita).count() == before
+
+
+@pytest.fixture
+def prereg_catalog(people, db_gov_session):
+    people.add_all([
+        Casa(casa_id="home", condominio_id="a1", numero="101", tipo="casa"),
+        Casa(casa_id="common", condominio_id="a1", numero="Administración", tipo="administracion"),
+        Casa(casa_id="foreign", condominio_id="b1", numero="201", tipo="casa"),
+    ])
+    people.flush()
+    resident = people.query(Usuario).filter_by(usuario_id="resident").one()
+    resident.casa_id, resident.casa_unidad = "home", "101"
+    people.commit()
+    db_gov_session.add(Policy(policy_id="admin_qr", nombre="QR", ambito=PolicyScope.GLOBAL,
+                             accion_objetivo="generar_qr", limites={}, estado=GovStatus.ACTIVO))
+    db_gov_session.commit()
+    return people
+
+
+@pytest.mark.parametrize("identity,role", [("admin", "ADMIN_CONDOMINIO"), ("msp", "MSP_ADMIN")])
+@pytest.mark.parametrize("destination", ["home", "common"])
+def test_admin_preregistro_without_house(client, prereg_catalog, identity, role, destination):
+    from backend.db.core import EventOutbox
+    db = prereg_catalog
+    user = db.query(Usuario).filter_by(usuario_id=identity).one()
+    assert user.casa_id is None and user.casa_unidad is None
+    result = client.post("/preregistro/crear", headers=headers(identity, role), json={
+        "nombre_visitante": "Synthetic visitor", "tipo_visita": "visita_personal",
+        "condominio_id": "a1", "destino_id": destination,
+    })
+    assert result.status_code == 200, result.text
+    visit = db.query(Visita).filter_by(visita_id=result.json()["visita_id"]).one()
+    assert (visit.condominio_id, visit.destino_id, visit.autorizada_por) == ("a1", destination, identity)
+    assert visit.qr_token and visit.autorizada_en and result.json()["qr_base64"]
+    assert user.casa_id is None and user.casa_unidad is None
+    events = db.query(EventOutbox).all()
+    assert len(events) == 2
+    assert {e.payload["entidad"] for e in events} == {"visita", "qr"}
+    assert all(e.payload["tenant_id"] == "a1" and e.payload["identity_id"] == identity for e in events)
+
+
+@pytest.mark.parametrize("identity,role,extra,status", [
+    ("admin", "ADMIN_CONDOMINIO", {}, 400),
+    ("admin", "ADMIN_CONDOMINIO", {"condominio_id": "a1"}, 400),
+    ("admin", "ADMIN_CONDOMINIO", {"condominio_id": "b1", "destino_id": "foreign"}, 403),
+    ("msp", "MSP_ADMIN", {"condominio_id": "b1", "destino_id": "foreign"}, 403),
+    ("admin", "ADMIN_CONDOMINIO", {"condominio_id": "a1", "destino_id": "foreign"}, 400),
+    ("admin", "ADMIN_CONDOMINIO", {"condominio_id": "a1", "destino_id": "OTRO"}, 400),
+    ("resident", "RESIDENTE", {"condominio_id": "b1", "destino_id": "foreign"}, 403),
+    ("resident", "RESIDENTE", {"condominio_id": "a1", "destino_id": "common"}, 403),
+    ("guard", "GUARDIA", {"condominio_id": "a1", "destino_id": "home"}, 403),
+])
+def test_preregistro_rejects_unauthorized_destination(client, prereg_catalog, identity, role, extra, status):
+    result = client.post("/preregistro/crear", headers=headers(identity, role), json={
+        "nombre_visitante": "Rejected synthetic visitor", "tipo_visita": "visita_personal", **extra,
+    })
+    assert result.status_code == status, result.text
+    assert prereg_catalog.query(Visita).count() == 0
+
+
+def test_admin_preregistro_qr_failure_rolls_back(client, prereg_catalog, monkeypatch):
+    from backend.services import qr_service
+    from backend.db.core import EventOutbox
+    def fail(*args, **kwargs):
+        raise RuntimeError("synthetic QR failure")
+    monkeypatch.setattr(qr_service, "generar_qr_para_visita", fail)
+    result = client.post("/preregistro/crear", headers=headers("admin", "ADMIN_CONDOMINIO"), json={
+        "nombre_visitante": "Rollback", "tipo_visita": "visita_personal", "condominio_id": "a1", "destino_id": "home",
+    })
+    assert result.status_code == 500
+    assert prereg_catalog.query(Visita).count() == 0
+    assert prereg_catalog.query(EventOutbox).count() == 0
+
+
+def test_admin_without_scope_cannot_preregister(client, prereg_catalog):
+    prereg_catalog.query(UserTenantScope).filter_by(usuario_id="admin").delete()
+    prereg_catalog.commit()
+    result = client.post("/preregistro/crear", headers=headers("admin", "ADMIN_CONDOMINIO"), json={
+        "nombre_visitante": "Denied", "tipo_visita": "visita_personal",
+        "condominio_id": "a1", "destino_id": "home",
+    })
+    assert result.status_code == 403
+    assert prereg_catalog.query(Visita).count() == 0
+
+
+def test_admin_government_denial_creates_no_visit(client, prereg_catalog, monkeypatch):
+    from backend.routers import preregistro_router
+    monkeypatch.setattr(preregistro_router, "puede_ejecutar_accion", lambda **kwargs: (False, "synthetic denial"))
+    result = client.post("/preregistro/crear", headers=headers("admin", "ADMIN_CONDOMINIO"), json={
+        "nombre_visitante": "Denied", "tipo_visita": "visita_personal",
+        "condominio_id": "a1", "destino_id": "home",
+    })
+    assert result.status_code == 403
+    assert prereg_catalog.query(Visita).count() == 0

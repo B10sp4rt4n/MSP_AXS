@@ -157,15 +157,16 @@ def cancelar_visita(db: Session, visita_id: str, *, estado_esperado: str, audito
 # ---------------------------------------------------------
 # Crear visita desde preregistro (RESIDENTE)
 # ---------------------------------------------------------
-def crear_desde_preregistro(db: Session, data: Any, usuario: Any, *, destino: dict | None = None, casa_label: str | None = None, auditoria: dict | None = None, generar_qr: bool = False) -> Visita:
+def crear_desde_preregistro(db: Session, data: Any, usuario: Any, *, destino: dict | None = None, casa_label: str | None = None, auditoria: dict | None = None, generar_qr: bool = False, condominio_id: str | None = None) -> Visita:
     """
     Crear una visita desde preregistro.
     Incluye evidencia metadata-only sin archivos (archivo_url='', hash_sha256='').
     Todo se maneja en una sola transacción para evitar commits anidados.
     """
 
-    condominio_id = getattr(usuario, "condominio_id", None)
-    casa_unidad = getattr(usuario, "casa_unidad", None)
+    # Explicit tenant/destination are resolved and authorized by the router.
+    condominio_id = condominio_id or getattr(usuario, "condominio_id", None)
+    casa_unidad = casa_label or getattr(usuario, "casa_unidad", None)
 
     if not condominio_id:
         from fastapi import HTTPException

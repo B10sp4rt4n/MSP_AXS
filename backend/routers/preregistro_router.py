@@ -36,15 +36,30 @@ def crear_preregistro(
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
 ):
     verificar_rol(usuario, ["RESIDENTE", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
-    if not usuario.condominio_id or not usuario.casa_unidad:
-        raise HTTPException(400, "Se requiere vivienda asignada")
-    require_condominio(db, db_gov, usuario, usuario.condominio_id, AccessLevel.RESIDENTE)
-    _set_postgres_tenant(db, usuario.condominio_id)
+    residente = usuario.rol == "RESIDENTE"
+    if residente:
+        if not usuario.condominio_id or not usuario.casa_unidad:
+            raise HTTPException(400, "Se requiere vivienda asignada")
+        if data.condominio_id is not None and data.condominio_id != usuario.condominio_id:
+            raise HTTPException(403, "El residente sólo puede preregistrar en su condominio")
+        condominio_id = usuario.condominio_id
+    else:
+        if not data.condominio_id or not data.destino_id:
+            raise HTTPException(400, "Selecciona condominio y destino para el preregistro administrativo")
+        condominio_id = data.condominio_id
 
+    require_condominio(db, db_gov, usuario, condominio_id,
+                       AccessLevel.RESIDENTE if residente else AccessLevel.ADMIN_CONDOMINIO)
+    _set_postgres_tenant(db, condominio_id)
+    if not residente and data.destino_id == "OTRO":
+        raise HTTPException(400, "El preregistro requiere un destino del catálogo")
     label, destination = visita_service.resolver_destino(
-        db, usuario.condominio_id, destino_id=usuario.casa_id,
-        casa_unidad=usuario.casa_unidad, residente=True,
+        db, condominio_id,
+        destino_id=usuario.casa_id if residente else data.destino_id,
+        casa_unidad=usuario.casa_unidad if residente else None, residente=residente,
     )
+    if residente and data.destino_id is not None and data.destino_id != destination["destino_id"]:
+        raise HTTPException(403, "El residente sólo puede preregistrar para su vivienda")
     # ═══════════════════════════════════════════════════════════════════
     # AUP_GOV: Evaluar política ANTES de crear preregistro
     # Axioma: Gobierno precede a operación
@@ -58,7 +73,7 @@ def crear_preregistro(
         usuario=usuario,
         session_token=token,
         accion="generar_qr",
-        tenant_id=usuario.condominio_id,
+        tenant_id=condominio_id,
         metadata={"dias_vigencia": dias_vigencia},
         db_gov=db_gov,
     )
@@ -71,7 +86,7 @@ def crear_preregistro(
         data.fecha_visita = qr_service.utc_now().replace(tzinfo=None)
     try:
         # Crear visita y persistir metadata opcional como evidencia
-        visita = visita_service.crear_desde_preregistro(db, data, usuario, destino=destination, casa_label=label,
+        visita = visita_service.crear_desde_preregistro(db, data, usuario, destino=destination, casa_label=label, condominio_id=condominio_id,
             generar_qr=True, auditoria=contexto_evento(usuario, token, accion="crear", motivo="Visita preregistrada"))
 
         # Visita, QR y eventos se confirmaron juntos; renderizar el token guardado.
