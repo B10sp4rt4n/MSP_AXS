@@ -10,7 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        # Docker Official Images publication on ECR Public; same PostgreSQL major.
+        # https://www.docker.com/press-release/docker-official-images-available-amazon-elastic-container-registry/
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_PASSWORD: postgres
         ports:

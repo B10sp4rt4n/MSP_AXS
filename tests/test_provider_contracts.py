@@ -2,7 +2,7 @@
 from uuid import uuid4
 import pytest
 from fastapi import HTTPException
-from backend.db.core import ProviderContract, Condominio, UserTenantScope, ScopeStatus, Usuario, MSP, EventOutbox
+from backend.db.core import ProviderContract, Condominio, UserTenantScope, ScopeStatus, Usuario, MSP, EventOutbox, Visita, Evidencia
 from backend.services import provider_contracts as service
 from tests.test_provider_offboarding import scenario, classify_all, leave
 from tests.test_recovery_mode import db_engine, db_gov_engine, db_event_engine
@@ -32,6 +32,8 @@ def grant(client, headers, cid, user='guard'):
 
 def test_rehire_requires_new_grant_and_stale_close_cannot_close_new_contract(client, db_session, detached):
     h = detached; operator = h['operator']; first, second = str(uuid4()), str(uuid4())
+    visit_before = db_session.query(Visita).one().entrada_registrada_en
+    evidence_before = db_session.query(Evidencia).one().metadata_json.copy()
     old = db_session.query(UserTenantScope).filter_by(usuario_id='guard', tenant_id='ensayo').one()
     assert opening(client, operator, first).json()['version'] == 1
     assert opening(client, operator, first).json()['unchanged'] is True
@@ -50,17 +52,49 @@ def test_rehire_requires_new_grant_and_stale_close_cannot_close_new_contract(cli
     receipt = closing(client, operator, first); assert receipt.status_code == 200, receipt.text
     assert client.get('/condominios/ensayo/casas', headers=h['guard']).status_code == 403
     assert opening(client, operator, second).json()['version'] == 2
+    # Reusing the exact original JWT cannot resurrect the first contract's grant.
+    assert client.get('/condominios/ensayo/casas', headers=h['guard']).status_code == 403
+    first_scope = db_session.get(UserTenantScope, assigned.json()['scope_id'])
+    first_scope.estado = ScopeStatus.ACTIVO; db_session.commit()
+    assert client.get('/condominios/ensayo/casas', headers=h['guard']).status_code == 403
+    first_scope.estado = ScopeStatus.REVOCADO; db_session.commit()
     assert closing(client, operator, first).json()['event_uid'] == receipt.json()['event_uid']
     assert db_session.query(Condominio).filter_by(condominio_id='ensayo').one().msp_id == 'centinela'
     assert grant(client, operator, first).status_code == 409
-    assert grant(client, operator, second).status_code == 200
-    assert closing(client, operator, second).status_code == 200
+    second_grant = grant(client, operator, second)
+    assert second_grant.status_code == 200, second_grant.text
+    second_scope_id = second_grant.json()['scope_id']
+    assert second_scope_id not in (old.id, first_scope.id)
+    assert client.get('/condominios/ensayo/casas', headers=h['guard']).status_code == 200
+    # A delayed first close must leave the second contract's newly granted access intact.
+    assert closing(client, operator, first).json()['event_uid'] == receipt.json()['event_uid']
+    assert client.get('/condominios/ensayo/casas', headers=h['guard']).status_code == 200
+    second_receipt = closing(client, operator, second)
+    assert second_receipt.status_code == 200, second_receipt.text
+    assert second_receipt.json()['event_uid'] != receipt.json()['event_uid']
+    assert second_receipt.json()['revoked_scope_ids'] == [second_scope_id]
+    assert closing(client, operator, second).json()['event_uid'] == second_receipt.json()['event_uid']
+    assert client.get('/condominios/ensayo/casas', headers=h['guard']).status_code == 403
+    assert client.get('/condominios/ensayo/casas', headers=h['director']).status_code == 403
     assert opening(client, operator, first).json()['closed_at'] is not None
     assert db_session.query(Condominio).filter_by(condominio_id='ensayo').one().msp_id is None
     rows = client.get('/condominios/ensayo/proveedor/contratos', headers=operator).json()
     assert [r['version'] for r in rows] == [1, 2] and all(r['closed_at'] for r in rows)
     assert client.get('/condominios/ensayo/casas', headers=h['local']).status_code == 200
     assert client.get('/condominios/other/casas', headers=h['guard']).status_code == 200
+    for cid, sid in ((first, first_scope.id), (second, second_scope_id)):
+        scope = db_session.get(UserTenantScope, sid)
+        assert scope.estado == ScopeStatus.REVOCADO and scope.revoked_at is not None
+        assert scope.metadata_json['grant_origin']['contract_id'] == cid
+        contract = db_session.get(ProviderContract, cid)
+        assert contract.close_receipt['revoked_scope_ids'] == [sid]
+        events = [e for e in db_session.query(EventOutbox)
+                  if e.payload['accion'] == 'baja_proveedor'
+                  and e.payload['metadata_json'].get('contract_id') == cid]
+        assert len(events) == 1 and events[0].event_uid == contract.close_event_uid
+    assert db_session.query(Visita).one().entrada_registrada_en == visit_before
+    assert db_session.query(Evidencia).one().metadata_json == evidence_before
+    assert db_session.query(UserTenantScope).filter_by(usuario_id='resident').one().estado == ScopeStatus.ACTIVO
 
 
 def test_provider_change_authorization_isolation_and_immutable_keys(client, db_session, detached):
