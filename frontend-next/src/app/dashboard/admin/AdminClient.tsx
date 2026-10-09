@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
 import ConfigurarReglasAcceso, { AutorizarVisita } from "@/components/ReglasAcceso";
+import Bitacora from "@/components/Bitacora";
 import UsuariosCondominio from "@/components/UsuariosCondominio";
 import type { Visita, Condominio, CasasResponse, CasaItem, ResidenteCasa } from "@/lib/types";
 
 const CONDOMINIO_KEY = "axs_condominio_id";
-type Tab = "visitas" | "casas" | "usuarios" | "reglas";
+type Tab = "bitacora" | "visitas" | "casas" | "usuarios" | "reglas";
 
 export default function AdminClient() {
   const router = useRouter();
@@ -50,8 +51,8 @@ export default function AdminClient() {
       </header>
 
       {/* Tabs */}
-      <div className="border-b border-gray-800 px-4 flex gap-1">
-        {(["visitas", "casas", "usuarios", "reglas"] as Tab[]).map(t => (
+      <div className="border-b border-gray-800 px-4 flex gap-1 overflow-x-auto">
+        {(["visitas", "bitacora", "casas", "usuarios", "reglas"] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -61,7 +62,7 @@ export default function AdminClient() {
                 : "text-gray-400 hover:text-white"
             }`}
           >
-            {t === "visitas" ? "Visitas" : t === "casas" ? "Viviendas / Destinos" : t === "usuarios" ? "Usuarios" : "Reglas de acceso"}
+            {t === "bitacora" ? "Bitácora" : t === "visitas" ? "Visitas" : t === "casas" ? "Viviendas / Destinos" : t === "usuarios" ? "Usuarios" : "Reglas de acceso"}
           </button>
         ))}
       </div>
@@ -69,7 +70,8 @@ export default function AdminClient() {
       {error && <p className="text-red-400 text-sm p-4">{error}</p>}
 
       <main className="p-4 max-w-3xl mx-auto">
-        {condominioId && tab === "visitas" && <TabVisitas condominioId={condominioId} getToken={getToken} />}
+        {condominioId && tab === "bitacora" && <Bitacora key={condominioId} condominioId={condominioId} />}
+        {condominioId && tab === "visitas" && <TabVisitas key={condominioId} condominioId={condominioId} getToken={getToken} />}
         {condominioId && tab === "casas"   && <TabCasas   condominioId={condominioId} getToken={getToken} />}
         {condominioId && tab === "usuarios"&& <UsuariosCondominio key={condominioId} condominioId={condominioId} getToken={getToken} />}
         {condominioId && tab === "reglas" && <ConfigurarReglasAcceso key={condominioId} condominioId={condominioId} />}
