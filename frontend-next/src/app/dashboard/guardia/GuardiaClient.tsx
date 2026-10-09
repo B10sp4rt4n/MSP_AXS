@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
@@ -16,6 +16,7 @@ export default function GuardiaClient() {
   const [visitas, setVisitas] = useState<Visita[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const requestId = useRef(0);
 
   // Cargar condominios disponibles
   useEffect(() => {
@@ -29,24 +30,21 @@ export default function GuardiaClient() {
       .catch(() => setError("No se pudieron cargar los condominios"));
   }, [getToken]);
 
-  // Cargar visitas al seleccionar condominio
-  useEffect(() => {
-    if (!condominioId) return;
-    localStorage.setItem(CONDOMINIO_KEY, condominioId);
-    setLoading(true);
-    getToken().then(token =>
-      api.get<Visita[]>(`/visitas/condominio/${condominioId}`, token!)
-    ).then((data) => setVisitas(data))
-      .catch(() => setVisitas([]))
-      .finally(() => setLoading(false));
-  }, [condominioId, getToken]);
-
   const refresh = useCallback(() => {
     if (!condominioId) return;
-    getToken().then(token =>
-      api.get<Visita[]>(`/visitas/condominio/${condominioId}`, token!)
-    ).then(setVisitas).catch(() => {});
+    const id = ++requestId.current;
+    setLoading(true); setError(""); setVisitas([]);
+    getToken().then(token => api.get<Visita[]>(`/visitas/condominio/${encodeURIComponent(condominioId)}`, token!))
+      .then(data => { if (id === requestId.current) setVisitas(data); })
+      .catch(() => { if (id === requestId.current) setError("No se pudieron cargar las visitas"); })
+      .finally(() => { if (id === requestId.current) setLoading(false); });
   }, [condominioId, getToken]);
+
+  useEffect(() => {
+    if (condominioId) localStorage.setItem(CONDOMINIO_KEY, condominioId);
+    refresh();
+    return () => { requestId.current++; };
+  }, [condominioId, refresh]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -80,7 +78,7 @@ export default function GuardiaClient() {
           <label className="text-xs text-gray-400 mb-1 block">Condominio</label>
           <select
             value={condominioId}
-            onChange={(e) => setCondominioId(e.target.value)}
+            onChange={(e) => { requestId.current++; setVisitas([]); setLoading(true); setCondominioId(e.target.value); }}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
           >
             {condominios.map((c) => (
@@ -93,9 +91,10 @@ export default function GuardiaClient() {
 
         {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
+        <p className="mb-4 text-sm text-blue-200">Dentro / salida pendiente: {loading || error ? "—" : visitas.filter(v => v.estado === "entrada_registrada" && !v.salida_registrada_en).length}</p>
         {/* Lista de visitas */}
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-gray-300">Visitas de hoy</h2>
+          <h2 className="text-sm font-semibold text-gray-300">Visitas del condominio</h2>
           <button onClick={refresh} className="text-xs text-blue-400 hover:text-blue-300">
             Actualizar
           </button>
@@ -106,7 +105,7 @@ export default function GuardiaClient() {
         ) : visitas.length === 0 ? (
           <div className="text-center py-12 text-gray-600">
             <p className="text-4xl mb-3">🚗</p>
-            <p>Sin visitas registradas hoy</p>
+            <p>Sin visitas registradas</p>
           </div>
         ) : (
           <div className="space-y-3">

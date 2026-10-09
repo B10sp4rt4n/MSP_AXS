@@ -357,3 +357,18 @@ def autorizar_visita(visita_id: str, data: AutorizarVisita, request: Request,
     db.commit()
     db.refresh(visita)
     return visita
+
+
+@router.get('/resumen-turno/{condominio_id}')
+def resumen_turno(condominio_id: str, inicio: datetime, fin: datetime,
+                  db: Session = Depends(get_core_db),
+                  _tenant: str = Depends(authorized_tenant_context(AccessLevel.GUARDIA))):
+    from datetime import timedelta
+    from backend.services.resumen_turno import resumir
+    from backend.services.qr_service import as_utc, utc_now
+    if inicio.tzinfo is None or fin.tzinfo is None:
+        raise HTTPException(422, 'Indica zona horaria en inicio y fin')
+    inicio, fin = as_utc(inicio), as_utc(fin)
+    if inicio >= fin or fin - inicio > timedelta(days=31) or fin > utc_now():
+        raise HTTPException(422, 'El turno debe ser pasado, positivo y de máximo 31 días')
+    return resumir(db, condominio_id, inicio, fin)

@@ -154,6 +154,8 @@ app.include_router(canario_router.router)
 app.include_router(auth_router.router)
 
 # Routers protegidos (requieren AUP_SESSION)
+from backend.routers import bitacora_router
+app.include_router(bitacora_router.router)
 app.include_router(msp_router.router)
 app.include_router(visitas_router.router)
 app.include_router(qr_router.router)
