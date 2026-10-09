@@ -77,6 +77,7 @@ export default function MSPClient() {
           </button>
           <div>
             <h1 className="text-lg font-bold">Dashboard MSP</h1>
+            <a href="/dashboard/proveedores" className="text-xs text-blue-300">Contratos · operador de plataforma</a>
             <p className="text-xs text-gray-500">{msps[0]?.nombre ?? ""}</p>
           </div>
         </div>
