@@ -46,7 +46,7 @@ def require_condominio(
 ) -> Condominio:
     condo = db.query(Condominio).filter(
         Condominio.condominio_id == condominio_id,
-    ).first()
+    ).populate_existing().with_for_update().first()
     if not condo:
         raise HTTPException(404, "Condominio no encontrado")
     if is_platform_operator(db_gov, usuario):
