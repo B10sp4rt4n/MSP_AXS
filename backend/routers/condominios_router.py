@@ -22,6 +22,7 @@ from ..core.gov.facade import puede_ejecutar_accion
 import uuid
 from backend.schemas.reglas_acceso import ReglasAcceso
 from backend.services.reglas_acceso import obtener_reglas
+from backend.services.provider_offboarding import grant_origin
 from backend.core.tenant.context import _set_postgres_tenant
 from backend.core.security_denial import SecurityDenial
 from backend.services.event_outbox import contexto_evento, encolar_evento
@@ -324,6 +325,8 @@ def asignar_residente(
         usuario_id=usuario_id,
         tenant_id=condominio_id,
         access_level=AccessLevel.RESIDENTE,
+        metadata_json={"grant_origin": {"version": 1, "kind": "condominio",
+            "recorded_by": usuario.usuario_id, "evidence_ref": "residencia:" + casa_id}},
         estado=ScopeStatus.ACTIVO
     )
     db.add(scope)
@@ -467,7 +470,8 @@ def crear_personal(
         db.add(UserTenantScope(
             usuario_id=identity.usuario_id, tenant_id=condominio_id,
             access_level=AccessLevel[body.rol], estado=ScopeStatus.ACTIVO,
-            metadata_json={"assigned_by": usuario.usuario_id, "source": "panel_personal"},
+            metadata_json={"assigned_by": usuario.usuario_id, "source": "panel_personal",
+                           "grant_origin": grant_origin(db, db_gov, usuario, condo)},
         ))
         db.commit()
     except IntegrityError:
