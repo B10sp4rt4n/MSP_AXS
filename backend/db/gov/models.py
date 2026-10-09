@@ -204,3 +204,11 @@ class Delegation(Base_GOV):
         Index('idx_delegation_target_identity', 'target_identity_id', 'estado'),
         Index('idx_delegation_target_scope', 'target_scope_id', 'estado'),
     )
+
+
+class RecoveryGovCheckpoint(Base_GOV):
+    """Separate GOV marker prevents release with a stale GOV restore."""
+    __tablename__ = 'recovery_gov_checkpoints'
+    incident_id = Column(String, primary_key=True)
+    phase = Column(String, nullable=False, default='locked')
+    release_nonce = Column(String, nullable=True)

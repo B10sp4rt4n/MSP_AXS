@@ -128,6 +128,9 @@ def enviar_pendientes(db, condominio_id, event_factory, *, limit=25, now=None, p
 
 
 def enviar_ciclo(core_factory, event_factory):
+    from backend.core.recovery_gate import recovery_allowed
+    if not recovery_allowed(core_factory=core_factory):
+        return
     # El worker interno enumera el catálogo; cada acceso a la bandeja usa RLS.
     with core_factory() as db:
         tenants = [r[0] for r in db.query(Condominio.condominio_id).all()]

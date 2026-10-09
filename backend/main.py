@@ -106,6 +106,8 @@ async def detener_auditoria():
 # AUP-01 se agrega primero (será el middleware interno)
 # CORS se agrega después (será el más externo, envuelve todo incluyendo errores AUP)
 app.add_middleware(AUPSessionGuard)
+from backend.core.recovery_gate import RecoveryGuard
+app.add_middleware(RecoveryGuard)
 logger.info("🔒 AUP-01 ACTIVADO: Middleware de SESSION activo")
 
 _allowed_origins = os.getenv(
