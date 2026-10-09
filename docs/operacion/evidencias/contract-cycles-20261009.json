@@ -1,0 +1,719 @@
+{
+  "run": "lab261009_cycles_v1",
+  "backend_commit": "b349cb9bdd88707615314bb6c79b27aa0e95a8ff",
+  "backend_deployment": "d44e11a5-ec37-4cca-80a1-43675f1be9e5",
+  "runner_deployment": "9c507348-831b-484c-afa3-e254f5732ae8",
+  "branch": "br-blue-frog-b5o2ccsk",
+  "logs": [
+    {
+      "timestamp": "2026-10-09T19:12:11.421976047Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:12.383732870Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/permisos/procedencia\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:13.532897768Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"local\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos\",\"actual\":403,\"expected\":403}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:14.251011439Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"guard\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":403,\"expected\":403}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:15.121015638Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"stale\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":403,\"expected\":403}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:15.625468915Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"local\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:16.174122608Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"guard\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_control/casas\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:17.557163442Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:17.974759854Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:18.609091675Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos\",\"actual\":409,\"expected\":409}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:19.509087100Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"guard\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":403,\"expected\":403}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:20.554307195Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos/f8e30960-7c68-42ae-a87c-d7c328da8601/personal/lab261009_cycles_v1_guard\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:21.685611584Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos/f8e30960-7c68-42ae-a87c-d7c328da8601/personal/lab261009_cycles_v1_stale\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:22.468289790Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos/f8e30960-7c68-42ae-a87c-d7c328da8601/personal/lab261009_cycles_v1_guard\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:22.967605323Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"guard\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:23.536217670Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"stale\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:24.178808192Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/baja\",\"actual\":409,\"expected\":409}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:25.555024728Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/baja\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:26.146648518Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"guard\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":403,\"expected\":403}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:27.012308461Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"stale\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":403,\"expected\":403}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:27.524682383Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"local\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:28.869066920Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:29.555617460Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/baja\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:30.055500765Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:30.824991432Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"guard\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":403,\"expected\":403}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:31.674054374Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"stale\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":403,\"expected\":403}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:32.477400817Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos/f8e30960-7c68-42ae-a87c-d7c328da8601/personal/lab261009_cycles_v1_guard\",\"actual\":409,\"expected\":409}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:33.634963421Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos/f8e30960-7c68-42ae-a87c-d7c328da8602/personal/lab261009_cycles_v1_guard\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:33.979984863Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"guard\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:34.780209719Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"stale\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":403,\"expected\":403}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:35.310306939Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"local\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:36.272503234Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/baja\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:36.831137468Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/baja\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:37.339478612Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"POST\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:38.214514834Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"guard\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":403,\"expected\":403}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:39.051971109Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"stale\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":403,\"expected\":403}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:39.638842799Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"local\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/casas\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:40.151453958Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"guard\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_control/casas\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:40.656487076Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/proveedor/contratos\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:41.255905922Z",
+      "message": "AXS_CYCLES_CHECK {\"actor\":\"operator\",\"method\":\"GET\",\"path\":\"/condominios/lab261009_cycles_v1_condo/permisos/procedencia\",\"actual\":200,\"expected\":200}"
+    },
+    {
+      "timestamp": "2026-10-09T19:12:41.255911182Z",
+      "message": "AXS_CYCLES_RESULT {\"status\":\"PASS\",\"run\":\"lab261009_cycles_v1\",\"checks\":40,\"contracts\":[\"f8e30960-7c68-42ae-a87c-d7c328da8601\",\"f8e30960-7c68-42ae-a87c-d7c328da8602\"],\"scopes\":[27,28,29],\"events\":[\"evt_5d9d48c19a644ac999992f74ef0c7c04\",\"evt_72f2946242e74e68bc76141158799fdd\",\"evt_336b671dc83f43cc8295066fbfab1d66\",\"evt_246d3956d83d4c4eac41a007aa9c7194\",\"evt_8f28d27c482e4f008e8e5487b1c27e23\",\"evt_b4f3dffaef854b7b82c95445d7a29da4\",\"evt_99264f48188b4f5c80482a3d228c2a64\"],\"reusedTokens\":true,\"clerkTested\":false}"
+    }
+  ],
+  "contracts": [
+    {
+      "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+      "version": 1,
+      "msp_id": "lab261009_cycles_v1_msp",
+      "opened_by": "lab261009_cycles_v1_operator",
+      "closed_at": "2026-10-09T19:12:24.865Z",
+      "open_event_uid": "evt_5d9d48c19a644ac999992f74ef0c7c04",
+      "close_event_uid": "evt_246d3956d83d4c4eac41a007aa9c7194",
+      "close_receipt": {
+        "condominio_id": "lab261009_cycles_v1_condo",
+        "msp_id": "lab261009_cycles_v1_msp",
+        "revoked_scope_ids": [
+          27,
+          28
+        ],
+        "preserved_scope_ids": [
+          25
+        ],
+        "reason": "lab261009_cycles_v1: synthetic offboarding",
+        "authorized_by": "lab261009_cycles_v1_operator",
+        "at": "2026-10-09T19:12:24.865844",
+        "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+        "version": 1
+      }
+    },
+    {
+      "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8602",
+      "version": 2,
+      "msp_id": "lab261009_cycles_v1_msp",
+      "opened_by": "lab261009_cycles_v1_operator",
+      "closed_at": "2026-10-09T19:12:35.925Z",
+      "open_event_uid": "evt_8f28d27c482e4f008e8e5487b1c27e23",
+      "close_event_uid": "evt_99264f48188b4f5c80482a3d228c2a64",
+      "close_receipt": {
+        "condominio_id": "lab261009_cycles_v1_condo",
+        "msp_id": "lab261009_cycles_v1_msp",
+        "revoked_scope_ids": [
+          29
+        ],
+        "preserved_scope_ids": [
+          25
+        ],
+        "reason": "lab261009_cycles_v1: synthetic offboarding",
+        "authorized_by": "lab261009_cycles_v1_operator",
+        "at": "2026-10-09T19:12:35.925097",
+        "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8602",
+        "version": 2
+      }
+    }
+  ],
+  "scopes": [
+    {
+      "id": 25,
+      "usuario_id": "lab261009_cycles_v1_local",
+      "tenant_id": "lab261009_cycles_v1_condo",
+      "estado": "ACTIVO",
+      "revoked_at": null,
+      "metadata_json": {
+        "grant_origin": {
+          "kind": "condominio",
+          "evidence_ref": "lab261009_cycles_v1/local"
+        }
+      }
+    },
+    {
+      "id": 26,
+      "usuario_id": "lab261009_cycles_v1_guard",
+      "tenant_id": "lab261009_cycles_v1_control",
+      "estado": "ACTIVO",
+      "revoked_at": null,
+      "metadata_json": {
+        "grant_origin": {
+          "kind": "condominio",
+          "evidence_ref": "lab261009_cycles_v1/control"
+        }
+      }
+    },
+    {
+      "id": 27,
+      "usuario_id": "lab261009_cycles_v1_guard",
+      "tenant_id": "lab261009_cycles_v1_condo",
+      "estado": "REVOCADO",
+      "revoked_at": "2026-10-09T19:12:24.865Z",
+      "metadata_json": {
+        "grant_origin": {
+          "version": 2,
+          "kind": "msp",
+          "msp_id": "lab261009_cycles_v1_msp",
+          "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+          "recorded_by": "lab261009_cycles_v1_operator",
+          "evidence_ref": "lab261009_cycles_v1/assignment/f8e30960-7c68-42ae-a87c-d7c328da8601/guard"
+        }
+      }
+    },
+    {
+      "id": 28,
+      "usuario_id": "lab261009_cycles_v1_stale",
+      "tenant_id": "lab261009_cycles_v1_condo",
+      "estado": "REVOCADO",
+      "revoked_at": "2026-10-09T19:12:24.865Z",
+      "metadata_json": {
+        "grant_origin": {
+          "version": 2,
+          "kind": "msp",
+          "msp_id": "lab261009_cycles_v1_msp",
+          "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+          "recorded_by": "lab261009_cycles_v1_operator",
+          "evidence_ref": "lab261009_cycles_v1/assignment/f8e30960-7c68-42ae-a87c-d7c328da8601/stale"
+        }
+      }
+    },
+    {
+      "id": 29,
+      "usuario_id": "lab261009_cycles_v1_guard",
+      "tenant_id": "lab261009_cycles_v1_condo",
+      "estado": "REVOCADO",
+      "revoked_at": "2026-10-09T19:12:35.925Z",
+      "metadata_json": {
+        "grant_origin": {
+          "version": 2,
+          "kind": "msp",
+          "msp_id": "lab261009_cycles_v1_msp",
+          "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8602",
+          "recorded_by": "lab261009_cycles_v1_operator",
+          "evidence_ref": "lab261009_cycles_v1/assignment/f8e30960-7c68-42ae-a87c-d7c328da8602/guard"
+        }
+      }
+    }
+  ],
+  "outbox": [
+    {
+      "event_uid": "evt_5d9d48c19a644ac999992f74ef0c7c04",
+      "payload": {
+        "identity_id": "lab261009_cycles_v1_operator",
+        "session_hash": "84fd73f4d177b4cd",
+        "entidad": "contrato_proveedor",
+        "accion": "abrir_contrato",
+        "motivo": null,
+        "event_uid": "evt_5d9d48c19a644ac999992f74ef0c7c04",
+        "tenant_id": "lab261009_cycles_v1_condo",
+        "tipo_evento": "abrir_contrato",
+        "entidad_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+        "resultado": "exito",
+        "timestamp": "2026-10-09T19:12:16.919025",
+        "metadata_json": {
+          "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+          "msp_id": "lab261009_cycles_v1_msp",
+          "version": 1,
+          "evidence_ref": "lab261009_cycles_v1/f8e30960-7c68-42ae-a87c-d7c328da8601"
+        },
+        "hash_evento": "be2f58f10e9a9c998fcc1a745b8e5ec923f20ee72033f1242968b3a03a1acfc3"
+      },
+      "delivered_at": "2026-10-09T19:12:35.090Z",
+      "attempts": 1,
+      "last_error": null
+    },
+    {
+      "event_uid": "evt_72f2946242e74e68bc76141158799fdd",
+      "payload": {
+        "identity_id": "lab261009_cycles_v1_operator",
+        "session_hash": "84fd73f4d177b4cd",
+        "entidad": "scope",
+        "accion": "otorgar_permiso_contrato",
+        "motivo": null,
+        "event_uid": "evt_72f2946242e74e68bc76141158799fdd",
+        "tenant_id": "lab261009_cycles_v1_condo",
+        "tipo_evento": "otorgar_permiso_contrato",
+        "entidad_id": "27",
+        "resultado": "exito",
+        "timestamp": "2026-10-09T19:12:20.207491",
+        "metadata_json": {
+          "grant_origin": {
+            "version": 2,
+            "kind": "msp",
+            "msp_id": "lab261009_cycles_v1_msp",
+            "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+            "recorded_by": "lab261009_cycles_v1_operator",
+            "evidence_ref": "lab261009_cycles_v1/assignment/f8e30960-7c68-42ae-a87c-d7c328da8601/guard"
+          }
+        },
+        "hash_evento": "7ae92ffa00599884d639d96748d2de250ad6b8a47d3e8e19ccd5dec5f391dff0"
+      },
+      "delivered_at": "2026-10-09T19:12:35.367Z",
+      "attempts": 1,
+      "last_error": null
+    },
+    {
+      "event_uid": "evt_336b671dc83f43cc8295066fbfab1d66",
+      "payload": {
+        "identity_id": "lab261009_cycles_v1_operator",
+        "session_hash": "84fd73f4d177b4cd",
+        "entidad": "scope",
+        "accion": "otorgar_permiso_contrato",
+        "motivo": null,
+        "event_uid": "evt_336b671dc83f43cc8295066fbfab1d66",
+        "tenant_id": "lab261009_cycles_v1_condo",
+        "tipo_evento": "otorgar_permiso_contrato",
+        "entidad_id": "28",
+        "resultado": "exito",
+        "timestamp": "2026-10-09T19:12:21.320112",
+        "metadata_json": {
+          "grant_origin": {
+            "version": 2,
+            "kind": "msp",
+            "msp_id": "lab261009_cycles_v1_msp",
+            "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+            "recorded_by": "lab261009_cycles_v1_operator",
+            "evidence_ref": "lab261009_cycles_v1/assignment/f8e30960-7c68-42ae-a87c-d7c328da8601/stale"
+          }
+        },
+        "hash_evento": "7e378dcbe8f07c2a59f87fc1f575421a6273c45a16996978254d22e5c5ce7a63"
+      },
+      "delivered_at": "2026-10-09T19:12:35.644Z",
+      "attempts": 1,
+      "last_error": null
+    },
+    {
+      "event_uid": "evt_246d3956d83d4c4eac41a007aa9c7194",
+      "payload": {
+        "identity_id": "lab261009_cycles_v1_operator",
+        "session_hash": "84fd73f4d177b4cd",
+        "entidad": "proveedor",
+        "accion": "baja_proveedor",
+        "motivo": null,
+        "event_uid": "evt_246d3956d83d4c4eac41a007aa9c7194",
+        "tenant_id": "lab261009_cycles_v1_condo",
+        "tipo_evento": "baja_proveedor",
+        "entidad_id": "lab261009_cycles_v1_msp",
+        "resultado": "exito",
+        "timestamp": "2026-10-09T19:12:24.865974",
+        "metadata_json": {
+          "condominio_id": "lab261009_cycles_v1_condo",
+          "msp_id": "lab261009_cycles_v1_msp",
+          "revoked_scope_ids": [
+            27,
+            28
+          ],
+          "preserved_scope_ids": [
+            25
+          ],
+          "reason": "lab261009_cycles_v1: synthetic offboarding",
+          "authorized_by": "lab261009_cycles_v1_operator",
+          "at": "2026-10-09T19:12:24.865844",
+          "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+          "version": 1
+        },
+        "hash_evento": "342591722b5324c5dcea96153b4d798e27fc7ac55232ba7ab8b8e31bb428bc41"
+      },
+      "delivered_at": "2026-10-09T19:12:35.922Z",
+      "attempts": 1,
+      "last_error": null
+    },
+    {
+      "event_uid": "evt_8f28d27c482e4f008e8e5487b1c27e23",
+      "payload": {
+        "identity_id": "lab261009_cycles_v1_operator",
+        "session_hash": "84fd73f4d177b4cd",
+        "entidad": "contrato_proveedor",
+        "accion": "abrir_contrato",
+        "motivo": null,
+        "event_uid": "evt_8f28d27c482e4f008e8e5487b1c27e23",
+        "tenant_id": "lab261009_cycles_v1_condo",
+        "tipo_evento": "abrir_contrato",
+        "entidad_id": "f8e30960-7c68-42ae-a87c-d7c328da8602",
+        "resultado": "exito",
+        "timestamp": "2026-10-09T19:12:28.378078",
+        "metadata_json": {
+          "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8602",
+          "msp_id": "lab261009_cycles_v1_msp",
+          "version": 2,
+          "evidence_ref": "lab261009_cycles_v1/f8e30960-7c68-42ae-a87c-d7c328da8602"
+        },
+        "hash_evento": "6c241ae2725ab851cb72c75b9da93fb28061fdc72630a2e34a2e757d30840402"
+      },
+      "delivered_at": "2026-10-09T19:12:36.199Z",
+      "attempts": 1,
+      "last_error": null
+    },
+    {
+      "event_uid": "evt_b4f3dffaef854b7b82c95445d7a29da4",
+      "payload": {
+        "identity_id": "lab261009_cycles_v1_operator",
+        "session_hash": "84fd73f4d177b4cd",
+        "entidad": "scope",
+        "accion": "otorgar_permiso_contrato",
+        "motivo": null,
+        "event_uid": "evt_b4f3dffaef854b7b82c95445d7a29da4",
+        "tenant_id": "lab261009_cycles_v1_condo",
+        "tipo_evento": "otorgar_permiso_contrato",
+        "entidad_id": "29",
+        "resultado": "exito",
+        "timestamp": "2026-10-09T19:12:33.026831",
+        "metadata_json": {
+          "grant_origin": {
+            "version": 2,
+            "kind": "msp",
+            "msp_id": "lab261009_cycles_v1_msp",
+            "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8602",
+            "recorded_by": "lab261009_cycles_v1_operator",
+            "evidence_ref": "lab261009_cycles_v1/assignment/f8e30960-7c68-42ae-a87c-d7c328da8602/guard"
+          }
+        },
+        "hash_evento": "f26e0aa7f0b81e3e99a3952baaa53cd447b1f3648a0dba8bfb63a513bc589c81"
+      },
+      "delivered_at": "2026-10-09T19:12:36.478Z",
+      "attempts": 1,
+      "last_error": null
+    },
+    {
+      "event_uid": "evt_99264f48188b4f5c80482a3d228c2a64",
+      "payload": {
+        "identity_id": "lab261009_cycles_v1_operator",
+        "session_hash": "84fd73f4d177b4cd",
+        "entidad": "proveedor",
+        "accion": "baja_proveedor",
+        "motivo": null,
+        "event_uid": "evt_99264f48188b4f5c80482a3d228c2a64",
+        "tenant_id": "lab261009_cycles_v1_condo",
+        "tipo_evento": "baja_proveedor",
+        "entidad_id": "lab261009_cycles_v1_msp",
+        "resultado": "exito",
+        "timestamp": "2026-10-09T19:12:35.925193",
+        "metadata_json": {
+          "condominio_id": "lab261009_cycles_v1_condo",
+          "msp_id": "lab261009_cycles_v1_msp",
+          "revoked_scope_ids": [
+            29
+          ],
+          "preserved_scope_ids": [
+            25
+          ],
+          "reason": "lab261009_cycles_v1: synthetic offboarding",
+          "authorized_by": "lab261009_cycles_v1_operator",
+          "at": "2026-10-09T19:12:35.925097",
+          "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8602",
+          "version": 2
+        },
+        "hash_evento": "81f7c5e0a2d223c0f8dcb41ddb5718491bc2609aff03552039043414b3241a10"
+      },
+      "delivered_at": "2026-10-09T19:12:57.724Z",
+      "attempts": 1,
+      "last_error": null
+    }
+  ],
+  "condominios": [
+    {
+      "condominio_id": "lab261009_cycles_v1_condo",
+      "msp_id": null
+    },
+    {
+      "condominio_id": "lab261009_cycles_v1_control",
+      "msp_id": null
+    }
+  ],
+  "before": {
+    "visit_digest": "560c797ac232c5d3a4212cad2bac5f86",
+    "evidence_digest": "a9a75011050aa4796ff0f09451c11cdf"
+  },
+  "after": {
+    "visit_digest": "560c797ac232c5d3a4212cad2bac5f86",
+    "evidence_digest": "a9a75011050aa4796ff0f09451c11cdf"
+  },
+  "events": [
+    {
+      "event_uid": "evt_5d9d48c19a644ac999992f74ef0c7c04",
+      "session_hash": "84fd73f4d177b4cd",
+      "tipo_evento": "abrir_contrato",
+      "identity_id": "lab261009_cycles_v1_operator",
+      "tenant_id": "lab261009_cycles_v1_condo",
+      "entidad": "contrato_proveedor",
+      "entidad_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+      "accion": "abrir_contrato",
+      "resultado": "exito",
+      "motivo": null,
+      "timestamp": "2026-10-09T19:12:16.919025",
+      "hash_evento": "be2f58f10e9a9c998fcc1a745b8e5ec923f20ee72033f1242968b3a03a1acfc3",
+      "metadata_json": {
+        "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+        "msp_id": "lab261009_cycles_v1_msp",
+        "version": 1,
+        "evidence_ref": "lab261009_cycles_v1/f8e30960-7c68-42ae-a87c-d7c328da8601"
+      }
+    },
+    {
+      "event_uid": "evt_72f2946242e74e68bc76141158799fdd",
+      "session_hash": "84fd73f4d177b4cd",
+      "tipo_evento": "otorgar_permiso_contrato",
+      "identity_id": "lab261009_cycles_v1_operator",
+      "tenant_id": "lab261009_cycles_v1_condo",
+      "entidad": "scope",
+      "entidad_id": "27",
+      "accion": "otorgar_permiso_contrato",
+      "resultado": "exito",
+      "motivo": null,
+      "timestamp": "2026-10-09T19:12:20.207491",
+      "hash_evento": "7ae92ffa00599884d639d96748d2de250ad6b8a47d3e8e19ccd5dec5f391dff0",
+      "metadata_json": {
+        "grant_origin": {
+          "version": 2,
+          "kind": "msp",
+          "msp_id": "lab261009_cycles_v1_msp",
+          "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+          "recorded_by": "lab261009_cycles_v1_operator",
+          "evidence_ref": "lab261009_cycles_v1/assignment/f8e30960-7c68-42ae-a87c-d7c328da8601/guard"
+        }
+      }
+    },
+    {
+      "event_uid": "evt_336b671dc83f43cc8295066fbfab1d66",
+      "session_hash": "84fd73f4d177b4cd",
+      "tipo_evento": "otorgar_permiso_contrato",
+      "identity_id": "lab261009_cycles_v1_operator",
+      "tenant_id": "lab261009_cycles_v1_condo",
+      "entidad": "scope",
+      "entidad_id": "28",
+      "accion": "otorgar_permiso_contrato",
+      "resultado": "exito",
+      "motivo": null,
+      "timestamp": "2026-10-09T19:12:21.320112",
+      "hash_evento": "7e378dcbe8f07c2a59f87fc1f575421a6273c45a16996978254d22e5c5ce7a63",
+      "metadata_json": {
+        "grant_origin": {
+          "version": 2,
+          "kind": "msp",
+          "msp_id": "lab261009_cycles_v1_msp",
+          "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+          "recorded_by": "lab261009_cycles_v1_operator",
+          "evidence_ref": "lab261009_cycles_v1/assignment/f8e30960-7c68-42ae-a87c-d7c328da8601/stale"
+        }
+      }
+    },
+    {
+      "event_uid": "evt_246d3956d83d4c4eac41a007aa9c7194",
+      "session_hash": "84fd73f4d177b4cd",
+      "tipo_evento": "baja_proveedor",
+      "identity_id": "lab261009_cycles_v1_operator",
+      "tenant_id": "lab261009_cycles_v1_condo",
+      "entidad": "proveedor",
+      "entidad_id": "lab261009_cycles_v1_msp",
+      "accion": "baja_proveedor",
+      "resultado": "exito",
+      "motivo": null,
+      "timestamp": "2026-10-09T19:12:24.865974",
+      "hash_evento": "342591722b5324c5dcea96153b4d798e27fc7ac55232ba7ab8b8e31bb428bc41",
+      "metadata_json": {
+        "condominio_id": "lab261009_cycles_v1_condo",
+        "msp_id": "lab261009_cycles_v1_msp",
+        "revoked_scope_ids": [
+          27,
+          28
+        ],
+        "preserved_scope_ids": [
+          25
+        ],
+        "reason": "lab261009_cycles_v1: synthetic offboarding",
+        "authorized_by": "lab261009_cycles_v1_operator",
+        "at": "2026-10-09T19:12:24.865844",
+        "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8601",
+        "version": 1
+      }
+    },
+    {
+      "event_uid": "evt_8f28d27c482e4f008e8e5487b1c27e23",
+      "session_hash": "84fd73f4d177b4cd",
+      "tipo_evento": "abrir_contrato",
+      "identity_id": "lab261009_cycles_v1_operator",
+      "tenant_id": "lab261009_cycles_v1_condo",
+      "entidad": "contrato_proveedor",
+      "entidad_id": "f8e30960-7c68-42ae-a87c-d7c328da8602",
+      "accion": "abrir_contrato",
+      "resultado": "exito",
+      "motivo": null,
+      "timestamp": "2026-10-09T19:12:28.378078",
+      "hash_evento": "6c241ae2725ab851cb72c75b9da93fb28061fdc72630a2e34a2e757d30840402",
+      "metadata_json": {
+        "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8602",
+        "msp_id": "lab261009_cycles_v1_msp",
+        "version": 2,
+        "evidence_ref": "lab261009_cycles_v1/f8e30960-7c68-42ae-a87c-d7c328da8602"
+      }
+    },
+    {
+      "event_uid": "evt_b4f3dffaef854b7b82c95445d7a29da4",
+      "session_hash": "84fd73f4d177b4cd",
+      "tipo_evento": "otorgar_permiso_contrato",
+      "identity_id": "lab261009_cycles_v1_operator",
+      "tenant_id": "lab261009_cycles_v1_condo",
+      "entidad": "scope",
+      "entidad_id": "29",
+      "accion": "otorgar_permiso_contrato",
+      "resultado": "exito",
+      "motivo": null,
+      "timestamp": "2026-10-09T19:12:33.026831",
+      "hash_evento": "f26e0aa7f0b81e3e99a3952baaa53cd447b1f3648a0dba8bfb63a513bc589c81",
+      "metadata_json": {
+        "grant_origin": {
+          "version": 2,
+          "kind": "msp",
+          "msp_id": "lab261009_cycles_v1_msp",
+          "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8602",
+          "recorded_by": "lab261009_cycles_v1_operator",
+          "evidence_ref": "lab261009_cycles_v1/assignment/f8e30960-7c68-42ae-a87c-d7c328da8602/guard"
+        }
+      }
+    },
+    {
+      "event_uid": "evt_99264f48188b4f5c80482a3d228c2a64",
+      "session_hash": "84fd73f4d177b4cd",
+      "tipo_evento": "baja_proveedor",
+      "identity_id": "lab261009_cycles_v1_operator",
+      "tenant_id": "lab261009_cycles_v1_condo",
+      "entidad": "proveedor",
+      "entidad_id": "lab261009_cycles_v1_msp",
+      "accion": "baja_proveedor",
+      "resultado": "exito",
+      "motivo": null,
+      "timestamp": "2026-10-09T19:12:35.925193",
+      "hash_evento": "81f7c5e0a2d223c0f8dcb41ddb5718491bc2609aff03552039043414b3241a10",
+      "metadata_json": {
+        "condominio_id": "lab261009_cycles_v1_condo",
+        "msp_id": "lab261009_cycles_v1_msp",
+        "revoked_scope_ids": [
+          29
+        ],
+        "preserved_scope_ids": [
+          25
+        ],
+        "reason": "lab261009_cycles_v1: synthetic offboarding",
+        "authorized_by": "lab261009_cycles_v1_operator",
+        "at": "2026-10-09T19:12:35.925097",
+        "contract_id": "f8e30960-7c68-42ae-a87c-d7c328da8602",
+        "version": 2
+      }
+    }
+  ],
+  "authority_cleanup": [
+    {
+      "authority_id": "lab261009_cycles_v1_authority",
+      "identity_id": "lab261009_cycles_v1_operator",
+      "estado": "REVOCADO",
+      "revoked_at": "2026-10-09T19:13:26.343Z"
+    }
+  ],
+  "runner_secret_cleared": true,
+  "clerk_tested": false
+}

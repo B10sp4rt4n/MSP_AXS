@@ -1,0 +1,19 @@
+name: Contract cycle evidence (offline)
+on:
+  pull_request:
+    paths:
+      - scripts/verify_contract_cycles_evidence.py
+      - docs/operacion/evidencias/contract-cycles-20261009.json
+      - .github/workflows/contract-cycle-evidence.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/verify_contract_cycles_evidence.py
