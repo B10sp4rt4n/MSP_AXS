@@ -75,6 +75,27 @@ class Condominio(Base_CORE):
     reglas_acceso = Column(JSON, nullable=True)
 
 
+class ProviderContract(Base_CORE):
+    """Control-plane contract history; mutations serialize on the condominium."""
+    __tablename__ = "provider_contracts"
+    contract_id = Column(String, primary_key=True)
+    condominio_id = Column(String, ForeignKey("condominios_exo.condominio_id"), nullable=False)
+    msp_id = Column(String, ForeignKey("msps_exo.msp_id"), nullable=False)
+    version = Column(Integer, nullable=False)
+    evidence_ref = Column(String, nullable=False)
+    opened_by = Column(String, nullable=False)
+    opened_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    closed_at = Column(DateTime)
+    open_event_uid = Column(String, nullable=False)
+    close_event_uid = Column(String)
+    close_receipt = Column(JSON)
+    __table_args__ = (
+        UniqueConstraint("condominio_id", "version", name="uq_provider_contract_version"),
+        Index("uq_provider_contract_active", "condominio_id", unique=True,
+              postgresql_where=closed_at.is_(None), sqlite_where=closed_at.is_(None)),
+    )
+
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CASA (Unidad dentro de un condominio)
