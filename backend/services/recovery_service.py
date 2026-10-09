@@ -183,7 +183,9 @@ def release(core, gov, event, incident, *, actor, evidence_ref, occupancy_verifi
     # Only this newly approved scope returns. Prior grants stay revoked.
     core.add(UserTenantScope(usuario_id=admin_id, tenant_id=tenant_id,
         access_level=AccessLevel.ADMIN_CONDOMINIO, estado=ScopeStatus.ACTIVO,
-        metadata_json={'recovery_incident': incident, 'approved_by': actor}))
+        metadata_json={'recovery_incident': incident, 'approved_by': actor,
+                       'grant_origin': {'version': 1, 'kind': 'condominio',
+                           'recorded_by': actor, 'evidence_ref': evidence_ref}}))
     nonce = uuid.uuid4().hex
     c.report = {**c.report, 'release': {'actor': actor, 'evidence_ref': evidence_ref,
         'occupancy_verified': True, 'admin_id': admin_id, 'tenant_id': tenant_id,
