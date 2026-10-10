@@ -4,6 +4,8 @@ from datetime import datetime
 
 
 class PreregistroCreate(BaseModel):
+    condominio_id: str | None = Field(default=None, min_length=1, max_length=100)
+    destino_id: str | None = Field(default=None, min_length=1, max_length=100)
     nombre_visitante: str
     fecha_visita: Optional[datetime] = None
     tipo_visita: str

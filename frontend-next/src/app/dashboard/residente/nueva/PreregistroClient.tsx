@@ -14,6 +14,11 @@ interface QRResult {
 }
 
 export default function PreregistroClient() {
+  const { userId } = useAuth();
+  return <PreregistroForm key={userId ?? "signed-out"} />;
+}
+
+function PreregistroForm() {
   const router = useRouter();
   const { getToken } = useAuth();
   const [form, setForm] = useState({
@@ -24,7 +29,46 @@ export default function PreregistroClient() {
     placa: "",
     notas: "",
   });
-  const { reglas } = useReglasAcceso();
+  const [perfil, setPerfil] = useState<{ rol: string; condominio_id: string | null } | null>(null);
+  const [perfilError, setPerfilError] = useState("");
+  const [condominios, setCondominios] = useState<{ condominio_id: string; nombre: string }[]>([]);
+  const [condominioId, setCondominioId] = useState("");
+  const [destinoId, setDestinoId] = useState("");
+  const [catalogo, setCatalogo] = useState<{ tenant: string; destinos: { destino_id: string; nombre: string }[]; error: string } | null>(null);
+  const administrativo = perfil?.rol === "MSP_ADMIN" || perfil?.rol === "ADMIN_CONDOMINIO";
+  const permitido = administrativo || perfil?.rol === "RESIDENTE";
+  const tenant = administrativo ? condominioId : perfil?.condominio_id ?? "";
+  const destinos = catalogo?.tenant === condominioId ? catalogo.destinos : [];
+  const catalogError = catalogo?.tenant === condominioId ? catalogo.error : "";
+  const destinoValido = destinos.some(d => d.destino_id === destinoId);
+  const { reglas, error: reglasError } = useReglasAcceso(tenant);
+
+  useEffect(() => {
+    let active = true;
+    async function cargar() {
+      const token = await getToken();
+      if (!token) throw new Error("Sin sesión");
+      const me = await api.get<{ rol: string; condominio_id: string | null }>("/auth/me", token);
+      const condos = ["MSP_ADMIN", "ADMIN_CONDOMINIO"].includes(me.rol)
+        ? await api.get<{ condominio_id: string; nombre: string }[]>("/condominios/", token) : [];
+      if (active) { setPerfil(me); setCondominios(condos); }
+    }
+    cargar().catch(e => { if (active) setPerfilError(e instanceof Error ? e.message : "No se pudo verificar tu cuenta"); });
+    return () => { active = false; };
+  }, [getToken]);
+
+  useEffect(() => {
+    let active = true;
+    if (!administrativo || !condominioId) return;
+    async function cargar() {
+      const token = await getToken();
+      if (!token) throw new Error("Sin sesión");
+      const data = await api.get<{ destino_id: string; nombre: string }[]>(`/condominios/${encodeURIComponent(condominioId)}/destinos`, token);
+      if (active) setCatalogo({ tenant: condominioId, destinos: data, error: "" });
+    }
+    cargar().catch(e => { if (active) setCatalogo({ tenant: condominioId, destinos: [], error: e instanceof Error ? e.message : "No se pudieron cargar los destinos" }); });
+    return () => { active = false; };
+  }, [administrativo, condominioId, getToken]);
   const requiereProposito = !!(reglas?.exigir_proposito && reglas.tipos_visita.includes(form.tipo_visita));
   const [programada, setProgramada] = useState(false);
   const [horaServidor, setHoraServidor] = useState("");
@@ -56,6 +100,10 @@ export default function PreregistroClient() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading || !permitido || !reglas || reglasError || !tenant || (administrativo && !destinoValido)) {
+      setError("Verifica el condominio, destino y reglas antes de continuar.");
+      return;
+    }
     const fechaVisita = new Date(form.fecha_visita);
     if (programada && (!Number.isFinite(fechaVisita.getTime()) || fechaVisita.getTime() <= new Date(horaServidor).getTime())) {
       setError("La fecha y hora de visita deben ser posteriores a la hora actual.");
@@ -66,6 +114,7 @@ export default function PreregistroClient() {
     try {
       const token = await getToken();
       const payload = {
+        ...(administrativo ? { condominio_id: condominioId, destino_id: destinoId } : {}),
         nombre_visitante: form.nombre_visitante,
         proposito: form.proposito || undefined,
         fecha_visita: programada ? fechaVisita.toISOString() : undefined,
@@ -115,7 +164,7 @@ export default function PreregistroClient() {
     return (
       <div className="min-h-screen bg-gray-950 text-white">
         <header className="border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-          <button onClick={() => router.push("/dashboard/residente")} className="text-gray-400 hover:text-white">←</button>
+          <button onClick={() => router.push(administrativo ? "/dashboard" : "/dashboard/residente")} className="text-gray-400 hover:text-white">←</button>
           <h1 className="text-lg font-bold">QR Generado</h1>
         </header>
         <main className="p-4 max-w-sm mx-auto text-center">
@@ -141,10 +190,10 @@ export default function PreregistroClient() {
               Descargar QR
             </button>
             <button
-              onClick={() => router.push("/dashboard/residente")}
+              onClick={() => router.push(administrativo ? "/dashboard" : "/dashboard/residente")}
               className="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-xl text-sm"
             >
-              Volver a mis visitas
+              Volver al panel
             </button>
           </div>
         </main>
@@ -161,6 +210,30 @@ export default function PreregistroClient() {
 
       <main className="p-4 max-w-md mx-auto">
         <form onSubmit={submit} className="space-y-4 mt-2">
+          {perfilError && <p role="alert">{perfilError}</p>}
+          {!perfil && !perfilError && <p role="status">Verificando cuenta…</p>}
+          {perfil && !permitido && <p role="alert">Tu rol no permite preregistrar visitas.</p>}
+          {administrativo && <fieldset disabled={loading} className="space-y-3">
+            <legend>Preregistro administrativo</legend>
+            <label className="block">Condominio
+              <select aria-label="Condominio" required value={condominioId} onChange={e => {
+                setCondominioId(e.target.value); setDestinoId(""); setCatalogo(null); setError("");
+              }} className="block w-full bg-gray-800 rounded p-2">
+                <option value="">Selecciona un condominio</option>
+                {condominios.map(c => <option key={c.condominio_id} value={c.condominio_id}>{c.nombre}</option>)}
+              </select>
+            </label>
+            <label className="block">Destino
+              <select aria-label="Destino" required disabled={!condominioId || catalogo?.tenant !== condominioId || !!catalogError}
+                value={destinoId} onChange={e => setDestinoId(e.target.value)} className="block w-full bg-gray-800 rounded p-2">
+                <option value="">Selecciona vivienda, administración o área común</option>
+                {destinos.map(d => <option key={d.destino_id} value={d.destino_id}>{d.nombre}</option>)}
+              </select>
+            </label>
+            <p className="text-sm text-gray-400">La autorización quedará registrada a tu nombre para el destino seleccionado.</p>
+            {catalogError && <p role="alert">{catalogError}</p>}
+          </fieldset>}
+          {reglasError && <p role="alert">{reglasError}</p>}
 
           <div>
             <label className="text-xs text-gray-400 mb-1 block">Nombre del visitante *</label>
@@ -228,7 +301,7 @@ export default function PreregistroClient() {
 
           {error && <p role="alert" className="text-red-400 text-sm">{error}</p>}
 
-          <button type="submit" disabled={loading || !horaServidor}
+          <button type="submit" disabled={loading || !horaServidor || !permitido || !tenant || !reglas || !!reglasError || (administrativo && !destinoValido)}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm mt-2"
           >
             {loading ? "Generando QR..." : "Generar QR de Acceso"}
