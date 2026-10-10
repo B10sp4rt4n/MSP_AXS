@@ -158,6 +158,8 @@ app.include_router(auth_router.router)
 # Routers protegidos (requieren AUP_SESSION)
 from backend.routers import bitacora_router
 app.include_router(bitacora_router.router)
+from backend.routers import reportes_router
+app.include_router(reportes_router.router)
 app.include_router(msp_router.router)
 app.include_router(visitas_router.router)
 app.include_router(qr_router.router)

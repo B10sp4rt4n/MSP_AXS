@@ -23,6 +23,7 @@ jobs:
     - run: npm install --no-save --package-lock=false playwright@1.58.2
     - run: npx playwright install --with-deps chromium
     - run: node tests/preregistro-admin.browser.cjs
+    - run: node tests/reportes-operacion.browser.cjs
     - run: node tests/provider-console.browser.cjs
       env:
         AXS_SCREENSHOT_DIR: screenshots/provider-console

@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 type Evento = { id: number; visita_id: string; fecha: string; actor_id: string; accion: string; resultado: string; motivo: string | null; estado: string | null; autorizada_por: string | null; proposito: string | null };
 type Pagina = { items: Evento[]; siguiente: number | null; pendientes_entrega_condominio: number };
 
-export default function Bitacora({ condominioId }: { condominioId: string }) {
+export default function Bitacora({ condominioId, visitaId }: { condominioId: string; visitaId?: string }) {
   const { getToken } = useAuth();
   const [pagina, setPagina] = useState<Pagina | null>(null);
   const [cursor, setCursor] = useState<number | null>(null);
@@ -20,7 +20,10 @@ export default function Bitacora({ condominioId }: { condominioId: string }) {
       try {
         const token = await getToken();
         if (!token) throw new Error("Inicia sesión para consultar la bitácora");
-        const data = await api.get<Pagina>(`/bitacora/${encodeURIComponent(condominioId)}${cursor ? `?antes_id=${cursor}` : ""}`, token);
+        const params = new URLSearchParams();
+        if (cursor) params.set("antes_id", String(cursor));
+        if (visitaId) params.set("visita_id", visitaId);
+        const data = await api.get<Pagina>(`/bitacora/${encodeURIComponent(condominioId)}?${params}`, token);
         if (active) setPagina(data);
       } catch (e) {
         if (active) setError(e instanceof Error ? e.message : "No se pudo cargar la bitácora");
@@ -28,7 +31,7 @@ export default function Bitacora({ condominioId }: { condominioId: string }) {
     }
     void cargar();
     return () => { active = false; };
-  }, [condominioId, cursor, revision, getToken]);
+  }, [condominioId, visitaId, cursor, revision, getToken]);
   return <section aria-label="Bitácora de accesos" className="space-y-3">
     <div className="flex justify-between gap-3"><h2 className="font-semibold">Bitácora de accesos</h2>
       <button className="text-blue-300" disabled={loading} onClick={() => { setCursor(null); setRevision(n => n + 1); }}>Actualizar</button></div>
