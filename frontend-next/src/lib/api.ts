@@ -42,6 +42,14 @@ async function request<T>(path: string, { method = "GET", body, token }: Request
 }
 
 export const api = {
+  download: async (path: string, token: string): Promise<Blob> => {
+    const res = await fetch(`${API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(typeof body.detail === "string" ? body.detail : `No se pudo descargar (${res.status})`);
+    }
+    return res.blob();
+  },
   get: <T>(path: string, token: string) => request<T>(path, { token }),
   post: <T>(path: string, body: unknown, token: string) => request<T>(path, { method: "POST", body, token }),
   put: <T>(path: string, body: unknown, token: string) => request<T>(path, { method: "PUT", body, token }),
