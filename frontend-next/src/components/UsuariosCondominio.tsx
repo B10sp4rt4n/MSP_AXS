@@ -18,6 +18,8 @@ export default function UsuariosCondominio(props: Props) {
 }
 
 function UsuariosDelCondominio({ condominioId, getToken }: Props) {
+  const [inviting, setInviting] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState("");
   const [editing, setEditing] = useState<Usuario | null>(null);
   const [editForm, setEditForm] = useState({ nombre: "", email: "", rol: "GUARDIA", casa_id: "" });
   const [casas, setCasas] = useState<{ casa_id: string; numero: string; tipo: string }[]>([]);
@@ -60,12 +62,25 @@ function UsuariosDelCondominio({ condominioId, getToken }: Props) {
       const result = await api.post<Usuario>(`/condominios/${encodeURIComponent(condominioId)}/usuarios`,
         { ...form, nombre: form.nombre.trim(), email: form.email.trim() }, token);
       setMessage(result.registro_pendiente
-        ? `Alta lista para ${result.email}. Debe registrarse con ese mismo correo para entrar con su rol asignado.`
+        ? `Alta lista para ${result.email}. Pulsa Enviar invitación en su cuenta para que complete el registro por correo.`
         : `Cuenta ${result.email} asignada. Al volver al inicio verá su nuevo rol.`);
       setShowForm(false); setForm({ nombre: "", email: "", rol: "GUARDIA" }); cargar();
     } catch (e: unknown) {
       setFormError(e instanceof Error ? e.message : "Error al dar de alta");
     } finally { setSaving(false); }
+  };
+
+  const invitar = async (user: Usuario) => {
+    setInviting(user.usuario_id); setInviteError(""); setMessage("");
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Sin sesión; vuelve a iniciar sesión");
+      const result = await api.post<{ message: string }>(
+        `/condominios/${encodeURIComponent(condominioId)}/usuarios/${encodeURIComponent(user.usuario_id)}/invitacion`, {}, token);
+      setMessage(`${user.email}: ${result.message}`);
+    } catch (e: unknown) {
+      setInviteError(e instanceof Error ? e.message : "No se pudo enviar la invitación");
+    } finally { setInviting(null); }
   };
 
   const abrirEdicion = async (user: Usuario) => {
@@ -123,6 +138,7 @@ function UsuariosDelCondominio({ condominioId, getToken }: Props) {
           {showForm ? "Cancelar" : "+ Nuevo personal"}
         </button>
       </div>
+      {inviteError && <p role="alert" className="text-red-400 text-sm mb-4">{inviteError}</p>}
       {message && <p role="status" className="text-green-300 text-sm mb-4">{message}</p>}
       {showForm && (
         <form onSubmit={crear} className="bg-gray-900 border border-gray-700 rounded-xl p-4 mb-4 space-y-3">
@@ -200,7 +216,13 @@ function UsuariosDelCondominio({ condominioId, getToken }: Props) {
               className="float-right text-blue-400 text-sm disabled:opacity-50">Editar</button>
             <p className="font-medium">{u.nombre} · {labels[u.rol] ?? u.rol}</p>
             <p className="text-sm text-gray-400">{u.email}{u.casa_unidad ? ` · Unidad ${u.casa_unidad}` : ""}</p>
-            {u.registro_pendiente && <p className="text-xs text-yellow-300 mt-1">Registro de cuenta pendiente</p>}
+            {u.registro_pendiente && <div className="mt-2">
+              <p className="text-xs text-yellow-300">Registro de cuenta pendiente</p>
+              <button disabled={inviting !== null || editSaving} onClick={() => invitar(u)}
+                className="text-blue-400 text-sm mt-2 disabled:opacity-50">
+                {inviting === u.usuario_id ? "Enviando..." : "Enviar invitación"}
+              </button>
+            </div>}
           </div>
         ))}</div>}
     </div>

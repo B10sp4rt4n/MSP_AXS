@@ -582,3 +582,46 @@ def listar_destinos(
     return [{"destino_id": c.casa_id, "nombre": c.numero, "tipo": c.tipo}
             for c in db.query(Casa).filter(Casa.condominio_id == condominio_id)
             .order_by(Casa.numero).all()]
+
+
+@router.post("/{condominio_id}/usuarios/{usuario_id}/invitacion")
+def invitar_usuario(
+    condominio_id: str, usuario_id: str,
+    db: Session = Depends(get_core_db), db_gov: Session = Depends(get_gov_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    """Envía sólo a la dirección preasignada; no admite rol, correo ni URL del cliente."""
+    from datetime import datetime, timezone
+    from backend.services.clerk_invitations import send_invitation
+
+    condo = require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
+    identity = db.query(Usuario).filter(
+        Usuario.usuario_id == usuario_id, Usuario.condominio_id == condominio_id,
+    ).with_for_update().first()
+    if not identity:
+        raise HTTPException(404, "Usuario no encontrado en este condominio")
+    scope = db.query(UserTenantScope).filter(
+        UserTenantScope.usuario_id == usuario_id, UserTenantScope.tenant_id == condominio_id,
+        UserTenantScope.estado == ScopeStatus.ACTIVO,
+    ).with_for_update().first()
+    if not scope:
+        raise HTTPException(404, "Usuario sin asignación activa")
+    if identity.rol == "ADMIN_CONDOMINIO" or scope.access_level == AccessLevel.ADMIN_CONDOMINIO:
+        require_msp_admin(db, db_gov, usuario, condo.msp_id)
+    if identity.rol not in {"RESIDENTE", "GUARDIA", "ADMIN_CONDOMINIO"}:
+        raise HTTPException(409, "Esta cuenta requiere gestión de alcance global")
+    if identity.clerk_id:
+        raise HTTPException(409, "La cuenta ya está registrada; debe iniciar sesión")
+    metadata = dict(scope.metadata_json or {})
+    previous = metadata.get("clerk_invitation", {})
+    now = datetime.now(timezone.utc)
+    if previous.get("email") == identity.email and previous.get("sent_at"):
+        elapsed = (now - datetime.fromisoformat(previous["sent_at"])).total_seconds()
+        if elapsed < 7 * 86400:
+            raise HTTPException(409, "Ya se envió una invitación vigente a este correo; revisa también spam")
+    invitation_id = send_invitation(identity.email)
+    metadata["clerk_invitation"] = {"id": invitation_id, "email": identity.email,
+        "sent_at": now.isoformat(), "sent_by": usuario.usuario_id}
+    scope.metadata_json = metadata
+    db.commit()
+    return {"status": "accepted", "message": "Clerk aceptó el envío de la invitación. Revisa también spam."}
