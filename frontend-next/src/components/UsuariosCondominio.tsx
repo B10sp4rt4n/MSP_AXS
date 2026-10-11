@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import ImportarResidentes from "./ImportarResidentes";
 import { api } from "@/lib/api";
 
 type Usuario = {
@@ -103,7 +104,7 @@ function UsuariosDelCondominio({ condominioId, getToken }: Props) {
   const labels: Record<string, string> = {
     GUARDIA: "Guardia", ADMIN_CONDOMINIO: "Administrador", RESIDENTE: "Residente", LECTURA: "Lectura",
   };
-  if (loading) {
+  if (loading && usuarios.length === 0 && revision === 0) {
     return <p role="status" className="text-gray-400 text-sm">Cargando usuarios...</p>;
   }
   if (error) {
@@ -116,6 +117,7 @@ function UsuariosDelCondominio({ condominioId, getToken }: Props) {
   }
   return (
     <div>
+      <ImportarResidentes condominioId={condominioId} getToken={getToken} onImported={() => setRevision(r => r + 1)} />
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-gray-400">{usuarios.length} usuario(s)</p>
         <button onClick={() => { setShowForm(v => !v); setEditing(null); setFormError(""); }} disabled={saving || editSaving}

@@ -166,6 +166,8 @@ app.include_router(qr_router.router)
 app.include_router(evidencias_router.router)
 app.include_router(preregistro_router.router)
 app.include_router(condominios_router.router)
+from backend.routers import resident_import_router
+app.include_router(resident_import_router.router)
 from backend.routers import provider_offboarding_router
 app.include_router(provider_offboarding_router.router)
 
