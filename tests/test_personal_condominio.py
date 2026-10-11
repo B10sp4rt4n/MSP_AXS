@@ -162,3 +162,36 @@ def test_editar_residente_vivienda_valida_y_rol(client, people):
     assert client.patch(url, headers=msp, json=staff).status_code == 200
     assert resident.casa_id is None and resident.casa_unidad is None
     assert people.query(UserTenantScope).filter_by(usuario_id="resident").one().access_level == AccessLevel.GUARDIA
+
+
+def test_invitacion_autorizacion_duplicados_y_fallo(client, people, monkeypatch):
+    from backend.services import clerk_invitations
+    from fastapi import HTTPException
+    calls = []
+    monkeypatch.setattr(clerk_invitations, "send_invitation", lambda email: calls.append(email) or "inv_test")
+    url = "/condominios/a1/usuarios/guard/invitacion"
+    for actor, role in [("guard", "GUARDIA"), ("resident", "RESIDENTE")]:
+        assert client.post(url, headers=headers(actor, role)).status_code == 403
+    assert client.post("/condominios/b1/usuarios/guard/invitacion", headers=headers("msp", "MSP_ADMIN")).status_code == 403
+    assert client.post("/condominios/a1/usuarios/admin/invitacion", headers=headers("admin", "ADMIN_CONDOMINIO")).status_code == 403
+    assert not calls
+    admin = headers("admin", "ADMIN_CONDOMINIO")
+    assert client.post(url, headers=admin).status_code == 200
+    assert calls == ["guard@test.local"]
+    assert client.post(url, headers=admin).status_code == 409
+    assert len(calls) == 1
+    scope = people.query(UserTenantScope).filter_by(usuario_id="guard").one()
+    assert scope.metadata_json["clerk_invitation"]["sent_by"] == "admin"
+    identity = people.query(Usuario).filter_by(usuario_id="guard").one()
+    identity.clerk_id = "registered"
+    people.commit()
+    assert client.post(url, headers=admin).status_code == 409
+    def fail(email):
+        raise HTTPException(502, "No enviado")
+    monkeypatch.setattr(clerk_invitations, "send_invitation", fail)
+    assert client.post("/condominios/a1/usuarios/resident/invitacion", headers=admin).status_code == 502
+    resident = people.query(UserTenantScope).filter_by(usuario_id="resident").one()
+    assert not (resident.metadata_json or {}).get("clerk_invitation")
+    resident.estado = ScopeStatus.REVOCADO
+    people.commit()
+    assert client.post("/condominios/a1/usuarios/resident/invitacion", headers=admin).status_code == 404

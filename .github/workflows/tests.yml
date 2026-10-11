@@ -24,6 +24,9 @@ jobs:
     - run: npx playwright install --with-deps chromium
     - run: node tests/preregistro-admin.browser.cjs
     - run: node tests/reportes-operacion.browser.cjs
+    - run: node tests/resident-import.browser.cjs
+    - run: node tests/admin-empty.browser.cjs
+    - run: node tests/onboarding.browser.cjs
     - run: node tests/provider-console.browser.cjs
       env:
         AXS_SCREENSHOT_DIR: screenshots/provider-console

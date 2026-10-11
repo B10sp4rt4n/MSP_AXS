@@ -5,7 +5,7 @@ Operaciones críticas:
   - Crear tenant (condominio) → Requiere AUP_GOV
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -254,6 +254,8 @@ def crear_casa(
     """Crea una casa/depto/local en un condominio (sin residente)."""
     require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
 
+    db.query(Condominio).filter_by(condominio_id=condominio_id).with_for_update().one()
+
     # Evitar duplicados de número dentro del mismo condominio
     existe = db.query(Casa).filter(
         Casa.condominio_id == condominio_id,
@@ -293,6 +295,8 @@ def asignar_residente(
 ):
     """Asigna un residente a una casa existente."""
     condo = require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
+
+    db.query(Condominio).filter_by(condominio_id=condominio_id).with_for_update().one()
 
     casa = db.query(Casa).filter(Casa.casa_id == casa_id, Casa.condominio_id == condominio_id).first()
     if not casa:
@@ -417,6 +421,9 @@ def listar_usuarios(
         UserTenantScope.tenant_id == condominio_id,
         UserTenantScope.estado == ScopeStatus.ACTIVO,
     ).order_by(Usuario.nombre).all()
+    from backend.services.onboarding import incorporation_state
+    homes = {h.casa_id for h in db.query(Casa).filter(
+        Casa.condominio_id == condominio_id, Casa.tipo.in_(["casa", "depto", "local"])).all()}
     result = {}
     for identity, scope in rows:
         result[identity.usuario_id] = {
@@ -425,6 +432,9 @@ def listar_usuarios(
             "casa_unidad": identity.casa_unidad if identity.condominio_id == condominio_id else None,
             "casa_id": identity.casa_id if identity.condominio_id == condominio_id else None,
             "registro_pendiente": identity.clerk_id is None,
+            "incorporacion": incorporation_state(identity, scope,
+                identity.condominio_id == condominio_id and identity.casa_id in homes)
+                if scope.access_level == AccessLevel.RESIDENTE else None,
         }
     return list(result.values())
 
@@ -500,6 +510,8 @@ def editar_usuario(
     usuario: Usuario = Depends(get_current_user),
 ):
     condo = require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
+    db.query(Condominio).filter_by(condominio_id=condominio_id).with_for_update().one()
+
     identity = db.query(Usuario).filter(
         Usuario.usuario_id == usuario_id, Usuario.condominio_id == condominio_id
     ).with_for_update().first()
@@ -582,3 +594,55 @@ def listar_destinos(
     return [{"destino_id": c.casa_id, "nombre": c.numero, "tipo": c.tipo}
             for c in db.query(Casa).filter(Casa.condominio_id == condominio_id)
             .order_by(Casa.numero).all()]
+
+
+class InvitationConfirmation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_email: str = Field(min_length=3, max_length=254)
+
+
+@router.post("/{condominio_id}/usuarios/{usuario_id}/invitacion")
+def invitar_usuario(
+    condominio_id: str, usuario_id: str,
+    body: InvitationConfirmation | None = Body(default=None),
+    db: Session = Depends(get_core_db), db_gov: Session = Depends(get_gov_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    """Envía sólo a la dirección preasignada; no admite rol, correo ni URL del cliente."""
+    from datetime import datetime, timezone
+    from backend.services.clerk_invitations import send_invitation
+
+    condo = require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
+    identity = db.query(Usuario).filter(
+        Usuario.usuario_id == usuario_id, Usuario.condominio_id == condominio_id,
+    ).with_for_update().first()
+    if not identity:
+        raise HTTPException(404, "Usuario no encontrado en este condominio")
+    scope = db.query(UserTenantScope).filter(
+        UserTenantScope.usuario_id == usuario_id, UserTenantScope.tenant_id == condominio_id,
+        UserTenantScope.estado == ScopeStatus.ACTIVO,
+    ).with_for_update().first()
+    if not scope:
+        raise HTTPException(404, "Usuario sin asignación activa")
+    if identity.rol == "ADMIN_CONDOMINIO" or scope.access_level == AccessLevel.ADMIN_CONDOMINIO:
+        require_msp_admin(db, db_gov, usuario, condo.msp_id)
+    if identity.rol not in {"RESIDENTE", "GUARDIA", "ADMIN_CONDOMINIO"}:
+        raise HTTPException(409, "Esta cuenta requiere gestión de alcance global")
+    if body and identity.email != body.expected_email:
+        raise HTTPException(409, "El correo cambió; actualiza la selección antes de invitar")
+    if identity.clerk_id:
+        raise HTTPException(409, "La cuenta ya está registrada; debe iniciar sesión")
+    metadata = dict(scope.metadata_json or {})
+    from backend.services.onboarding import invitation_state
+    previous = invitation_state(identity, scope)
+    now = datetime.now(timezone.utc)
+    if previous['estado'] == 'solicitada':
+        raise HTTPException(409, "Ya se solicitó una invitación vigente; revisa también spam")
+    if previous['estado'] == 'revisar':
+        raise HTTPException(409, "Revisa el registro de invitación antes de reintentar")
+    invitation_id = send_invitation(identity.email)
+    metadata["clerk_invitation"] = {"id": invitation_id, "email": identity.email,
+        "sent_at": now.isoformat(), "sent_by": usuario.usuario_id}
+    scope.metadata_json = metadata
+    db.commit()
+    return {"status": "accepted", "message": "Clerk aceptó el envío de la invitación. Revisa también spam."}

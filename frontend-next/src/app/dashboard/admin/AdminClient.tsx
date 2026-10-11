@@ -20,16 +20,30 @@ export default function AdminClient() {
   const [condominioId, setCondominioId] = useState("");
   const [condominios, setCondominios] = useState<Condominio[]>([]);
   const [error, setError] = useState("");
+  const [loadingCondominios, setLoadingCondominios] = useState(true);
+  const [reloadCondominios, setReloadCondominios] = useState(0);
 
   useEffect(() => {
+    let active = true;
     const stored = localStorage.getItem(CONDOMINIO_KEY);
     getToken().then(token => api.get<Condominio[]>("/condominios/", token!))
       .then(data => {
+        if (!active) return;
         setCondominios(data);
         setCondominioId(data.find(c => c.condominio_id === stored)?.condominio_id || data[0]?.condominio_id || "");
       })
-      .catch(() => setError("No se pudieron cargar los condominios"));
-  }, [getToken]);
+      .catch(() => { if (active) setError("No se pudieron cargar los condominios"); })
+      .finally(() => { if (active) setLoadingCondominios(false); });
+    return () => { active = false; };
+  }, [getToken, reloadCondominios]);
+
+  const recargarCondominios = () => {
+    setError("");
+    setLoadingCondominios(true);
+    setCondominioId("");
+    setCondominios([]);
+    setReloadCondominios(value => value + 1);
+  };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -41,10 +55,13 @@ export default function AdminClient() {
           <h1 className="text-lg font-bold">Panel Admin</h1>
         </div>
         <select
+          aria-label="Condominio"
+          disabled={loadingCondominios || condominios.length === 0}
           value={condominioId}
           onChange={e => { setCondominioId(e.target.value); localStorage.setItem(CONDOMINIO_KEY, e.target.value); }}
           className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm"
         >
+          {condominios.length === 0 && <option value="">{loadingCondominios ? "Cargando…" : error ? "No disponibles" : "Sin condominios"}</option>}
           {condominios.map(c => (
             <option key={c.condominio_id} value={c.condominio_id}>{c.nombre}</option>
           ))}
@@ -68,9 +85,20 @@ export default function AdminClient() {
         ))}
       </div>
 
-      {error && <p className="text-red-400 text-sm p-4">{error}</p>}
+      {error && <div role="alert" className="text-red-400 text-sm p-4">
+        <p>{error}</p>
+        <button onClick={recargarCondominios} className="mt-2 text-blue-400">Reintentar</button>
+      </div>}
 
       <main className="p-4 max-w-3xl mx-auto">
+        {loadingCondominios && <p role="status" className="text-gray-400">Cargando condominios…</p>}
+        {!loadingCondominios && !error && condominios.length === 0 && (
+          <section role="status" className="rounded-xl border border-gray-700 bg-gray-900 p-6">
+            <h2 className="text-lg font-semibold">Sin condominios asignados</h2>
+            <p className="mt-2 text-gray-300">Tu cuenta no tiene acceso activo a ningún condominio. Solicita al administrador que revise tu asignación.</p>
+            <button onClick={recargarCondominios} className="mt-4 text-blue-400">Actualizar accesos</button>
+          </section>
+        )}
         {condominioId && tab === "reportes" && <ReportesOperacion key={condominioId} condominioId={condominioId} />}
         {condominioId && tab === "bitacora" && <Bitacora key={condominioId} condominioId={condominioId} />}
         {condominioId && tab === "visitas" && <TabVisitas key={condominioId} condominioId={condominioId} getToken={getToken} />}
