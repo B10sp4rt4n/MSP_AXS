@@ -28,6 +28,10 @@ def parse_excel(raw):
             if "Residentes" not in book.sheetnames:
                 raise ValueError("Falta la hoja Residentes")
             sheet = book["Residentes"]
+            # Some valid exporters omit the optional worksheet dimension.
+            # Discover it before enforcing the same row/column limits.
+            if sheet.max_row is None or sheet.max_column is None:
+                sheet.calculate_dimension(force=True)
             if (sheet.max_row or 0) > MAX_ROWS + 1 or (sheet.max_column or 0) != 4:
                 raise ValueError("Usa cuatro columnas y máximo 500 filas de datos")
             rows = sheet.iter_rows()

@@ -1,14 +1,67 @@
 """Import safety: permissions, no preview writes, atomicity and replay."""
 import base64
 import io
+import re
+from zipfile import ZipFile
 from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 from tests.test_personal_condominio import people, headers
 from backend.db.core import Casa, Usuario, EventOutbox
+from backend.services.resident_import import parse_excel
+from fastapi import HTTPException
 
 TEMPLATE = Path('backend/static/plantilla_residentes.xlsx')
 URL = '/condominios/a1/residentes/importar'
+
+
+def without_dimensions(raw):
+    out = io.BytesIO()
+    with ZipFile(io.BytesIO(raw)) as source, ZipFile(out, 'w') as target:
+        for entry in source.infolist():
+            data = source.read(entry.filename)
+            if entry.filename.startswith('xl/worksheets/'):
+                data = re.sub(rb'<(?:\w+:)?dimension\b[^>]*/>', b'', data)
+            target.writestr(entry, data)
+    return out.getvalue()
+
+
+def test_shipped_template_declares_dimensions():
+    book = load_workbook(TEMPLATE, read_only=True)
+    try:
+        assert book['Residentes'].max_column == 4
+        assert book['Residentes'].max_row == 501
+    finally:
+        book.close()
+
+
+def test_missing_dimensions_preserves_values():
+    raw = base64.b64decode(body([['001','casa','Ana','ANA@example.com']])['archivo'])
+    rows = parse_excel(without_dimensions(raw))
+    assert len(rows) == 1
+    assert rows[0]['vivienda'] == '001'
+    assert rows[0]['correo'] == 'ana@example.com'
+    assert rows[0]['errores'] == []
+
+
+@pytest.mark.parametrize('omit_dimensions', [False, True])
+@pytest.mark.parametrize('extra', ['rows', 'columns'])
+def test_dimensions_limits_still_apply(omit_dimensions, extra):
+    rows = [['001','casa','Ana','ana@example.com']]
+    if extra == 'rows': rows *= 501
+    else: rows[0].append('unexpected')
+    raw = base64.b64decode(body(rows)['archivo'])
+    if omit_dimensions: raw = without_dimensions(raw)
+    with pytest.raises(HTTPException, match='') as exc:
+        parse_excel(raw)
+    assert exc.value.status_code == 400
+    assert 'cuatro columnas' in exc.value.detail
+
+
+def test_missing_dimensions_empty_template():
+    with pytest.raises(HTTPException) as exc:
+        parse_excel(without_dimensions(TEMPLATE.read_bytes()))
+    assert 'no contiene residentes' in exc.value.detail
 
 
 def body(rows):
