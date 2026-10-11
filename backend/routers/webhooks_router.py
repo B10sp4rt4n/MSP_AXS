@@ -40,18 +40,19 @@ async def clerk_webhook(
 
     import json
     # Verificar firma del webhook
-    if CLERK_WEBHOOK_SECRET:
-        try:
-            wh = Webhook(CLERK_WEBHOOK_SECRET)
-            wh.verify(body, {
-                "svix-id": svix_id,
-                "svix-timestamp": svix_timestamp,
-                "svix-signature": svix_signature,
-            })
-        except WebhookVerificationError:
-            raise HTTPException(status_code=400, detail="Firma de webhook inválida")
-    else:
-        logger.warning("CLERK_WEBHOOK_SECRET no configurado — webhook sin verificar")
+    if not CLERK_WEBHOOK_SECRET:
+        logger.error("Webhook Clerk rechazado: secreto de firma ausente")
+        raise HTTPException(status_code=503, detail="Webhook de identidad no configurado")
+    if not (svix_id and svix_timestamp and svix_signature):
+        raise HTTPException(status_code=400, detail="Firma de webhook ausente")
+    try:
+        Webhook(CLERK_WEBHOOK_SECRET).verify(body, {
+            "svix-id": svix_id,
+            "svix-timestamp": svix_timestamp,
+            "svix-signature": svix_signature,
+        })
+    except WebhookVerificationError:
+        raise HTTPException(status_code=400, detail="Firma de webhook inválida")
 
     # Parsear body independientemente del resultado de verify()
     payload = json.loads(body)

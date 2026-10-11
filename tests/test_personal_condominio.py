@@ -83,7 +83,9 @@ def test_no_reasigna_identidades_y_admite_autorregistro_sin_scope(client, people
 
 def test_webhook_vincula_sin_perder_rol(client, people, monkeypatch):
     import backend.routers.webhooks_router as webhook
-    monkeypatch.setattr(webhook, "CLERK_WEBHOOK_SECRET", "")
+    monkeypatch.setattr(webhook, "CLERK_WEBHOOK_SECRET", "whsec_test_only")
+    monkeypatch.setattr(webhook.Webhook, "verify", lambda self, body, headers: body)
+    signed_headers = {"svix-id": "msg_test", "svix-timestamp": "1234567890", "svix-signature": "v1,test_signature"}
     msp = headers("msp", "MSP_ADMIN")
     result = client.post("/condominios/a1/usuarios", headers=msp,
                          json={"nombre": "Admin", "email": "link@test.local", "rol": "ADMIN_CONDOMINIO"})
@@ -93,14 +95,14 @@ def test_webhook_vincula_sin_perder_rol(client, people, monkeypatch):
         "email_addresses": [{"id": "other", "email_address": "other@test.local"},
                             {"id": "primary", "email_address": "LINK@Test.Local"}],
     }}
-    response = client.post("/webhooks/clerk", json=payload)
+    response = client.post("/webhooks/clerk", json=payload, headers=signed_headers)
     assert response.status_code == 200, response.text
     saved = people.query(Usuario).filter_by(usuario_id=result.json()["usuario_id"]).one()
     assert saved.clerk_id == "clerk_admin" and saved.rol == "ADMIN_CONDOMINIO"
     assert people.query(UserTenantScope).filter_by(usuario_id=saved.usuario_id).one().access_level == AccessLevel.ADMIN_CONDOMINIO
     payload["data"]["id"] = "clerk_new"
     payload["data"]["email_addresses"][1]["email_address"] = "unscoped@test.local"
-    assert client.post("/webhooks/clerk", json=payload).status_code == 200
+    assert client.post("/webhooks/clerk", json=payload, headers=signed_headers).status_code == 200
     new = people.query(Usuario).filter_by(clerk_id="clerk_new").one()
     assert new.rol == "RESIDENTE"
     assert people.query(UserTenantScope).filter_by(usuario_id=new.usuario_id).count() == 0
