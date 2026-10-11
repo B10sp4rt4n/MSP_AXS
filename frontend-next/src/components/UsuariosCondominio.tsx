@@ -78,7 +78,7 @@ function UsuariosDelCondominio({ condominioId, getToken }: Props) {
       const token = await getToken();
       if (!token) throw new Error("Sin sesión; vuelve a iniciar sesión");
       const result = await api.post<{ message: string }>(
-        `/condominios/${encodeURIComponent(condominioId)}/usuarios/${encodeURIComponent(user.usuario_id)}/invitacion`, {}, token);
+        `/condominios/${encodeURIComponent(condominioId)}/usuarios/${encodeURIComponent(user.usuario_id)}/invitacion`, { expected_email: user.email }, token);
       setMessage(`${user.email}: ${result.message}`);
     } catch (e: unknown) {
       setInviteError(e instanceof Error ? e.message : "No se pudo enviar la invitación");
