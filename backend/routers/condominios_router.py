@@ -254,6 +254,8 @@ def crear_casa(
     """Crea una casa/depto/local en un condominio (sin residente)."""
     require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
 
+    db.query(Condominio).filter_by(condominio_id=condominio_id).with_for_update().one()
+
     # Evitar duplicados de número dentro del mismo condominio
     existe = db.query(Casa).filter(
         Casa.condominio_id == condominio_id,
@@ -293,6 +295,8 @@ def asignar_residente(
 ):
     """Asigna un residente a una casa existente."""
     condo = require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
+
+    db.query(Condominio).filter_by(condominio_id=condominio_id).with_for_update().one()
 
     casa = db.query(Casa).filter(Casa.casa_id == casa_id, Casa.condominio_id == condominio_id).first()
     if not casa:
@@ -500,6 +504,8 @@ def editar_usuario(
     usuario: Usuario = Depends(get_current_user),
 ):
     condo = require_condominio(db, db_gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
+    db.query(Condominio).filter_by(condominio_id=condominio_id).with_for_update().one()
+
     identity = db.query(Usuario).filter(
         Usuario.usuario_id == usuario_id, Usuario.condominio_id == condominio_id
     ).with_for_update().first()
