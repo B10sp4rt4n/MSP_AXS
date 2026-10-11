@@ -9,8 +9,8 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
  modules[id]=`function(require,module,exports){${s}\n}`;return id;
 }
 (async()=>{
- const r=bundle('react'),d=bundle('react-dom/client'),c=bundle(path.join(process.cwd(),'src/components/UsuariosCondominio.tsx'));
- const js=`const mods=[${modules.join(',')}],cache={};function require(id){if(!cache[id]){const m={exports:{}};cache[id]=m;mods[id](require,m,m.exports)}return cache[id].exports}const root=require(${d}).createRoot(document.getElementById('root'));const getToken=async()=>'synthetic';window.renderTenant=t=>root.render(require(${r}).createElement(require(${c}).default,{condominioId:t,getToken}));window.renderTenant('a');`;
+ const dom=bundle('react-dom'),r=bundle('react'),d=bundle('react-dom/client'),c=bundle(path.join(process.cwd(),'src/components/UsuariosCondominio.tsx'));
+ const js=`const mods=[${modules.join(',')}],cache={};function require(id){if(!cache[id]){const m={exports:{}};cache[id]=m;mods[id](require,m,m.exports)}return cache[id].exports}const root=require(${d}).createRoot(document.getElementById('root'));const getToken=async()=>'synthetic';window.renderTenant=t=>require(${dom}).flushSync(()=>root.render(require(${r}).createElement(require(${c}).default,{condominioId:t,getToken})));window.renderTenant('a');`;
  const browser=await chromium.launch({headless:true});try{
  const page=await browser.newPage({viewport:{width:390,height:844}});
  await page.route('**/*',route=>route.request().url()==='http://127.0.0.1:47891/'?route.fulfill({contentType:'text/html',body:'<div id="root"></div>'}):route.abort());
