@@ -5,7 +5,7 @@ import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
 
 type Evidence = { evidencia_id: string; lado: string; nombre: string; created_at: string };
-type Result = { evidencias: Evidence[] };
+type Result = { evidencias: Evidence[]; estado?: "guardada" | "sin_identificacion" | "eliminando" | "eliminada"; eliminada_en?: string | null };
 
 function PhotoCapture({ side, photo, onSelect }: {
   side: "frente" | "reverso"; photo?: File; onSelect: (file?: File) => void;
@@ -181,6 +181,7 @@ function IdentityForm({ visitaId, condominioId, nombreInvitado, getToken }: {
   const [nombre, setNombre] = useState(nombreInvitado);
   const [photos, setPhotos] = useState<{ frente?: File; reverso?: File }>({});
   const [rows, setRows] = useState<Evidence[]>([]);
+  const [identityStatus, setIdentityStatus] = useState<Result["estado"]>();
   const [captureId, setCaptureId] = useState("");
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
@@ -193,7 +194,7 @@ function IdentityForm({ visitaId, condominioId, nombreInvitado, getToken }: {
       if (!token) throw new Error("Sesión expirada");
       return api.get<Result>(path + query, token);
     }).then(result => {
-      if (active) { setRows(result.evidencias); setReady(true); }
+      if (active) { setRows(result.evidencias); setIdentityStatus(result.estado); setReady(true); }
     }).catch(e => { if (active) setError(e instanceof Error ? e.message : "No se pudo consultar"); });
     return () => { active = false; };
   }, [getToken, path, query, reload]);
@@ -218,7 +219,7 @@ function IdentityForm({ visitaId, condominioId, nombreInvitado, getToken }: {
       form.append("nombre", nombre.trim()); form.append("captura_id", captureId);
       form.append("frente", photos.frente); form.append("reverso", photos.reverso);
       const result = await api.upload<Result>(path + query, form, token);
-      setRows(result.evidencias); setPhotos({}); setConfirmed(false);
+      setRows(result.evidencias); setIdentityStatus("guardada"); setPhotos({}); setConfirmed(false);
     } catch (e) { setError(e instanceof Error ? e.message : "No se confirmó el guardado. Reintenta."); }
     finally { setBusy(false); }
   }
@@ -227,7 +228,9 @@ function IdentityForm({ visitaId, condominioId, nombreInvitado, getToken }: {
     {error && <p role="alert" className="mb-3 text-sm text-red-300">{error}</p>}
     {!ready && !error && <p role="status">Consultando identificación…</p>}
     {error && <button type="button" disabled={busy} className="mb-3 text-sm underline" onClick={() => { setReady(false); setError(""); setReload(v => v + 1); }}>Consultar estado guardado</button>}
-    {rows.length > 0 ? <>
+    {identityStatus === "eliminada" ? <p role="status" className="text-sm text-gray-300">Identificación eliminada. La bitácora conserva el registro de la operación; las fotos ya no están disponibles.</p>
+    : identityStatus === "eliminando" ? <div><p role="status" className="text-sm text-amber-300">Eliminación pendiente de completar. Las fotos están retiradas de consulta.</p><button type="button" onClick={() => { setReady(false); setReload(value => value + 1); }} className="mt-3 min-h-12 rounded-lg border border-gray-500 px-3">Actualizar estado</button></div>
+    : rows.length > 0 ? <>
       <p role="status" className="font-semibold text-green-300">Frente y reverso guardados</p>
       <p className="mt-2">Nombre registrado: {rows[0].nombre}</p>
       <p className="text-xs text-gray-400">{new Date(rows[0].created_at).toLocaleString("es-MX")}</p>
