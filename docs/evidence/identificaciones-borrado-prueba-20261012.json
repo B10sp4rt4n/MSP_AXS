@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-12",
+  "environment": "AXS Development",
+  "scope": "Four allowlisted fictitious photos only; no production or general retention purge",
+  "app_commit": "12865b10ea2915566f32d4fc45c4d2647a2c1dd0",
+  "backend_deployment": "296ce5da-be7a-4642-80cb-44f17b033880",
+  "frontend_deployment": "c54c6c0c-f868-49b9-bfb9-30b1d7486074",
+  "execution_deployment": "70f9da36-8d74-4c3b-afaf-ab4bd2e845b2",
+  "live_result": {
+    "status": "PASS",
+    "checks": 12,
+    "photos_deleted": 4,
+    "tenants": 2,
+    "synthetic_only": true,
+    "proof": [
+      {
+        "tenant": "axs_demo_condo_a",
+        "visit": "VIS-4ced9e365c",
+        "photos": 2,
+        "event_uid": "evt_820b1bde029a4364a0fddacc241f48ad",
+        "operation_id": "6b4e71f9-43e9-4784-b99d-405786a14a6e",
+        "storage_absent": true,
+        "delivery": 410,
+        "audit_delivered": true,
+        "idempotent": true
+      },
+      {
+        "tenant": "axs_demo_condo_b",
+        "visit": "VIS-7dad7600d5",
+        "photos": 2,
+        "event_uid": "evt_6167e7e1ed38466d917eb0630dca8c62",
+        "operation_id": "3da10c6e-c0c1-4d4a-b8fc-fe6b3831f269",
+        "storage_absent": true,
+        "delivery": 410,
+        "audit_delivered": true,
+        "idempotent": true
+      }
+    ]
+  },
+  "local_validation": {
+    "backend_tests_passed": 60,
+    "typescript": "PASS",
+    "lint": "PASS"
+  },
+  "closure": {
+    "gate": "AXS_ID_PHOTOS_TEST_PURGE_ENABLED=false",
+    "backend_deployment": "cbe212f9-4205-4cba-a0e3-402fc288b3b2",
+    "verification_deployment": "d186b6bd-fd71-4e76-b3f9-186d2d60b3ae",
+    "result": {
+      "status": "PASS",
+      "checks": 6,
+      "purge_enabled": false,
+      "photos_inaccessible": 4,
+      "audit_records": 2,
+      "writes_performed": 0
+    }
+  },
+  "limits": [
+    "Live provider objects verified absent; provider backup retention not proven.",
+    "General 30-day purge remains proposed, inactive.",
+    "Test runner now verifies closure; no reuploads or effective deletes."
+  ]
+}
