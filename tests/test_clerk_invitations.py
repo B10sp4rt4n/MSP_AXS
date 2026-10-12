@@ -87,3 +87,24 @@ def test_offline_clerk_public_key_verifies_signature_and_issuer(monkeypatch):
     assert auth_jwt.verify_clerk_token(wrong_issuer) is None
     expired = jose_jwt.encode({**payload, "exp": int((now - timedelta(seconds=1)).timestamp())}, private_pem, algorithm="RS256")
     assert auth_jwt.verify_clerk_token(expired) is None
+
+
+def test_pinned_production_issuer_overrides_legacy_publishable_domain(monkeypatch):
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives import serialization
+    from jose import jwt as jose_jwt
+    from backend.core.auth import jwt as auth_jwt
+    from datetime import datetime, timezone, timedelta
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()).decode()
+    public = key.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo).decode()
+    monkeypatch.setenv("CLERK_JWT_PUBLIC_KEY", public)
+    monkeypatch.setenv("CLERK_JWT_ISSUER", "https://clerk.auth.axs-mx.com")
+    monkeypatch.setattr(auth_jwt, "_get_clerk_domain", lambda: "clerk.old.example")
+    now = datetime.now(timezone.utc)
+    payload = {"sub": "user_test", "iss": "https://clerk.auth.axs-mx.com",
+               "iat": int(now.timestamp()), "exp": int((now + timedelta(minutes=5)).timestamp())}
+    token = jose_jwt.encode(payload, private, algorithm="RS256")
+    assert auth_jwt.verify_clerk_token(token)["sub"] == "user_test"
+    invalid = jose_jwt.encode({**payload, "iss": "https://clerk.old.example"}, private, algorithm="RS256")
+    assert auth_jwt.verify_clerk_token(invalid) is None
