@@ -28,7 +28,9 @@ function PhotoCapture({ side, photo, onSelect }: {
   </div>;
 }
 
-function Preview({ blob, label }: { blob: Blob; label: string }) {
+function Preview({ blob, label, className, style }: {
+  blob: Blob; label: string; className?: string; style?: React.CSSProperties;
+}) {
   const imageRef = useRef<HTMLImageElement>(null);
   useEffect(() => {
     const value = URL.createObjectURL(blob);
@@ -37,7 +39,53 @@ function Preview({ blob, label }: { blob: Blob; label: string }) {
   }, [blob]);
   // Object URLs are local previews, never public image URLs.
   // eslint-disable-next-line @next/next/no-img-element
-  return <img ref={imageRef} alt={label} className="mt-2 max-h-64 w-full rounded-lg object-contain" />;
+  return <img ref={imageRef} alt={label} style={style} className={className ?? "mt-2 max-h-64 w-full rounded-lg object-contain"} />;
+}
+
+function PhotoViewer({ pictures, initialId, onClose }: {
+  pictures: { id: string; side: string; blob: Blob }[]; initialId: string; onClose: () => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const viewport = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const [selectedId, setSelectedId] = useState(initialId);
+  const [zoom, setZoom] = useState(1);
+  const selected = pictures.find(picture => picture.id === selectedId) ?? pictures[0];
+  useEffect(() => {
+    const modal = dialog.current;
+    const previousOverflow = document.body.style.overflow;
+    modal?.showModal(); document.body.style.overflow = "hidden";
+    return () => { modal?.close(); document.body.style.overflow = previousOverflow; };
+  }, []);
+  function resetView(id?: string) {
+    if (id) setSelectedId(id);
+    setZoom(1); viewport.current?.scrollTo({ top: 0, left: 0 });
+  }
+  if (!selected) return null;
+  return <dialog ref={dialog} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); onClose(); }}
+    className="fixed inset-0 m-auto h-[94dvh] max-h-none w-[96vw] max-w-5xl rounded-xl border border-gray-600 bg-gray-950 p-0 text-white backdrop:bg-black/80">
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-700 p-3">
+        <h2 id={titleId} className="font-semibold">Identificación · {selected.side}</h2>
+        <button type="button" autoFocus onClick={onClose} className="min-h-12 rounded-lg border border-gray-500 px-3 text-sm">Cerrar y volver a la visita</button>
+      </header>
+      <div className="flex shrink-0 flex-wrap items-center gap-2 p-3">
+        {pictures.map(picture => <button key={picture.id} type="button" aria-pressed={picture.id === selected.id}
+          onClick={() => resetView(picture.id)} className={`min-h-12 rounded-lg px-4 ${picture.id === selected.id ? "bg-blue-600" : "border border-gray-500"}`}>{picture.side}</button>)}
+        <button type="button" aria-label="Alejar foto" disabled={zoom <= 1} onClick={() => setZoom(value => Math.max(1, value - .5))}
+          className="min-h-12 min-w-12 rounded-lg border border-gray-500 text-xl disabled:opacity-40">−</button>
+        <output aria-live="polite" aria-label="Nivel de zoom" className="min-w-14 text-center text-sm">{Math.round(zoom * 100)}%</output>
+        <button type="button" aria-label="Acercar foto" disabled={zoom >= 4} onClick={() => setZoom(value => Math.min(4, value + .5))}
+          className="min-h-12 min-w-12 rounded-lg border border-gray-500 text-xl disabled:opacity-40">+</button>
+        <button type="button" onClick={() => resetView()} className="min-h-12 rounded-lg border border-gray-500 px-3 text-sm">Ajustar foto</button>
+      </div>
+      <p className="shrink-0 px-3 pb-2 text-sm text-gray-300">Usa + para acercar. Desliza la imagen para recorrerla.</p>
+      <div ref={viewport} className="min-h-0 flex-1 overflow-auto overscroll-contain bg-black p-2">
+        <Preview key={selected.id} blob={selected.blob} label={`${selected.side} ampliado`} className="block h-auto rounded-lg"
+          style={{ width: `${zoom * 100}%`, maxWidth: "none" }} />
+      </div>
+    </div>
+  </dialog>;
 }
 
 function SavedIdentityPhotos({ rows, path, query, getToken }: {
@@ -46,6 +94,7 @@ function SavedIdentityPhotos({ rows, path, query, getToken }: {
   const [attempt, setAttempt] = useState(0);
   const [loading, setLoading] = useState(true);
   const [states, setStates] = useState<Record<string, { blob?: Blob; error?: string }>>({});
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
@@ -75,17 +124,26 @@ function SavedIdentityPhotos({ rows, path, query, getToken }: {
   }, [rows, path, query, getToken, attempt]);
 
   return <div className="mt-4 space-y-3" aria-busy={loading}>
+    <p className="text-sm text-gray-300">Toca una foto para ampliarla y leer los detalles.</p>
+    <div className="grid grid-cols-2 gap-3">
     {rows.map(row => {
       const side = row.lado === "ine_frente" ? "Frente" : "Reverso";
       const state = states[row.evidencia_id];
       return <div key={row.evidencia_id} className="rounded-xl border border-gray-700 p-3">
         <h3 className="font-semibold">{side} guardado</h3>
-        {state?.blob ? <Preview blob={state.blob} label={`${side} guardado`} />
+        {state?.blob ? <button type="button" onClick={() => setSelectedId(row.evidencia_id)} aria-label={`Ampliar ${side.toLowerCase()}`}
+          className="mt-2 w-full rounded-lg text-left focus-visible:outline-2 focus-visible:outline-blue-400">
+          <Preview blob={state.blob} label={`${side} guardado`} className="h-32 w-full rounded-lg bg-black object-contain sm:h-40" />
+          <span className="mt-2 block text-center text-sm text-blue-300">Ampliar {side.toLowerCase()}</span>
+        </button>
           : state?.error ? <p role="alert" className="mt-2 text-sm text-red-300">{state.error}</p>
           : <p role="status" className="mt-2 min-h-24 animate-pulse rounded-lg bg-gray-900 p-4 text-sm text-gray-300">Cargando foto del {side.toLowerCase()}…</p>}
       </div>;
     })}
-    <button type="button" onClick={() => setAttempt(value => value + 1)} disabled={loading}
+    </div>
+    {selectedId && states[selectedId]?.blob && <PhotoViewer initialId={selectedId} onClose={() => setSelectedId(null)}
+      pictures={rows.flatMap(row => { const blob = states[row.evidencia_id]?.blob; return blob ? [{ id: row.evidencia_id, side: row.lado === "ine_frente" ? "Frente" : "Reverso", blob }] : []; })} />}
+    <button type="button" onClick={() => { setSelectedId(null); setAttempt(value => value + 1); }} disabled={loading}
       className="min-h-12 rounded-lg border border-gray-500 px-4 py-2 disabled:opacity-50">
       {loading ? "Cargando fotos…" : "Volver a cargar fotos"}
     </button>
