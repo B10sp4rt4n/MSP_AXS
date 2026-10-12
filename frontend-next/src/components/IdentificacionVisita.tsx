@@ -7,6 +7,27 @@ import { api } from "@/lib/api";
 type Evidence = { evidencia_id: string; lado: string; nombre: string; created_at: string };
 type Result = { evidencias: Evidence[] };
 
+function PhotoCapture({ side, photo, onSelect }: {
+  side: "frente" | "reverso"; photo?: File; onSelect: (file?: File) => void;
+}) {
+  const camera = useRef<HTMLInputElement>(null);
+  const gallery = useRef<HTMLInputElement>(null);
+  const change = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onSelect(e.target.files?.[0]); e.target.value = "";
+  };
+  return <div className="rounded-xl border border-gray-600 bg-gray-900 p-4">
+    <h3 className="text-base font-semibold">{side === "frente" ? "1. Frente de la identificación" : "2. Reverso de la identificación"}</h3>
+    <p className="mt-1 text-sm text-gray-300">{photo ? "Foto lista. Puedes repetirla antes de guardar." : "Toma una foto o elige una que ya tengas."}</p>
+    <input ref={camera} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={change} aria-label={`Cámara del ${side}`} />
+    <input ref={gallery} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={change} aria-label={`Archivo del ${side}`} />
+    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <button type="button" onClick={() => camera.current?.click()} className="min-h-12 rounded-lg bg-blue-600 px-3 py-3 font-semibold hover:bg-blue-500">{photo ? `Repetir foto del ${side}` : `Tomar foto del ${side}`}</button>
+      <button type="button" onClick={() => gallery.current?.click()} className="min-h-12 rounded-lg border border-gray-500 px-3 py-3 text-sm hover:bg-gray-800">{`Elegir archivo del ${side}`}</button>
+    </div>
+    {photo && <Preview blob={photo} label={`Vista previa del ${side}`} />}
+  </div>;
+}
+
 function Preview({ blob, label }: { blob: Blob; label: string }) {
   const imageRef = useRef<HTMLImageElement>(null);
   useEffect(() => {
@@ -27,9 +48,10 @@ export default function IdentificacionVisita({ visitaId, condominioId, nombreInv
   const [open, setOpen] = useState(false);
   return <section className="mt-4 text-left">
     <button type="button" aria-expanded={open} aria-controls={uid} onClick={() => setOpen(!open)}
-      className="w-full rounded-lg border border-gray-600 p-3 text-sm">
-      {open ? "Cerrar identificación (descarta fotos sin guardar)" : "Identificación: fotos y nombre"}
+      className={`min-h-12 w-full rounded-lg p-3 text-base font-semibold ${open ? "border border-gray-600" : "bg-blue-600 text-white hover:bg-blue-500"}`}>
+      {open ? "Cerrar identificación" : "Capturar o ver identificación"}
     </button>
+    {!open && <p className="mt-2 text-sm text-gray-300">Abre aquí para tomar las fotos del frente y reverso, o consultar las guardadas.</p>}
     {open && <div id={uid}><IdentityForm key={`${condominioId}:${visitaId}`} visitaId={visitaId}
       condominioId={condominioId} nombreInvitado={nombreInvitado} getToken={getToken} /></div>}
   </section>;
@@ -111,14 +133,11 @@ function IdentityForm({ visitaId, condominioId, nombreInvitado, getToken }: {
       <button type="button" onClick={viewPhotos} disabled={busy} className="mt-3 rounded-lg bg-blue-700 px-4 py-2 disabled:opacity-50">{busy ? "Cargando…" : "Consultar fotos"}</button>
       {rows.map(row => savedPhotos[row.evidencia_id] && <Preview key={row.evidencia_id} blob={savedPhotos[row.evidencia_id]} label={row.lado === "ine_frente" ? "Frente guardado" : "Reverso guardado"} />)}
     </> : ready && <form onSubmit={save} className="space-y-4">
-      <p className="text-sm text-gray-300">Coloca la identificación completa, con buena luz y sin reflejos. Revisa que ambos lados sean legibles.</p>
+      <h2 className="text-lg font-semibold">Capturar identificación de {nombreInvitado}</h2>
+      <p className="text-sm text-gray-300">Toma el frente, después el reverso y confirma el nombre. En celular se abre la cámara; en computadora puedes elegir archivos. Usa buena luz y evita reflejos.</p>
       <fieldset disabled={busy} className="space-y-4 disabled:opacity-60">
-        {(["frente", "reverso"] as const).map(side => <div key={side}>
-          <label htmlFor={`${uid}-${side}`} className="block text-sm font-semibold">{side === "frente" ? "1. Foto del frente" : "2. Foto del reverso"}</label>
-          <input id={`${uid}-${side}`} type="file" accept="image/jpeg,image/png,image/webp" capture="environment"
-            className="mt-2 w-full text-sm" onChange={e => { select(side, e.target.files?.[0]); e.target.value = ""; }} />
-          {photos[side] && <><Preview blob={photos[side]} label={`Vista previa del ${side}`} /><p className="text-xs text-gray-400">Para repetir, selecciona otra foto.</p></>}
-        </div>)}
+        <p role="status" className="text-sm font-semibold text-blue-200">{Number(!!photos.frente) + Number(!!photos.reverso)} de 2 fotos listas</p>
+        {(["frente", "reverso"] as const).map(side => <PhotoCapture key={side} side={side} photo={photos[side]} onSelect={file => select(side, file)} />)}
         <label htmlFor={`${uid}-nombre`} className="block text-sm">3. Nombre completo según identificación
           <input id={`${uid}-nombre`} required minLength={2} maxLength={200} value={nombre}
             onChange={e => { setNombre(e.target.value); setCaptureId(crypto.randomUUID()); setConfirmed(false); }}
@@ -126,6 +145,7 @@ function IdentityForm({ visitaId, condominioId, nombreInvitado, getToken }: {
         </label>
         {nombre.trim() !== nombreInvitado.trim() && <p className="text-sm text-amber-300">Invitación: {nombreInvitado}. El nombre capturado se conserva por separado.</p>}
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />Revisé el nombre y la legibilidad de ambas fotos.</label>
+        <p className="text-sm text-gray-300">{!photos.frente ? "Falta tomar la foto del frente." : !photos.reverso ? "Falta tomar la foto del reverso." : !nombre.trim() ? "Escribe el nombre completo." : !confirmed ? "Marca la revisión del nombre y las dos fotos para guardar." : "Todo listo para guardar ambas fotos."}</p>
         <button disabled={!photos.frente || !photos.reverso || !confirmed || !nombre.trim()} className="w-full rounded-lg bg-blue-600 p-3 font-semibold disabled:opacity-40">{busy ? "Guardando ambas fotos…" : "Guardar identificación"}</button>
       </fieldset>
       <p className="text-xs text-gray-400">Las fotos pendientes se conservan solo mientras esta pantalla siga abierta. Este registro no autoriza la entrada.</p>
