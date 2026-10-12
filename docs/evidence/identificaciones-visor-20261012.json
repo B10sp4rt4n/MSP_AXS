@@ -21,12 +21,12 @@
   "pending": {},
   "mobile_native_touch_test": "not performed in this turn",
   "final_verification": {
-    "checked_at": "2026-10-12T21:02:00Z",
     "frontend_commit": "89b27fe6e2b7f0336e84a43de57d1b47fa60827f",
     "deployment": "908af7c5-2370-4a63-9b04-5d87d7510dd0",
     "status": "PASS",
     "focus_after_close": "Ampliar frente",
     "body_scroll_restored": true,
-    "dialog_closed": true
+    "dialog_closed": true,
+    "checked_on": "2026-10-12"
   }
 }
