@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
 import type { Visita, Condominio } from "@/lib/types";
+import IdentificacionVisita from "@/components/IdentificacionVisita";
 
 const CONDOMINIO_KEY = "axs_condominio_id";
 
@@ -193,6 +194,7 @@ function VisitaCard({
       </div>
       {visita.destino_motivo && <p className="text-xs text-yellow-300 mt-2">Excepción: {visita.destino_motivo}</p>}
       {err && <p className="text-red-400 text-xs mt-2">{err}</p>}
+      <IdentificacionVisita visitaId={visita.visita_id} condominioId={condominioId} nombreInvitado={visita.nombre_visitante} />
       {canEnter && (
         <button onClick={registrarEntrada} disabled={loading}
           className="mt-3 w-full bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-lg">

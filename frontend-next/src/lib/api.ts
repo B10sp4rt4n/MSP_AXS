@@ -42,6 +42,14 @@ async function request<T>(path: string, { method = "GET", body, token }: Request
 }
 
 export const api = {
+  upload: async <T>(path: string, body: FormData, token: string): Promise<T> => {
+    const res = await fetch(`${API_URL}${path}`, {
+      method: "POST", headers: { Authorization: `Bearer ${token}` }, body,
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(typeof result.detail === "string" ? result.detail : `No se guardó (${res.status})`);
+    return result;
+  },
   download: async (path: string, token: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
     if (!res.ok) {

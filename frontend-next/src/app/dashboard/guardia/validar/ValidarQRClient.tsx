@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
 import type { Condominio } from "@/lib/types";
+import IdentificacionVisita from "@/components/IdentificacionVisita";
 
 type ResultadoQR = {
   status: string;
@@ -181,6 +182,8 @@ export default function ValidarQRClient() {
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl">
               Escanear otro QR
             </button>
+            <IdentificacionVisita key={resultado.visita_id} visitaId={resultado.visita_id}
+              condominioId={resultado.condominio_id} nombreInvitado={resultado.nombre_visitante} />
           </div>
         )}
 

@@ -164,6 +164,8 @@ app.include_router(msp_router.router)
 app.include_router(visitas_router.router)
 app.include_router(qr_router.router)
 app.include_router(evidencias_router.router)
+from backend.routers import identificaciones_router
+app.include_router(identificaciones_router.router)
 app.include_router(preregistro_router.router)
 app.include_router(condominios_router.router)
 from backend.routers import resident_import_router
