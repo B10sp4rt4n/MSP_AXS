@@ -6,10 +6,15 @@ Capturar no modifica autorizaciones ni estados de entrada/salida.
 
 ## Operación
 
-En Portal Guardia, abrir una visita y «Identificación: fotos y nombre». También
+En Portal Guardia, abrir una visita y «Capturar o ver identificación». También
 está disponible después de validar un QR (el flujo QR existente ya registra entrada).
 Tomar ambas fotos, revisar nombre y legibilidad, guardar. La cámara nativa móvil
 solicita lente trasera; escritorio permite elegir archivos. Vista previa y repetición.
+Al abrir un registro guardado se descargan ambos lados en paralelo. Se muestran
+miniaturas etiquetadas; tocar una abre un visor con zoom de 100 % a 400 %, cambio
+de lado, ajuste y cierre para regresar a la visita. El visor usa los mismos blobs
+en memoria; no descarga otra copia al ampliar. Cerrar la identificación libera
+las vistas locales y cancela las descargas pendientes.
 Las capturas pendientes solo viven en memoria; cerrar/recargar descarta lo pendiente.
 Ante error, reintentar o consultar estado guardado. Una pareja por visita; no sobrescribe
 evidencias. El mismo identificador y contenido se pueden reintentar sin duplicar.
@@ -26,7 +31,8 @@ store (nunca en NEXT_PUBLIC_* ni en frontend) y `AXS_ID_PHOTOS_ENABLED=true`.
 Un token de Vercel conectado al frontend no configura automáticamente Railway.
 Mantener deshabilitado hasta comprobar una subida/consulta sintética y rechazo
 al abrir la URL del objeto sin autenticación. Nunca seleccionar acceso público.
-No se han migrado evidencias anteriores: el PR aún no se ha activado.
+No se han migrado evidencias anteriores. Esta función está activada únicamente
+en AXS Development; sigue pendiente su liberación a producción.
 Definir la política de conservación y su proceso de eliminación antes de usar INEs
 reales: esta versión no implementa purga automática.
 
@@ -50,5 +56,10 @@ con la clave del objeto para conciliación; no hay cola automática de limpieza 
 - Pruebas backend con almacenamiento simulado: alcance, rechazo de residentes,
   archivos inválidos, tamaño, falta de reverso, reintentos y rollback.
 - TypeScript y lint de los archivos nuevos/modificados.
-- Pendientes reales: cámara iOS/Android en caseta, persistencia Vercel Blob, acceso
-  anónimo denegado y concurrencia PostgreSQL. No afirmar pruebas reales realizadas.
+- Development: carga/consulta de imágenes ficticias y rechazo entre dos cuentas
+  de prueba existentes verificados contra almacenamiento real. El usuario confirmó
+  captura desde su celular y persistencia tras recargar; no se documentó su modelo
+  de dispositivo. Evidencias en docs/evidence/.
+- Pendientes: acceso anónimo directo al objeto Blob, aceptación con segunda sesión
+  Clerk si se exige, concurrencia PostgreSQL y vencimiento/purga. No afirmar esos
+  pendientes como comprobados.
