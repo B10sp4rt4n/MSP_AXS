@@ -263,3 +263,14 @@ def test_expired_capture_retry_does_not_return_transcribed_name(client,lifecycle
     expire(db)
     # An upload must not provide an alternate route to an expired identity.
     assert send(client,name=retention.LABEL).status_code==410
+
+
+@pytest.mark.parametrize('status',[304,429,500,503])
+def test_provider_uncertain_read_is_not_absence(monkeypatch,status):
+    from types import SimpleNamespace
+    from vercel import blob
+    from backend.services.identificacion_service import PrivateIdentityStore
+    monkeypatch.setenv('AXS_ID_PHOTOS_ENABLED','true');monkeypatch.setenv('BLOB_READ_WRITE_TOKEN','synthetic')
+    monkeypatch.setattr(blob,'get',lambda *args,**kwargs: SimpleNamespace(status_code=status,content=b''))
+    with pytest.raises(HTTPException) as exc: PrivateIdentityStore().read('fixture')
+    assert exc.value.status_code==503
