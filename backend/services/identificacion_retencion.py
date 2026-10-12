@@ -32,6 +32,9 @@ def report(db, condominio_id: str, cutoff_date: date):
     grouped = defaultdict(list)
     for row in rows:
         grouped[row.visita_id].append(row)
+    from backend.services import identificacion_conservacion as conservation
+    from backend.db.core import IdentityRetention
+    lifecycles = {r.visita_id: r for r in db.query(IdentityRetention).filter_by(condominio_id=condominio_id).all()} if conservation.schema_enabled() else {}
     items = []
     counts = {"venceria": 0, "vigente": 0, "revision": 0, "posterior_al_corte": 0}
     for visit_id, pair in grouped.items():
@@ -66,6 +69,18 @@ def report(db, condominio_id: str, cutoff_date: date):
                     item["venceria_en"] = expires.isoformat()
                     item["motivo"] = "30 días desde la salida registrada" if exit_at else "30 días desde la captura, sin salida registrada"
                     item["clasificacion"] = "posterior_al_corte" if captured >= cutoff else "venceria" if expires < cutoff else "vigente"
+        lifecycle = lifecycles.get(visit_id)
+        if lifecycle:
+            item["conservacion"] = conservation.describe(lifecycle)
+            if lifecycle.state in {"pending", "review"}:
+                item["clasificacion"] = "revision"
+                item["motivo"] = "Eliminación pendiente o registro para revisión; consulta su estado"
+            elif item["clasificacion"] != "revision":
+                deadline = max(lifecycle.expires_at, lifecycle.hold_until or lifecycle.expires_at)
+                item["venceria_en"] = as_utc(deadline).isoformat()
+                item["clasificacion"] = "posterior_al_corte" if as_utc(lifecycle.captured_at) >= cutoff else "venceria" if as_utc(deadline) < cutoff else "vigente"
+                if lifecycle.hold_until:
+                    item["motivo"] = "Plazo con excepción por incidencia de fecha límite explícita"
         counts[item["clasificacion"]] += 1
         items.append(item)
     order = {"venceria": 0, "revision": 1, "vigente": 2, "posterior_al_corte": 3}
@@ -74,5 +89,5 @@ def report(db, condominio_id: str, cutoff_date: date):
             "condominio_id": condominio_id, "fecha_corte": cutoff_date.isoformat(),
             "zona_horaria": ZONE.key, "generado_en": datetime.now(timezone.utc).isoformat(),
             "total_identificaciones": len(items), "total_fotos": len(rows), "resumen": counts,
-            "nota": "Proyección con registros actuales. No consulta fotos ni valida incidencias o excepciones de conservación.",
+            "nota": "Proyección con registros actuales. Incluye excepciones sólo de los pares inscritos en el piloto; no consulta fotos ni activa borrado general.",
             "items": items}
