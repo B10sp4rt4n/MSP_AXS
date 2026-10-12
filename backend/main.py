@@ -88,11 +88,19 @@ async def iniciar_auditoria():
     from backend.db.core.session import SessionLocal_CORE
     from backend.db.event.session import SessionLocal_EVENT
     app.state.audit_worker = asyncio.create_task(ejecutar_worker(SessionLocal_CORE, SessionLocal_EVENT))
+    from backend.services.identificacion_conservacion import worker, schema_enabled
+    if schema_enabled():
+        app.state.retention_worker = asyncio.create_task(worker(SessionLocal_CORE))
     logger.info("Auditoría durable de visitas y seguridad: worker iniciado")
 
 
 @app.on_event("shutdown")
 async def detener_auditoria():
+    retention_task = getattr(app.state, "retention_worker", None)
+    if retention_task:
+        retention_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await retention_task
     task = getattr(app.state, "audit_worker", None)
     if task:
         task.cancel()
