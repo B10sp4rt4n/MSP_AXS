@@ -40,6 +40,58 @@ function Preview({ blob, label }: { blob: Blob; label: string }) {
   return <img ref={imageRef} alt={label} className="mt-2 max-h-64 w-full rounded-lg object-contain" />;
 }
 
+function SavedIdentityPhotos({ rows, path, query, getToken }: {
+  rows: Evidence[]; path: string; query: string; getToken: () => Promise<string | null>;
+}) {
+  const [attempt, setAttempt] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [states, setStates] = useState<Record<string, { blob?: Blob; error?: string }>>({});
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    const fail = (row: Evidence, error: unknown) => {
+      if (!active) return;
+      const message = controller.signal.aborted ? "La carga tardó demasiado. Vuelve a intentarlo."
+        : error instanceof Error ? error.message : "No se pudo cargar esta foto.";
+      setStates(previous => ({ ...previous, [row.evidencia_id]: { error: message } }));
+    };
+    setLoading(true); setStates({});
+    async function load() {
+      try {
+        const token = await getToken();
+        if (!token) throw new Error("Sesión expirada; vuelve a iniciar sesión");
+        await Promise.all(rows.map(async row => {
+          try {
+            const blob = await api.download(`${path}/${encodeURIComponent(row.evidencia_id)}${query}`, token, controller.signal);
+            if (active) setStates(previous => ({ ...previous, [row.evidencia_id]: { blob } }));
+          } catch (error) { fail(row, error); }
+        }));
+      } catch (error) { rows.forEach(row => fail(row, error)); }
+      finally { clearTimeout(timeout); if (active) setLoading(false); }
+    }
+    void load();
+    return () => { active = false; clearTimeout(timeout); controller.abort(); };
+  }, [rows, path, query, getToken, attempt]);
+
+  return <div className="mt-4 space-y-3" aria-busy={loading}>
+    {rows.map(row => {
+      const side = row.lado === "ine_frente" ? "Frente" : "Reverso";
+      const state = states[row.evidencia_id];
+      return <div key={row.evidencia_id} className="rounded-xl border border-gray-700 p-3">
+        <h3 className="font-semibold">{side} guardado</h3>
+        {state?.blob ? <Preview blob={state.blob} label={`${side} guardado`} />
+          : state?.error ? <p role="alert" className="mt-2 text-sm text-red-300">{state.error}</p>
+          : <p role="status" className="mt-2 min-h-24 animate-pulse rounded-lg bg-gray-900 p-4 text-sm text-gray-300">Cargando foto del {side.toLowerCase()}…</p>}
+      </div>;
+    })}
+    <button type="button" onClick={() => setAttempt(value => value + 1)} disabled={loading}
+      className="min-h-12 rounded-lg border border-gray-500 px-4 py-2 disabled:opacity-50">
+      {loading ? "Cargando fotos…" : "Volver a cargar fotos"}
+    </button>
+  </div>;
+}
+
 export default function IdentificacionVisita({ visitaId, condominioId, nombreInvitado }: {
   visitaId: string; condominioId: string; nombreInvitado: string;
 }) {
@@ -67,7 +119,6 @@ function IdentityForm({ visitaId, condominioId, nombreInvitado, getToken }: {
   const [nombre, setNombre] = useState(nombreInvitado);
   const [photos, setPhotos] = useState<{ frente?: File; reverso?: File }>({});
   const [rows, setRows] = useState<Evidence[]>([]);
-  const [savedPhotos, setSavedPhotos] = useState<Record<string, Blob>>({});
   const [captureId, setCaptureId] = useState("");
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
@@ -110,18 +161,6 @@ function IdentityForm({ visitaId, condominioId, nombreInvitado, getToken }: {
     finally { setBusy(false); }
   }
 
-  async function viewPhotos() {
-    setBusy(true); setError("");
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Sesión expirada");
-      const loaded: Record<string, Blob> = {};
-      for (const row of rows) loaded[row.evidencia_id] = await api.download(`${path}/${encodeURIComponent(row.evidencia_id)}${query}`, token);
-      setSavedPhotos(loaded);
-    } catch (e) { setError(e instanceof Error ? e.message : "No se pudieron consultar las fotos"); }
-    finally { setBusy(false); }
-  }
-
   return <div className="mt-3 rounded-xl border border-gray-700 bg-gray-950 p-3">
     {error && <p role="alert" className="mb-3 text-sm text-red-300">{error}</p>}
     {!ready && !error && <p role="status">Consultando identificación…</p>}
@@ -130,8 +169,7 @@ function IdentityForm({ visitaId, condominioId, nombreInvitado, getToken }: {
       <p role="status" className="font-semibold text-green-300">Frente y reverso guardados</p>
       <p className="mt-2">Nombre registrado: {rows[0].nombre}</p>
       <p className="text-xs text-gray-400">{new Date(rows[0].created_at).toLocaleString("es-MX")}</p>
-      <button type="button" onClick={viewPhotos} disabled={busy} className="mt-3 rounded-lg bg-blue-700 px-4 py-2 disabled:opacity-50">{busy ? "Cargando…" : "Consultar fotos"}</button>
-      {rows.map(row => savedPhotos[row.evidencia_id] && <Preview key={row.evidencia_id} blob={savedPhotos[row.evidencia_id]} label={row.lado === "ine_frente" ? "Frente guardado" : "Reverso guardado"} />)}
+      <SavedIdentityPhotos rows={rows} path={path} query={query} getToken={getToken} />
     </> : ready && <form onSubmit={save} className="space-y-4">
       <h2 className="text-lg font-semibold">Capturar identificación de {nombreInvitado}</h2>
       <p className="text-sm text-gray-300">Toma el frente, después el reverso y confirma el nombre. En celular se abre la cámara; en computadora puedes elegir archivos. Usa buena luz y evita reflejos.</p>
