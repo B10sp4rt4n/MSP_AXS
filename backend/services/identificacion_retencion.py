@@ -3,6 +3,7 @@ from collections import defaultdict
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 from fastapi import HTTPException
+from sqlalchemy import or_
 from backend.db.core import Evidencia, Visita
 from backend.services.qr_service import as_utc
 
@@ -20,9 +21,11 @@ def report(db, condominio_id: str, cutoff_date: date):
         Evidencia.metadata_json["storage"].as_string().label("storage"),
         Evidencia.metadata_json["captura_id"].as_string().label("captura_id"),
         Evidencia.metadata_json["condominio_id"].as_string().label("tenant"),
+        Evidencia.metadata_json["purge_status"].as_string().label("purge_status"),
         Visita.estado, Visita.salida_registrada_en,
     ).join(Visita, Visita.visita_id == Evidencia.visita_id).filter(
         Visita.condominio_id == condominio_id, Evidencia.categoria == "identificacion",
+        or_(Evidencia.metadata_json["purge_status"].as_string().is_(None), Evidencia.metadata_json["purge_status"].as_string() != "purged"),
     ).order_by(Evidencia.visita_id, Evidencia.id).limit(MAX_ROWS + 1).all()
     if len(rows) > MAX_ROWS:
         raise HTTPException(422, "El reporte supera 10,000 fotos; requiere una consulta paginada")
@@ -37,7 +40,7 @@ def report(db, condominio_id: str, cutoff_date: date):
                 "capturada_en": None, "salida_en": None, "fecha_base": None,
                 "venceria_en": None, "clasificacion": "revision", "motivo": ""}
         valid = (len(pair) == 2 and {row.sub_tipo for row in pair} == {"ine_frente", "ine_reverso"}
-                 and all(row.storage == "vercel_blob_private" and row.tenant == condominio_id and row.created_at for row in pair)
+                 and all(row.storage == "vercel_blob_private" and row.tenant == condominio_id and row.created_at and not row.purge_status for row in pair)
                  and bool(first.captura_id) and all(row.captura_id == first.captura_id for row in pair))
         if not valid:
             item["motivo"] = "Par incompleto o referencias inconsistentes; revisión manual"
