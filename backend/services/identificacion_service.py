@@ -61,7 +61,10 @@ class PrivateIdentityStore:
 
     def read(self, key):
         from vercel import blob
-        result = blob.get(key, access="private", token=self.token, timeout=20, use_cache=False)
+        try:
+            result = blob.get(key, access="private", token=self.token, timeout=20, use_cache=False)
+        except blob.BlobNotFoundError:
+            raise HTTPException(404, "Foto no encontrada")
         if result is None or result.status_code != 200:
             raise HTTPException(404, "Foto no encontrada")
         return result.content
@@ -92,6 +95,8 @@ def save_pair(db, visita, usuario, nombre, captura_id, frente, reverso, audit):
         condominio_id=visita.condominio_id).with_for_update().one()
     existing = list_pairs(db, visita.visita_id)
     if existing:
+        if any((row.metadata_json or {}).get("purge_status") for row in existing):
+            raise HTTPException(409, "Esta identificación fue retirada; no se admite otra captura para esta visita")
         if len(existing) == 2 and all(row.metadata_json.get("captura_id") == captura_id
                 and row.metadata_json.get("nombre") == nombre
                 and row.hash_sha256 == hashes.get(row.sub_tipo) for row in existing):
