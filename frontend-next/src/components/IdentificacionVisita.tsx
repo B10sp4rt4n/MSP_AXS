@@ -53,9 +53,13 @@ function PhotoViewer({ pictures, initialId, onClose }: {
   const selected = pictures.find(picture => picture.id === selectedId) ?? pictures[0];
   useEffect(() => {
     const modal = dialog.current;
+    const previousFocus = document.activeElement;
     const previousOverflow = document.body.style.overflow;
     modal?.showModal(); document.body.style.overflow = "hidden";
-    return () => { modal?.close(); document.body.style.overflow = previousOverflow; };
+    return () => {
+      modal?.close(); document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
+    };
   }, []);
   function resetView(id?: string) {
     if (id) setSelectedId(id);
