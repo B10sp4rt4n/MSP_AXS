@@ -1,0 +1,40 @@
+{
+  "checked_at": "2026-10-12",
+  "environment": "AXS Development",
+  "backend_commit": "ca971c3581a4832e2744bd8a5e8bdbf5024c6a71",
+  "frontend_commit": "c19f240123d742b5800aad24141d4a312e61d7ad",
+  "deployment_id": "0b307e45-e3f7-43b2-a507-60e5aee6fb64",
+  "result": "PASS",
+  "identity_http_checks": 26,
+  "accounts": [
+    "axs_demo_admin_a",
+    "axs_demo_admin_b"
+  ],
+  "tenants": [
+    "axs_demo_condo_a",
+    "axs_demo_condo_b"
+  ],
+  "authentication": "existing local test accounts; not a second Clerk browser login",
+  "images": "synthetic JPEG only",
+  "verified": [
+    "authorized upload and read on both tenants",
+    "other account denied with HTTP 403",
+    "foreign visit under authorized tenant query returns HTTP 404",
+    "anonymous metadata and photos denied with HTTP 401",
+    "private no-store cache headers",
+    "two distinct evidence sides",
+    "visit state preserved"
+  ],
+  "other_evidence": {
+    "automated_local_tests": 23,
+    "mobile_capture_and_reload": "user confirmed front and back visible after reload"
+  },
+  "pending": [
+    "second Clerk browser-account acceptance if required",
+    "anonymous direct Blob object test",
+    "retention expiration and deletion implementation",
+    "provider retention/recovery review",
+    "PostgreSQL concurrency stress test"
+  ],
+  "retention_proposal": "30 days after exit; 30 days from capture when no exit; deletion inactive"
+}
