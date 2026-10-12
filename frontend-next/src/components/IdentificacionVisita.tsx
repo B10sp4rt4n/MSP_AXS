@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 
 type Evidence = { evidencia_id: string; lado: string; nombre: string; created_at: string };
-type Result = { evidencias: Evidence[]; estado?: "guardada" | "sin_identificacion" | "eliminando" | "eliminada"; eliminada_en?: string | null };
+type Conservation = { estado: string; vencimiento_en: string; excepcion_hasta: string | null; requiere_atencion: boolean };
+type Result = { evidencias: Evidence[]; estado?: "guardada" | "sin_identificacion" | "eliminando" | "eliminada" | "vencida" | "revision"; eliminada_en?: string | null; conservacion?: Conservation | null; puede_gestionar_conservacion?: boolean };
 
 function PhotoCapture({ side, photo, onSelect }: {
   side: "frente" | "reverso"; photo?: File; onSelect: (file?: File) => void;
@@ -92,8 +93,8 @@ function PhotoViewer({ pictures, initialId, onClose }: {
   </dialog>;
 }
 
-function SavedIdentityPhotos({ rows, path, query, getToken }: {
-  rows: Evidence[]; path: string; query: string; getToken: () => Promise<string | null>;
+function SavedIdentityPhotos({ rows, path, query, getToken, onWithdraw }: {
+  rows: Evidence[]; path: string; query: string; getToken: () => Promise<string | null>; onWithdraw: () => void;
 }) {
   const [attempt, setAttempt] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -105,6 +106,7 @@ function SavedIdentityPhotos({ rows, path, query, getToken }: {
     const timeout = setTimeout(() => controller.abort(), 30000);
     const fail = (row: Evidence, error: unknown) => {
       if (!active) return;
+      if (error instanceof ApiError && error.status === 410) { active = false; controller.abort(); onWithdraw(); return; }
       const message = controller.signal.aborted ? "La carga tardó demasiado. Vuelve a intentarlo."
         : error instanceof Error ? error.message : "No se pudo cargar esta foto.";
       setStates(previous => ({ ...previous, [row.evidencia_id]: { error: message } }));
@@ -125,7 +127,7 @@ function SavedIdentityPhotos({ rows, path, query, getToken }: {
     }
     void load();
     return () => { active = false; clearTimeout(timeout); controller.abort(); };
-  }, [rows, path, query, getToken, attempt]);
+  }, [rows, path, query, getToken, attempt, onWithdraw]);
 
   return <div className="mt-4 space-y-3" aria-busy={loading}>
     <p className="text-sm text-gray-300">Toca una foto para ampliarla y leer los detalles.</p>
@@ -182,22 +184,35 @@ function IdentityForm({ visitaId, condominioId, nombreInvitado, getToken }: {
   const [photos, setPhotos] = useState<{ frente?: File; reverso?: File }>({});
   const [rows, setRows] = useState<Evidence[]>([]);
   const [identityStatus, setIdentityStatus] = useState<Result["estado"]>();
+  const [conservation, setConservation] = useState<Conservation | null>(null);
+  const [canManage, setCanManage] = useState(false);
   const [captureId, setCaptureId] = useState("");
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [reload, setReload] = useState(0);
+  const withdraw = useCallback(() => { setRows([]); setPhotos({}); setIdentityStatus("vencida"); setReload(value => value + 1); }, []);
   useEffect(() => {
     let active = true;
     getToken().then(token => {
       if (!token) throw new Error("Sesión expirada");
       return api.get<Result>(path + query, token);
     }).then(result => {
-      if (active) { setRows(result.evidencias); setIdentityStatus(result.estado); setReady(true); }
+      if (active) { setRows(result.evidencias); setIdentityStatus(result.estado); setConservation(result.conservacion ?? null); setCanManage(!!result.puede_gestionar_conservacion); setReady(true); }
     }).catch(e => { if (active) setError(e instanceof Error ? e.message : "No se pudo consultar"); });
     return () => { active = false; };
   }, [getToken, path, query, reload]);
+
+  useEffect(() => {
+    if (!conservation || !["vigente", "excepcion"].includes(conservation.estado)) return;
+    const deadline = Math.max(new Date(conservation.vencimiento_en).getTime(), conservation.excepcion_hasta ? new Date(conservation.excepcion_hasta).getTime() : 0);
+    const refresh = () => { setRows([]); setPhotos({}); setReady(false); setReload(value => value + 1); };
+    const timer = setTimeout(refresh, Math.max(0, Math.min(deadline - Date.now(), 2147483647)));
+    const visible = () => { if (document.visibilityState === "visible") refresh(); };
+    document.addEventListener("visibilitychange", visible);
+    return () => { clearTimeout(timer); document.removeEventListener("visibilitychange", visible); };
+  }, [conservation]);
 
   function select(side: "frente" | "reverso", file?: File) {
     if (!file) return;
@@ -219,7 +234,7 @@ function IdentityForm({ visitaId, condominioId, nombreInvitado, getToken }: {
       form.append("nombre", nombre.trim()); form.append("captura_id", captureId);
       form.append("frente", photos.frente); form.append("reverso", photos.reverso);
       const result = await api.upload<Result>(path + query, form, token);
-      setRows(result.evidencias); setIdentityStatus("guardada"); setPhotos({}); setConfirmed(false);
+      setRows(result.evidencias); setIdentityStatus("guardada"); setPhotos({}); setConfirmed(false); setReload(value => value + 1);
     } catch (e) { setError(e instanceof Error ? e.message : "No se confirmó el guardado. Reintenta."); }
     finally { setBusy(false); }
   }
@@ -228,13 +243,20 @@ function IdentityForm({ visitaId, condominioId, nombreInvitado, getToken }: {
     {error && <p role="alert" className="mb-3 text-sm text-red-300">{error}</p>}
     {!ready && !error && <p role="status">Consultando identificación…</p>}
     {error && <button type="button" disabled={busy} className="mb-3 text-sm underline" onClick={() => { setReady(false); setError(""); setReload(v => v + 1); }}>Consultar estado guardado</button>}
-    {identityStatus === "eliminada" ? <p role="status" className="text-sm text-gray-300">Identificación eliminada. La bitácora conserva el registro de la operación; las fotos ya no están disponibles.</p>
+    {conservation && <div className="mb-3 rounded-lg border border-gray-700 p-3 text-sm">
+      <p>Vencimiento: {new Date(conservation.vencimiento_en).toLocaleString("es-MX", { timeZone: "America/Mexico_City" })} · Ciudad de México</p>
+      {conservation.excepcion_hasta && <p className="mt-1 text-amber-300">Conservación por incidencia hasta {new Date(conservation.excepcion_hasta).toLocaleString("es-MX", { timeZone: "America/Mexico_City" })}.</p>}
+      {conservation.requiere_atencion && <p className="mt-1 text-amber-300">Requiere revisión del administrador.</p>}
+      {canManage && <ConservationControls path={path} query={query} getToken={getToken} held={!!conservation.excepcion_hasta} onSaved={() => { setRows([]); setReady(false); setReload(value => value + 1); }} />}
+    </div>}
+    {identityStatus === "vencida" || identityStatus === "revision" ? <p role="status" className="text-sm text-amber-300">{identityStatus === "vencida" ? "La identificación alcanzó su plazo de conservación. Las fotos y el nombre transcrito ya no están disponibles para consulta." : "La identificación requiere revisión. Las fotos están retiradas de consulta."}</p>
+    : identityStatus === "eliminada" ? <p role="status" className="text-sm text-gray-300">Identificación eliminada. La bitácora conserva el registro de la operación; las fotos ya no están disponibles.</p>
     : identityStatus === "eliminando" ? <div><p role="status" className="text-sm text-amber-300">Eliminación pendiente de completar. Las fotos están retiradas de consulta.</p><button type="button" onClick={() => { setReady(false); setReload(value => value + 1); }} className="mt-3 min-h-12 rounded-lg border border-gray-500 px-3">Actualizar estado</button></div>
     : rows.length > 0 ? <>
       <p role="status" className="font-semibold text-green-300">Frente y reverso guardados</p>
       <p className="mt-2">Nombre registrado: {rows[0].nombre}</p>
       <p className="text-xs text-gray-400">{new Date(rows[0].created_at).toLocaleString("es-MX")}</p>
-      <SavedIdentityPhotos rows={rows} path={path} query={query} getToken={getToken} />
+      <SavedIdentityPhotos rows={rows} path={path} query={query} getToken={getToken} onWithdraw={withdraw} />
     </> : ready && <form onSubmit={save} className="space-y-4">
       <h2 className="text-lg font-semibold">Capturar identificación de {nombreInvitado}</h2>
       <p className="text-sm text-gray-300">Toma el frente, después el reverso y confirma el nombre. En celular se abre la cámara; en computadora puedes elegir archivos. Usa buena luz y evita reflejos.</p>
@@ -254,4 +276,41 @@ function IdentityForm({ visitaId, condominioId, nombreInvitado, getToken }: {
       <p className="text-xs text-gray-400">Las fotos pendientes se conservan solo mientras esta pantalla siga abierta. Este registro no autoriza la entrada.</p>
     </form>}
   </div>;
+}
+
+function ConservationControls({ path, query, getToken, held, onSaved }: {
+  path: string; query: string; getToken: () => Promise<string | null>; held: boolean; onSaved: () => void;
+}) {
+  const uid = useId();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function change(form?: HTMLFormElement) {
+    setBusy(true); setError("");
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Sesión expirada");
+      const route = `${path}/conservacion/excepcion${query}`;
+      if (form) {
+        const data = new FormData(form);
+        const date = new Date(String(data.get("hasta")));
+        if (!Number.isFinite(date.getTime()) || date <= new Date()) throw new Error("Selecciona una fecha límite futura.");
+        await api.put(route, { hasta: date.toISOString(), responsable: data.get("responsable"), incidencia: data.get("incidencia"), motivo: data.get("motivo") }, token);
+      } else await api.delete(route, token);
+      onSaved();
+    } catch (e) { setError(e instanceof Error ? e.message : "No se pudo actualizar la conservación."); }
+    finally { setBusy(false); }
+  }
+  return <details className="mt-3">
+    <summary className="cursor-pointer py-2 text-blue-300">Conservar por una incidencia</summary>
+    <p className="mb-3 text-gray-300">Indica quién se responsabiliza y cuándo termina la excepción. La fecha usa la hora de este dispositivo; el resultado se muestra en hora de Ciudad de México.</p>
+    {error && <p role="alert" className="mb-2 text-red-300">{error}</p>}
+    <form onSubmit={event => { event.preventDefault(); void change(event.currentTarget); }}>
+      <fieldset disabled={busy} className="grid gap-3 disabled:opacity-50">
+        {([{ name: "responsable", label: "Responsable", max: 200 }, { name: "incidencia", label: "Referencia de incidencia", max: 100 }, { name: "motivo", label: "Motivo de conservación", max: 500 }] as const).map(field => <label key={field.name} htmlFor={`${uid}-${field.name}`}>{field.label}<input id={`${uid}-${field.name}`} name={field.name} required maxLength={field.max} className="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3" /></label>)}
+        <label htmlFor={`${uid}-hasta`}>Fecha y hora límite<input id={`${uid}-hasta`} type="datetime-local" name="hasta" required className="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3" /></label>
+        <button className="min-h-12 rounded-lg bg-blue-600 px-3">{busy ? "Guardando…" : "Guardar excepción"}</button>
+        {held && <button type="button" onClick={() => void change()} className="min-h-12 rounded-lg border border-gray-500 px-3">Terminar excepción</button>}
+      </fieldset>
+    </form>
+  </details>;
 }
