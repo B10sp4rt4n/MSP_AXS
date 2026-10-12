@@ -41,6 +41,10 @@ async function request<T>(path: string, { method = "GET", body, token }: Request
   return res.json();
 }
 
+export class ApiError extends Error {
+  constructor(message: string, public status: number) { super(message); }
+}
+
 export const api = {
   upload: async <T>(path: string, body: FormData, token: string): Promise<T> => {
     const res = await fetch(`${API_URL}${path}`, {
@@ -54,7 +58,7 @@ export const api = {
     const res = await fetch(`${API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new Error(typeof body.detail === "string" ? body.detail : `No se pudo descargar (${res.status})`);
+      throw new ApiError(typeof body.detail === "string" ? body.detail : `No se pudo descargar (${res.status})`, res.status);
     }
     return res.blob();
   },
