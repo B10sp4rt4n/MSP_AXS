@@ -170,11 +170,66 @@ async function runRetention() {
   console.log("AXS_RETENTION_RESULT " + JSON.stringify({status:"PASS",checks,tenants:2,simulation:true,deletion:false}));
 }
 
+
+let purgeChecks = 0;
+async function purgeRequest(actor: string | null, method: string, path: string, expected: number) {
+  const response = await fetch(API + path, {method,redirect:"error",signal:AbortSignal.timeout(90000),
+    headers:actor ? {Authorization:`Bearer ${token(actor)}`} : {}});
+  purgeChecks++;
+  console.log("AXS_PURGE_CHECK "+JSON.stringify({actor:actor??"anonymous",method,HTTP:response.status,expected,check:purgeChecks}));
+  check(response.status===expected,`Purge check ${purgeChecks}: HTTP ${response.status}`);
+  return response;
+}
+async function runPurge() {
+  check(env.APP_ENV==="development" && env.NEON_DEV_ENDPOINT==="ep-withered-resonance-b59tusv3","Development only");
+  const proof: object[]=[];
+  for(const side of ["a","b"]) {
+    const actor=`axs_demo_admin_${side}`, other=`axs_demo_admin_${side==="a"?"b":"a"}`, own=`axs_demo_condo_${side}`;
+    const id=side==="a"?"VIS-4ced9e365c":"VIS-7dad7600d5";
+    const knownIds=side==="a"?["f54dcb8d-e3e1-437c-a814-ab46549796c0","573316a1-1953-4417-9269-2550c63a4f6d"]:["e4993619-a658-4e2c-a140-7ef4ec5360fc","31770ec8-7a29-4947-a6f8-f271141bf1b8"];
+    const me=await request(actor,"GET","/auth/me",200);
+    check(me.usuario_id===actor && me.rol==="MSP_ADMIN","Wrong existing test identity");
+    const visit=await request(actor,"GET",`/visitas/${id}?condominio_id=${own}`,200);
+    check(visit.nombre_visitante===`${RUN} ${side.toUpperCase()}` && visit.estado==="cancelada","Wrong synthetic visit");
+    const pairPath=`/identificaciones/${id}?condominio_id=${own}`;
+    const before=await request(actor,"GET",pairPath,200);
+    if(before.estado!=="eliminada") {
+      check(before.evidencias.length===2 && before.evidencias.every((row:{nombre:string})=>row.nombre==="AXS documento ficticio - prueba automatica"),"Refuse non-synthetic pair");
+      check(before.evidencias.every((row:{evidencia_id:string})=>knownIds.includes(row.evidencia_id)),"Unexpected fixture evidence");
+    }
+    const route=`/identificaciones/${id}/borrado-prueba?condominio_id=${own}`;
+    await purgeRequest(other,"DELETE",route,403);
+    await purgeRequest(null,"DELETE",route,401);
+    const result=await (await purgeRequest(actor,"DELETE",route,200)).json();
+    check(result.estado==="eliminada" && result.fotos_eliminadas===2 && result.proveedor_verificado_ausente===true,"Deletion incomplete");
+    const after=await request(actor,"GET",pairPath,200);
+    check(after.estado==="eliminada" && after.evidencias.length===0,"Deleted identity remains listed");
+    for(const eid of knownIds) await purgeRequest(actor,"GET",`/identificaciones/${id}/${eid}?condominio_id=${own}`,410);
+    const repeat=await (await purgeRequest(actor,"DELETE",route,200)).json();
+    check(JSON.stringify(repeat)===JSON.stringify(result),"Repeat created a new operation");
+    const afterVisit=await request(actor,"GET",`/visitas/${id}?condominio_id=${own}`,200);
+    check(afterVisit.estado===visit.estado && afterVisit.salida_registrada_en===visit.salida_registrada_en,"Deletion changed visit state");
+    let delivered=false;
+    for(let attempt=0;attempt<6;attempt++) {
+      const history=await request(actor,"GET",`/bitacora/${own}?visita_id=${id}&limite=100`,200);
+      const matches=history.items.filter((item:{accion:string})=>item.accion==="eliminar_identificacion_prueba");
+      if(matches.some((item:{event_uid:string;resultado:string})=>item.event_uid===result.evento_id && item.resultado==="exito")) {
+        check(matches.length===1,"Duplicate completion audit");
+        delivered=true;break;
+      }
+      await Bun.sleep(6000);
+    }
+    check(delivered,"Deletion completion not delivered to bitacora");
+    proof.push({tenant:own,visit:id,photos:2,event_uid:result.evento_id,operation_id:result.operacion_id,storage_absent:true,delivery:410,audit_delivered:true,idempotent:true});
+  }
+  console.log("AXS_PURGE_RESULT "+JSON.stringify({status:"PASS",checks:purgeChecks,photos_deleted:4,tenants:2,synthetic_only:true,proof}));
+}
+
 try {
   if (!env.AXS_TEST_SECRET) console.log("AXS_SMOKE_WAITING runtime variables required");
-  else { await runIdentity(); await runRetention(); }
+  else await runPurge();
 } catch (error) {
   // Exit successfully so Railway does not retry writes automatically. FAIL is explicit.
-  console.error("AXS_ID_RESULT " + JSON.stringify({ status: "FAIL", run: RUN,
+  console.error("AXS_PURGE_RESULT " + JSON.stringify({ status: "FAIL", run: RUN,
     error: error instanceof Error ? error.message : "Runner failed", checks: results.length, created }));
 }
