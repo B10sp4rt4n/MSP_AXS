@@ -123,8 +123,18 @@ def verify_clerk_token(token: str) -> Optional[Dict[str, Any]]:
     """
     public_key = os.getenv("CLERK_JWT_PUBLIC_KEY", "").strip().replace("\\n", "\n")
     domain = _get_clerk_domain()
+    # Allow a pinned issuer for a branded Clerk production domain.
+    configured_issuer = os.getenv("CLERK_JWT_ISSUER", "").strip()
+    issuer = configured_issuer or (f"https://{domain}" if domain else "")
+    parsed_issuer = urlsplit(issuer)
+    if (parsed_issuer.scheme != "https" or not parsed_issuer.hostname
+            or parsed_issuer.username or parsed_issuer.password or parsed_issuer.port
+            or parsed_issuer.path not in ("", "/") or parsed_issuer.query or parsed_issuer.fragment):
+        logger.error("Emisor JWT de Clerk no configurado correctamente")
+        return None
+    issuer = f"https://{parsed_issuer.hostname}"
     if public_key:
-        if not domain or not public_key.startswith("-----BEGIN PUBLIC KEY-----"):
+        if not issuer or not public_key.startswith("-----BEGIN PUBLIC KEY-----"):
             logger.error("Clave pública Clerk o dominio de instancia inválidos")
             return None
         verification_key = public_key
@@ -135,7 +145,7 @@ def verify_clerk_token(token: str) -> Optional[Dict[str, Any]]:
     try:
         payload = jwt.decode(
             token, verification_key, algorithms=["RS256"],
-            issuer=f"https://{domain}",
+            issuer=issuer,
             options={"verify_aud": False, "require_exp": True, "require_iat": True}
         )
         return payload
@@ -147,7 +157,7 @@ def verify_clerk_token(token: str) -> Optional[Dict[str, Any]]:
                 options={"verify_aud": False, "verify_iss": False, "verify_exp": False,
                          "verify_iat": False, "verify_nbf": False}
             )
-            if verified.get("iss") != f"https://{domain}":
+            if verified.get("iss") != issuer:
                 cause = "issuer_mismatch"
             elif "exp" not in verified or "iat" not in verified:
                 cause = "missing_required_claim"
