@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-12",
+  "environment": "AXS Development",
+  "backend": {
+    "commit": "1731226b7b352116b28ecc5b941120daf9ee7421",
+    "deployment": "3dc85a7f-83ce-4dfc-a224-0b6d36b37810"
+  },
+  "frontend": {
+    "commit": "1ae1a0e06a6cde857c5c439331e0a0f9f2849980",
+    "deployment": "7f641813-eb9a-4513-8a6a-d7f21596c9a8"
+  },
+  "verification": {
+    "typescript": "PASS",
+    "lint": "PASS",
+    "identification_tests": 18,
+    "additional_permission_tests": 8,
+    "live_http_checks": 24,
+    "live_http_result": "PASS",
+    "live_operator_deployment": "48431c79-540a-4255-bdae-5e05fececa4e",
+    "browser": "Synthetic PR43 front and back load automatically after opening detail; both images decoded at 960x600; no second consultation click",
+    "privacy": "Only synthetic photos inspected. Private no-store unchanged; scope and evidence rechecked before response."
+  },
+  "latency_note": "Parallel requests and visible per-side loading verified; no controlled before/after speed improvement percentage measured.",
+  "scope": "Development only"
+}
