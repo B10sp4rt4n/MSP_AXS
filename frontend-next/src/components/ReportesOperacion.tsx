@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
 import Bitacora from "@/components/Bitacora";
+import ReporteVencimientoIdentificaciones from "@/components/ReporteVencimientoIdentificaciones";
 
 type Evento = { id: number; fecha: string; visita_id: string; actor_id: string; categoria: string;
   accion: string; resultado: string; estado: string | null; destino: string | null; motivo: string | null };
@@ -64,6 +65,7 @@ export default function ReportesOperacion({ condominioId }: { condominioId: stri
   }
   const cambio = reporte !== null && parametros() !== consulta;
   return <section aria-label="Reportes de operación" className="space-y-5">
+    <ReporteVencimientoIdentificaciones key={condominioId} condominioId={condominioId} />
     <div><h2 className="text-xl font-semibold">Reporte de operación diaria</h2>
       <p className="text-sm text-gray-400 mt-2">Movimientos registrados en el periodo. Fechas y horas de Ciudad de México. Hasta 31 días por consulta.</p></div>
     <form onSubmit={e => { e.preventDefault(); void consultar(); }} className="space-y-3">
