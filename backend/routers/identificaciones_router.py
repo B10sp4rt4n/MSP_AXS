@@ -41,7 +41,26 @@ def listing(visita_id: str, condominio_id: str, response: Response,
             usuario: Usuario = Depends(get_current_user)):
     authorized(visita_id, condominio_id, db, db_gov, usuario)
     response.headers["Cache-Control"] = "private, no-store"
-    return {"evidencias": service.describe(service.list_pairs(db, visita_id))}
+    rows = service.list_pairs(db, visita_id)
+    if any((row.metadata_json or {}).get("purge_status") for row in rows):
+        done = all((row.metadata_json or {}).get("purge_status") == "purged" for row in rows)
+        return {"estado": "eliminada" if done else "eliminando", "evidencias": [],
+                "eliminada_en": rows[0].metadata_json.get("purged_at") if done else None}
+    return {"estado": "guardada" if rows else "sin_identificacion", "evidencias": service.describe(rows)}
+
+
+@router.delete("/{visita_id}/borrado-prueba")
+def borrar_ficticia(visita_id: str, condominio_id: str, request: Request,
+                   db: Session = Depends(get_core_db), db_gov: Session = Depends(get_gov_db),
+                   usuario: Usuario = Depends(get_current_user)):
+    from backend.services.identificacion_borrado_prueba import gate, purge
+    gate()
+    def authorize():
+        return require_visita(db, db_gov, usuario, visita_id, AccessLevel.ADMIN_CONDOMINIO, condominio_id=condominio_id)
+    context = contexto_evento(usuario, request.headers.get("Authorization", "").removeprefix("Bearer "),
+                             entidad="visita", accion="eliminar_identificacion_prueba",
+                             motivo="Eliminación de fotografías ficticias en Development")
+    return purge(db, usuario, authorize, context)
 
 
 @router.get("/{visita_id}/{evidencia_id}")
@@ -53,6 +72,8 @@ def photo(visita_id: str, evidencia_id: str, condominio_id: str, request: Reques
                                       categoria="identificacion").first()
     if not row or row.metadata_json.get("storage") != "vercel_blob_private":
         raise HTTPException(404, "Foto no encontrada")
+    if row.metadata_json.get("purge_status"):
+        raise HTTPException(410, "Esta fotografía fue retirada")
     key = row.archivo_url
     # Release read/tenant locks before remote I/O. Authorization and evidence
     # are checked again before delivery, including revocation during download.
@@ -66,7 +87,7 @@ def photo(visita_id: str, evidencia_id: str, condominio_id: str, request: Reques
     visita = authorized(visita_id, condominio_id, db, db_gov, usuario)
     current = db.query(Evidencia).filter_by(visita_id=visita_id, evidencia_id=evidencia_id,
                                           categoria="identificacion").first()
-    if not current or current.archivo_url != key or current.metadata_json.get("storage") != "vercel_blob_private":
+    if not current or current.archivo_url != key or current.metadata_json.get("storage") != "vercel_blob_private" or current.metadata_json.get("purge_status"):
         raise HTTPException(404, "Foto no encontrada")
     encolar_evento(db, visita.condominio_id, evidencia_id, audit(request, usuario, "consultar"))
     db.commit()
