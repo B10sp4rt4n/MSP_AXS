@@ -46,6 +46,7 @@ from typing import Optional, Dict, Any
 import os
 import time
 import logging
+from urllib.parse import urlsplit
 
 import httpx
 from jose import JWTError, jwt
@@ -91,7 +92,19 @@ def _fetch_clerk_jwks() -> Optional[Dict]:
         return None
 
     try:
-        url = f"https://{domain}/.well-known/jwks.json"
+        # Prefer the exact production JWKS URL; never fetch an arbitrary URL.
+        configured_url = os.getenv("CLERK_JWKS_URL", "").strip()
+        if configured_url:
+            parsed = urlsplit(configured_url)
+            if (parsed.scheme != "https" or parsed.hostname != domain
+                    or parsed.username or parsed.password
+                    or parsed.path != "/.well-known/jwks.json"
+                    or parsed.query or parsed.fragment or parsed.port):
+                logger.error("CLERK_JWKS_URL no coincide con la instancia Clerk configurada")
+                return None
+            url = configured_url
+        else:
+            url = f"https://{domain}/.well-known/jwks.json"
         response = httpx.get(url, timeout=5.0)
         response.raise_for_status()
         jwks = response.json()
