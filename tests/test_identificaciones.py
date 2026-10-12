@@ -152,3 +152,50 @@ def test_rejects_public_blob_response(monkeypatch):
         pathname=key, url=f"https://synthetic.public.blob.vercel-storage.com/{key}"))
     with pytest.raises(RuntimeError):
         service.PrivateIdentityStore().put("synthetic", b"synthetic")
+
+
+def test_remote_photo_read_releases_database_transaction(client, setup):
+    db, store = setup
+    uploaded = send(client)
+    eid = uploaded.json()["evidencias"][0]["evidencia_id"]
+    transactions = []
+    def read(self, key):
+        transactions.append(db.in_transaction())
+        return self.assets[key]
+    store.read = read
+    response = client.get(f"/identificaciones/va/{eid}?condominio_id=a1", headers=headers("guard", "GUARDIA"))
+    assert response.status_code == 200
+    assert transactions == [False]
+
+
+def test_scope_revocation_during_download_prevents_delivery(client, setup):
+    from backend.db.core import UserTenantScope
+    db, store = setup
+    uploaded = send(client)
+    eid = uploaded.json()["evidencias"][0]["evidencia_id"]
+    def read(self, key):
+        scope = db.query(UserTenantScope).filter_by(usuario_id="guard", tenant_id="a1").one()
+        db.delete(scope)
+        db.commit()
+        return self.assets[key]
+    store.read = read
+    response = client.get(f"/identificaciones/va/{eid}?condominio_id=a1", headers=headers("guard", "GUARDIA"))
+    assert response.status_code == 403
+    assert not response.headers["content-type"].startswith("image/")
+    assert db.query(EventOutbox).count() == 1
+
+
+def test_evidence_removed_during_download_prevents_delivery(client, setup):
+    db, store = setup
+    uploaded = send(client)
+    eid = uploaded.json()["evidencias"][0]["evidencia_id"]
+    def read(self, key):
+        row = db.query(Evidencia).filter_by(evidencia_id=eid).one()
+        db.delete(row)
+        db.commit()
+        return self.assets[key]
+    store.read = read
+    response = client.get(f"/identificaciones/va/{eid}?condominio_id=a1", headers=headers("guard", "GUARDIA"))
+    assert response.status_code == 404
+    assert not response.headers["content-type"].startswith("image/")
+    assert db.query(EventOutbox).count() == 1
