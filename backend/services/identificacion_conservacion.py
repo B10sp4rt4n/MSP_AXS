@@ -262,7 +262,8 @@ def process(factory,tenant,visit_id,token,*,now=None,store=None):
             row=leased(db,tenant,visit_id,token,clock())
             rows=verified_snapshots(db,row)
             uid=event(db,row,"eliminar_identificacion",metadata={"fotos":2})
-            row.state,row.purged_at,row.event_uid="purged",now,uid
+            completed_at=clock()
+            row.state,row.purged_at,row.event_uid="purged",completed_at,uid
             row.claim_token=row.claim_until=None
             row.last_error=None
             row.snapshots=[]
@@ -270,7 +271,7 @@ def process(factory,tenant,visit_id,token,*,now=None,store=None):
             for evidence in rows:
                 evidence.archivo_url=evidence.hash_sha256=None
                 evidence.metadata_json={"storage":"vercel_blob_private","condominio_id":tenant,"purge_status":"purged",
-                    "purge_id":row.operation_id,"purged_at":now.isoformat()+"Z","purge_event_uid":uid}
+                    "purge_id":row.operation_id,"purged_at":completed_at.isoformat()+"Z","purge_event_uid":uid}
             db.commit()
         return True
     except Exception as exc:
