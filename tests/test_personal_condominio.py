@@ -197,3 +197,27 @@ def test_invitacion_autorizacion_duplicados_y_fallo(client, people, monkeypatch)
     resident.estado = ScopeStatus.REVOCADO
     people.commit()
     assert client.post("/condominios/a1/usuarios/resident/invitacion", headers=admin).status_code == 404
+
+
+def test_aislamiento_cruzado_a_b_invitaciones_usuarios_y_viviendas(client, people, monkeypatch):
+    """An A-scoped principal cannot read, edit or invite in tenant B."""
+    from backend.db.core import Casa
+    from backend.services import clerk_invitations
+    calls = []
+    monkeypatch.setattr(clerk_invitations, "send_invitation", lambda email: calls.append(email) or "inv_test")
+    people.add(Casa(casa_id="b_house", condominio_id="b1", numero="B-001", tipo="casa"))
+    people.commit()
+    edit = {"nombre": "Attempt", "email": "resident@test.local",
+            "rol": "RESIDENTE", "casa_id": "b_house"}
+    for identity, role in [("admin", "ADMIN_CONDOMINIO"),
+                           ("resident", "RESIDENTE"), ("guard", "GUARDIA")]:
+        auth = headers(identity, role)
+        assert client.get("/condominios/b1/casas", headers=auth).status_code == 403
+        assert client.get("/condominios/b1/usuarios", headers=auth).status_code == 403
+        assert client.patch("/condominios/b1/usuarios/resident", headers=auth, json=edit).status_code == 403
+        assert client.post("/condominios/b1/usuarios/resident/invitacion",
+                           headers=auth, json={"expected_email": "resident@test.local"}).status_code == 403
+    assert calls == []
+    resident = people.query(Usuario).filter_by(usuario_id="resident").one()
+    assert resident.casa_id is None and resident.clerk_id is None
+    assert people.query(UserTenantScope).filter_by(usuario_id="resident").one().tenant_id == "a1"
