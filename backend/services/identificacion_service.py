@@ -65,8 +65,10 @@ class PrivateIdentityStore:
             result = blob.get(key, access="private", token=self.token, timeout=20, use_cache=False)
         except blob.BlobNotFoundError:
             raise HTTPException(404, "Foto no encontrada")
-        if result is None or result.status_code != 200:
+        if result is None or result.status_code == 404:
             raise HTTPException(404, "Foto no encontrada")
+        if result.status_code != 200:
+            raise HTTPException(503, "El proveedor no confirmó la lectura de la foto")
         return result.content
 
 
