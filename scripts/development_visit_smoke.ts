@@ -140,9 +140,39 @@ async function runIdentity() {
   console.log("AXS_ID_RESULT " + JSON.stringify({ status: "PASS", checks: identityChecks, tenants: 2, synthetic: true, auth: "existing-local-test-accounts" }));
 }
 
+
+async function runRetention() {
+  let checks = 0;
+  for (const side of ["a", "b"]) {
+    const actor = `axs_demo_admin_${side}`;
+    const otherActor = `axs_demo_admin_${side === "a" ? "b" : "a"}`;
+    const own = `axs_demo_condo_${side}`;
+    const visits = await request(actor, "GET", `/visitas/condominio/${own}`, 200);
+    const visit = visits.find((v: {nombre_visitante: string}) => v.nombre_visitante === `${RUN} ${side.toUpperCase()}`);
+    check(!!visit, "Existing synthetic visit required");
+    const pairPath = `/identificaciones/${encodeURIComponent(visit.visita_id)}?condominio_id=${own}`;
+    const before = await request(actor, "GET", pairPath, 200);
+    const route = `/reportes/${own}/identificaciones-vencimiento?fecha_corte=2026-12-01`;
+    const response = await identityRequest(actor, route, [200]);
+    checks++;
+    const report = await response.json();
+    check(report.modo === "simulacion" && report.borrado_activado === false, "Read-only simulation required");
+    check(response.headers.get("cache-control")?.includes("no-store"), "Private report caching prohibited");
+    const item = report.items.find((i: {visita_id: string}) => i.visita_id === visit.visita_id);
+    check(item?.clasificacion === "venceria" && item.fotos === 2, "Known synthetic pair should reach proposed deadline");
+    const json = JSON.stringify(report);
+    check(!json.includes("archivo_url") && !json.includes("captura_id") && !json.includes("nombre") && !json.includes("axs-identificaciones/"), "Report exposes identity details");
+    await identityRequest(otherActor, route, [403]); checks++;
+    await identityRequest(null, route, [401]); checks++;
+    const after = await request(actor, "GET", pairPath, 200);
+    check(JSON.stringify(before) === JSON.stringify(after), "Simulation altered evidence metadata");
+  }
+  console.log("AXS_RETENTION_RESULT " + JSON.stringify({status:"PASS",checks,tenants:2,simulation:true,deletion:false}));
+}
+
 try {
   if (!env.AXS_TEST_SECRET) console.log("AXS_SMOKE_WAITING runtime variables required");
-  else await runIdentity();
+  else { await runIdentity(); await runRetention(); }
 } catch (error) {
   // Exit successfully so Railway does not retry writes automatically. FAIL is explicit.
   console.error("AXS_ID_RESULT " + JSON.stringify({ status: "FAIL", run: RUN,
