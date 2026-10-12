@@ -299,6 +299,34 @@ class SecurityOutbox(Base_CORE):
     __table_args__ = (Index("ix_security_outbox_pending", "delivered_at", "next_attempt_at"),)
 
 
+class IdentityRetention(Base_CORE):
+    """One durable lifecycle per immutable ID pair; private references stay server-side."""
+    __tablename__ = "identity_retention"
+    visita_id = Column(String, ForeignKey("visitas.visita_id"), primary_key=True)
+    condominio_id = Column(String, ForeignKey("condominios_exo.condominio_id"), nullable=False)
+    captura_id = Column(String, nullable=False)
+    policy_version = Column(String, nullable=False)
+    captured_at = Column(DateTime, nullable=False)
+    base_at = Column(DateTime, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    state = Column(String, nullable=False, default="active")
+    hold_until = Column(DateTime)
+    hold_owner = Column(String)
+    hold_incident = Column(String)
+    hold_reason = Column(String)
+    snapshots = Column(JSON, nullable=False)
+    audit_context = Column(JSON, nullable=False)
+    operation_id = Column(String)
+    claim_token = Column(String)
+    claim_until = Column(DateTime)
+    attempts = Column(Integer, nullable=False, default=0)
+    next_attempt_at = Column(DateTime, nullable=False)
+    last_error = Column(String)
+    purged_at = Column(DateTime)
+    event_uid = Column(String)
+    __table_args__ = (Index("ix_identity_retention_due", "condominio_id", "state", "next_attempt_at"),)
+
+
 class RecoveryCheckpoint(Base_CORE):
     """Recovery audit/checkpoint; incident identifier comes from deployment config."""
     __tablename__ = 'recovery_checkpoints'
