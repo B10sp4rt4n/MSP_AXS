@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-12",
+  "environment": "AXS Development",
+  "backend_commit": "18437c661251106a4fb3a2fe016992c67befcd6d",
+  "frontend_commit": "2717c5b5d482b4641a180610e528022ec6e31bec",
+  "backend_deployment": "2b039fa7-9bc1-4136-a46b-b149456162b9",
+  "frontend_deployment": "735b68f7-5140-43c6-abba-b840046ea59c",
+  "local_checks": {
+    "retention": 19,
+    "identity": 18,
+    "existing_operational_reports": 5,
+    "typescript": "PASS",
+    "lint": "PASS",
+    "react_review": "PASS"
+  },
+  "live": {
+    "operator_deployment": "e16f5d5b-9180-4af8-8a94-b2385a944f09",
+    "identity_checks": 24,
+    "retention_checks": 6,
+    "result": "PASS",
+    "accounts": "existing local synthetic accounts in live development",
+    "metadata_unchanged": true,
+    "cross_tenant_denied": true,
+    "anonymous_denied": true
+  },
+  "browser": {
+    "today_cutoff": "2026-10-12",
+    "today_identifications": 2,
+    "today_photos": 4,
+    "today_current": 2,
+    "future_cutoffs": [
+      "2026-11-11",
+      "2026-11-12"
+    ],
+    "future_candidates": 2,
+    "quick_date_choice_verified": true,
+    "submitted_manual_date_verified": true
+  },
+  "mode": "simulation",
+  "deletion_active": false,
+  "limitations": [
+    "30-day period is a proposal",
+    "does not inspect incidents or conservation exceptions",
+    "uses current visit data, not historical state reconstruction",
+    "purge implementation and production release remain pending"
+  ]
+}
