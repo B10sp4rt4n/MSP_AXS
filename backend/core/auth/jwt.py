@@ -50,6 +50,7 @@ from urllib.parse import urlsplit
 
 import httpx
 from jose import JWTError, jwt
+from jose.exceptions import JWTClaimsError, ExpiredSignatureError
 
 logger = logging.getLogger("axs.jwt")
 
@@ -138,6 +139,27 @@ def verify_clerk_token(token: str) -> Optional[Dict[str, Any]]:
             options={"verify_aud": False, "require_exp": True, "require_iat": True}
         )
         return payload
+    except JWTClaimsError:
+        # Only classify claims after validating the JWT signature.
+        try:
+            verified = jwt.decode(
+                token, verification_key, algorithms=["RS256"],
+                options={"verify_aud": False, "verify_iss": False, "verify_exp": False,
+                         "verify_iat": False, "verify_nbf": False}
+            )
+            if verified.get("iss") != f"https://{domain}":
+                cause = "issuer_mismatch"
+            elif "exp" not in verified or "iat" not in verified:
+                cause = "missing_required_claim"
+            else:
+                cause = "other_claims"
+            logger.warning("Clerk JWT rejected: %s", cause)
+        except JWTError:
+            logger.warning("Clerk JWT rejected: signature_or_claims")
+        return None
+    except ExpiredSignatureError:
+        logger.warning("Clerk JWT rejected: expired")
+        return None
     except JWTError as e:
         logger.warning("Clerk JWT rechazado (%s)", type(e).__name__)
         return None
