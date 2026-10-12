@@ -51,7 +51,7 @@ def photo(visita_id: str, evidencia_id: str, condominio_id: str, request: Reques
     visita = authorized(visita_id, condominio_id, db, db_gov, usuario)
     row = db.query(Evidencia).filter_by(visita_id=visita_id, evidencia_id=evidencia_id,
                                       categoria="identificacion").first()
-    if not row or row.metadata_json.get("storage") != "cloudinary_authenticated":
+    if not row or row.metadata_json.get("storage") != "vercel_blob_private":
         raise HTTPException(404, "Foto no encontrada")
     try:
         data = service.PrivateIdentityStore().read(row.archivo_url)

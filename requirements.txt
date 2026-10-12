@@ -141,3 +141,5 @@ svix
 openpyxl==3.1.5
 reportlab==4.4.10
 pypdf==6.20.0
+
+vercel==0.11.6

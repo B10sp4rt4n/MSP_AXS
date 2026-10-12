@@ -3,8 +3,8 @@ import hashlib
 import io
 import logging
 import os
-import time
 import uuid
+from urllib.parse import urlparse
 
 from fastapi import HTTPException
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -42,31 +42,29 @@ class PrivateIdentityStore:
     def __init__(self):
         if os.getenv("AXS_ID_PHOTOS_ENABLED", "false").lower() != "true":
             raise HTTPException(503, "La captura de identificaciones aún no está habilitada")
-        from backend.utils.cloudinary_service import get_cloudinary_service
-        try:
-            get_cloudinary_service()
-        except Exception:
-            raise HTTPException(503, "Almacenamiento privado no disponible; conserva las fotos y reintenta")
+        self.token = os.getenv("BLOB_READ_WRITE_TOKEN")
+        if not self.token:
+            raise HTTPException(503, "Vercel Blob privado no está configurado; conserva las fotos y reintenta")
 
     def put(self, key, data):
-        import cloudinary.uploader
-        result = cloudinary.uploader.upload(io.BytesIO(data), public_id=key,
-            resource_type="image", type="authenticated", format="jpg", overwrite=False)
-        if result.get("type") != "authenticated" or result.get("public_id") != key:
+        from vercel import blob
+        result = blob.put(key, data, access="private", content_type="image/jpeg",
+                          add_random_suffix=False, overwrite=False, token=self.token)
+        parsed = urlparse(result.url)
+        if (result.pathname != key or parsed.scheme != "https"
+                or not (parsed.hostname or "").endswith(".private.blob.vercel-storage.com")):
             raise RuntimeError("Private storage response mismatch")
 
     def delete(self, key):
-        import cloudinary.uploader
-        cloudinary.uploader.destroy(key, resource_type="image", type="authenticated", invalidate=True)
+        from vercel import blob
+        blob.delete(key, token=self.token)
 
     def read(self, key):
-        import cloudinary.utils
-        import requests
-        url = cloudinary.utils.private_download_url(key, "jpg", resource_type="image",
-            type="authenticated", expires_at=int(time.time()) + 60)
-        response = requests.get(url, timeout=20)
-        response.raise_for_status()
-        return response.content
+        from vercel import blob
+        result = blob.get(key, access="private", token=self.token, timeout=20, use_cache=False)
+        if result is None or result.status_code != 200:
+            raise HTTPException(404, "Foto no encontrada")
+        return result.content
 
 
 def list_pairs(db, visita_id):
@@ -111,7 +109,7 @@ def save_pair(db, visita, usuario, nombre, captura_id, frente, reverso, audit):
             row = Evidencia(evidencia_id=eid, visita_id=visita.visita_id,
                 guardia_id=usuario.usuario_id, categoria="identificacion", sub_tipo=side,
                 archivo_url=key, hash_sha256=hashes[side], metadata_json={
-                    "storage": "cloudinary_authenticated", "nombre": nombre,
+                    "storage": "vercel_blob_private", "nombre": nombre,
                     "captura_id": captura_id, "condominio_id": visita.condominio_id})
             db.add(row)
             rows.append(row)

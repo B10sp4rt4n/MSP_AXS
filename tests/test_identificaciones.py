@@ -108,29 +108,47 @@ def test_store_disabled_by_default(monkeypatch):
     assert error.value.status_code == 503
 
 
-def test_adapter_uses_authenticated_storage(monkeypatch):
-    import cloudinary.uploader
-    import cloudinary.utils
-    import requests
-    from backend.utils import cloudinary_service
+def test_adapter_uses_private_blob(monkeypatch):
+    from types import SimpleNamespace
+    from vercel import blob
     monkeypatch.setenv("AXS_ID_PHOTOS_ENABLED", "true")
-    monkeypatch.setattr(cloudinary_service, "get_cloudinary_service", lambda: None)
+    monkeypatch.setenv("BLOB_READ_WRITE_TOKEN", "synthetic-token")
     calls = {}
-    def upload(data, **options):
-        calls["upload"] = options
-        return {"type": options["type"], "public_id": options["public_id"]}
-    def url(key, fmt, **options):
-        calls["read"] = options
-        return "https://example.invalid/synthetic"
-    class Download:
-        content = b"synthetic"
-        def raise_for_status(self): pass
-    monkeypatch.setattr(cloudinary.uploader, "upload", upload)
-    monkeypatch.setattr(cloudinary.utils, "private_download_url", url)
-    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: Download())
+    def put(key, data, **options):
+        calls["put"] = options
+        return SimpleNamespace(pathname=key, url=f"https://synthetic.private.blob.vercel-storage.com/{key}")
+    def get(key, **options):
+        calls["get"] = options
+        return SimpleNamespace(status_code=200, content=b"synthetic")
+    monkeypatch.setattr(blob, "put", put)
+    monkeypatch.setattr(blob, "get", get)
+    monkeypatch.setattr(blob, "delete", lambda key, **opts: calls.update(delete=opts))
     store = service.PrivateIdentityStore()
     store.put("synthetic", b"synthetic")
     assert store.read("synthetic") == b"synthetic"
-    assert calls["upload"]["type"] == calls["read"]["type"] == "authenticated"
-    assert calls["upload"]["overwrite"] is False
-    assert "expires_at" in calls["read"]
+    store.delete("synthetic")
+    assert calls["put"]["access"] == calls["get"]["access"] == "private"
+    assert calls["put"]["overwrite"] is False
+    assert calls["put"]["add_random_suffix"] is False
+    assert calls["get"]["use_cache"] is False
+    assert calls["delete"]["token"] == "synthetic-token"
+
+
+def test_missing_blob_token(monkeypatch):
+    from fastapi import HTTPException
+    monkeypatch.setenv("AXS_ID_PHOTOS_ENABLED", "true")
+    monkeypatch.delenv("BLOB_READ_WRITE_TOKEN", raising=False)
+    with pytest.raises(HTTPException) as error:
+        service.PrivateIdentityStore()
+    assert error.value.status_code == 503
+
+
+def test_rejects_public_blob_response(monkeypatch):
+    from types import SimpleNamespace
+    from vercel import blob
+    monkeypatch.setenv("AXS_ID_PHOTOS_ENABLED", "true")
+    monkeypatch.setenv("BLOB_READ_WRITE_TOKEN", "synthetic-token")
+    monkeypatch.setattr(blob, "put", lambda key, data, **opts: SimpleNamespace(
+        pathname=key, url=f"https://synthetic.public.blob.vercel-storage.com/{key}"))
+    with pytest.raises(RuntimeError):
+        service.PrivateIdentityStore().put("synthetic", b"synthetic")
