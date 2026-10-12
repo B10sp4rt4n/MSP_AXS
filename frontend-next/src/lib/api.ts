@@ -50,8 +50,8 @@ export const api = {
     if (!res.ok) throw new Error(typeof result.detail === "string" ? result.detail : `No se guardó (${res.status})`);
     return result;
   },
-  download: async (path: string, token: string): Promise<Blob> => {
-    const res = await fetch(`${API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+  download: async (path: string, token: string, signal?: AbortSignal): Promise<Blob> => {
+    const res = await fetch(`${API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new Error(typeof body.detail === "string" ? body.detail : `No se pudo descargar (${res.status})`);
