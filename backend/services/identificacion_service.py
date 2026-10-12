@@ -95,6 +95,8 @@ def save_pair(db, visita, usuario, nombre, captura_id, frente, reverso, audit):
         condominio_id=visita.condominio_id).with_for_update().one()
     existing = list_pairs(db, visita.visita_id)
     if existing:
+        from backend.services.identificacion_conservacion import assert_readable, access_record
+        assert_readable(access_record(db, visita))
         if any((row.metadata_json or {}).get("purge_status") for row in existing):
             raise HTTPException(409, "Esta identificación fue retirada; no se admite otra captura para esta visita")
         if len(existing) == 2 and all(row.metadata_json.get("captura_id") == captura_id
@@ -121,6 +123,8 @@ def save_pair(db, visita, usuario, nombre, captura_id, frente, reverso, audit):
         encolar_evento(db, visita.condominio_id, visita.visita_id, audit,
                       metadata={"evidencia_ids": [r.evidencia_id for r in rows], "captura_id": captura_id})
         db.flush()
+        from backend.services.identificacion_conservacion import enroll
+        enroll(db, visita, rows, audit)
         result = describe(rows)
         db.commit()
         return result
