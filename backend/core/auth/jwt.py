@@ -120,13 +120,22 @@ def verify_clerk_token(token: str) -> Optional[Dict[str, Any]]:
     Verifica un JWT emitido por Clerk usando sus llaves públicas (RS256).
     Retorna el payload si es válido, None si no.
     """
-    jwks = _fetch_clerk_jwks()
-    if not jwks:
-        return None
+    public_key = os.getenv("CLERK_JWT_PUBLIC_KEY", "").strip().replace("\\n", "\n")
+    domain = _get_clerk_domain()
+    if public_key:
+        if not domain or not public_key.startswith("-----BEGIN PUBLIC KEY-----"):
+            logger.error("Clave pública Clerk o dominio de instancia inválidos")
+            return None
+        verification_key = public_key
+    else:
+        verification_key = _fetch_clerk_jwks()
+        if not verification_key:
+            return None
     try:
         payload = jwt.decode(
-            token, jwks, algorithms=["RS256"],
-            options={"verify_aud": False}
+            token, verification_key, algorithms=["RS256"],
+            issuer=f"https://{domain}",
+            options={"verify_aud": False, "require_exp": True, "require_iat": True}
         )
         return payload
     except JWTError as e:

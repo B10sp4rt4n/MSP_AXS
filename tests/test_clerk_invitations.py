@@ -64,3 +64,26 @@ def test_rejects_jwks_from_unrelated_domain(monkeypatch):
     monkeypatch.setattr(auth_jwt, "_clerk_jwks_cache", {"keys": None, "fetched_at": 0})
     monkeypatch.setattr(httpx, "get", lambda *args, **kwargs: pytest.fail("Unexpected external request"))
     assert auth_jwt._fetch_clerk_jwks() is None
+
+
+def test_offline_clerk_public_key_verifies_signature_and_issuer(monkeypatch):
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives import serialization
+    from jose import jwt as jose_jwt
+    from backend.core.auth import jwt as auth_jwt
+    from datetime import datetime, timezone, timedelta
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_pem = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()).decode()
+    public_pem = key.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo).decode()
+    monkeypatch.setenv("CLERK_JWT_PUBLIC_KEY", public_pem)
+    monkeypatch.setattr(auth_jwt, "_get_clerk_domain", lambda: "clerk.auth.axs-mx.com")
+    monkeypatch.setattr(auth_jwt, "_fetch_clerk_jwks", lambda: pytest.fail("JWKS network should not be called"))
+    now = datetime.now(timezone.utc)
+    payload = {"sub": "user_test", "iss": "https://clerk.auth.axs-mx.com",
+               "iat": int(now.timestamp()), "exp": int((now + timedelta(minutes=5)).timestamp())}
+    signed = jose_jwt.encode(payload, private_pem, algorithm="RS256")
+    assert auth_jwt.verify_clerk_token(signed)["sub"] == "user_test"
+    wrong_issuer = jose_jwt.encode({**payload, "iss": "https://another.example"}, private_pem, algorithm="RS256")
+    assert auth_jwt.verify_clerk_token(wrong_issuer) is None
+    expired = jose_jwt.encode({**payload, "exp": int((now - timedelta(seconds=1)).timestamp())}, private_pem, algorithm="RS256")
+    assert auth_jwt.verify_clerk_token(expired) is None
