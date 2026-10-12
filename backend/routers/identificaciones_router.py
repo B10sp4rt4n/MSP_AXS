@@ -53,12 +53,21 @@ def photo(visita_id: str, evidencia_id: str, condominio_id: str, request: Reques
                                       categoria="identificacion").first()
     if not row or row.metadata_json.get("storage") != "vercel_blob_private":
         raise HTTPException(404, "Foto no encontrada")
+    key = row.archivo_url
+    # Release read/tenant locks before remote I/O. Authorization and evidence
+    # are checked again before delivery, including revocation during download.
+    db.rollback()
     try:
-        data = service.PrivateIdentityStore().read(row.archivo_url)
+        data = service.PrivateIdentityStore().read(key)
     except HTTPException:
         raise
     except Exception:
         raise HTTPException(503, "No se pudo recuperar la foto; reintenta")
+    visita = authorized(visita_id, condominio_id, db, db_gov, usuario)
+    current = db.query(Evidencia).filter_by(visita_id=visita_id, evidencia_id=evidencia_id,
+                                          categoria="identificacion").first()
+    if not current or current.archivo_url != key or current.metadata_json.get("storage") != "vercel_blob_private":
+        raise HTTPException(404, "Foto no encontrada")
     encolar_evento(db, visita.condominio_id, evidencia_id, audit(request, usuario, "consultar"))
     db.commit()
     return Response(data, media_type="image/jpeg", headers={
