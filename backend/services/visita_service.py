@@ -83,6 +83,11 @@ def _guardar_transicion(db, visita_id, query, values, conflict, *, auditoria=Non
         visita = db.query(Visita).populate_existing().filter(
             Visita.visita_id == visita_id,
         ).one()
+        if Visita.salida_registrada_en in values:
+            from backend.services.identificacion_conservacion import lookup, refresh_expiry
+            retention = lookup(db, visita, lock=True)
+            if retention:
+                refresh_expiry(db, retention, visita, datetime.utcnow())
         if auditoria:
             encolar_visita(db, visita, auditoria)
         db.commit()
