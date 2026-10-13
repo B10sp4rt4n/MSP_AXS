@@ -2,6 +2,8 @@
 
 Estado: implementación restringida a imágenes ficticias; purga general de documentos reales desactivada.
 
+Plazo predeterminado para pilotos: **30 días**, confirmado por Salvador el 12 de octubre de 2026. El cálculo existente ya utiliza ese valor. Esta confirmación no cambia los interruptores de activación ni sustituye la aceptación por condominio para documentos reales. Véase la [decisión de política](identificaciones-conservacion-propuesta.md#decisión-de-plazo-predeterminado-para-pilotos).
+
 ## Qué se implementó
 
 - Registro durable por par en `identity_retention`, con versión de política, vencimiento, excepción, operación y reclamo exclusivo.
