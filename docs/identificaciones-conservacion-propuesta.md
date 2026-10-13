@@ -2,7 +2,13 @@
 
 Estado: especificación preparada el 12 de octubre de 2026. Purga general desactivada. El responsable del condominio debe confirmar el plazo y las excepciones antes de habilitar borrado de documentos reales. Esta especificación permite preparar y probar la implementación con datos ficticios.
 
-## Regla de conservación propuesta
+## Decisión de plazo predeterminado para pilotos
+
+El 12 de octubre de 2026 Salvador autorizó conservar **30 días como plazo predeterminado para pilotos**. Este valor ya coincide con el simulador y el piloto técnico; no requiere cambiar el cálculo existente. Para pilotos, el plazo deja de ser una propuesta pendiente de selección.
+
+La decisión fija el valor predeterminado, no activa el borrado general ni inscribe fotografías reales. Se mantiene la activación explícita por condominio, la aceptación registrada y la revisión de fotografías existentes descritas más abajo. Producción y el límite máximo de las excepciones no quedan autorizados por esta decisión.
+
+## Regla de conservación (predeterminada para pilotos)
 
 | Situación | Fecha base | Vencimiento |
 | --- | --- | --- |
@@ -18,6 +24,8 @@ La regla comprende frente, reverso, nombre transcrito y cualquier copia o miniat
 La salida registrada antes del vencimiento puede actualizar la fecha base de forma auditada. Una salida o corrección posterior al vencimiento no debe restaurar el acceso ni extender silenciosamente la conservación. Esos casos requieren revisión explícita.
 
 ## Excepciones por incidencias
+
+El respaldo opcional previo al borrado y el soporte de baja del condominio se especifican en [respaldo y cierre](identificaciones-respaldo-y-cierre.md). Descargar no extiende el plazo ni sustituye una excepción. Es un acuerdo funcional pendiente de implementación.
 
 - Sólo un administrador autorizado del condominio puede registrar o liberar una excepción dentro de su alcance.
 - Exigir referencia de incidencia, responsable, motivo y fecha/hora límite; prohibir excepciones sin caducidad.
