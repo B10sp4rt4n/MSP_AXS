@@ -73,7 +73,8 @@ def test_denials_before_storage(client, setup, visita, tenant, user, role):
     assert client.get(f"/identificaciones/{visita}?condominio_id={tenant}", headers=headers(user, role)).status_code in (403, 404)
 
 
-@pytest.mark.parametrize("front,status", [(b"not an image", 422), (jpeg((400, 300)), 422), (b"x" * (service.MAX_BYTES + 1), 413)])
+@pytest.mark.parametrize("front,status", [(b"not an image", 422), (jpeg((400, 300)), 422), (b"x" * (service.MAX_BYTES + 1), 413)],
+                         ids=["not-an-image", "too-small", "over-8mb"])
 def test_invalid_images(client, setup, front, status):
     _, store = setup
     assert send(client, front=front).status_code == status
