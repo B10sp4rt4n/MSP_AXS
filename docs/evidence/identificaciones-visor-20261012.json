@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-12",
+  "environment": "AXS Development",
+  "active_frontend_commit": "d1f5246cc5eea4f5ed76478874e65099db308811",
+  "active_deployment": "6a52a87a-059b-4a12-812d-413b2a75c72c",
+  "verified": [
+    "front and back thumbnails shown together",
+    "front opens in native modal with close button focused",
+    "zoom 150 percent changes rendered image width",
+    "zoom capped at 400 percent",
+    "switch to back resets zoom to 100 percent",
+    "adjust returns zoom to 100 percent",
+    "Escape and close button return to visit",
+    "closing restores body scroll"
+  ],
+  "images": "synthetic PR43 fixtures only",
+  "checks": {
+    "typescript": "PASS",
+    "lint": "PASS"
+  },
+  "pending": {},
+  "mobile_native_touch_test": "not performed in this turn",
+  "final_verification": {
+    "frontend_commit": "89b27fe6e2b7f0336e84a43de57d1b47fa60827f",
+    "deployment": "908af7c5-2370-4a63-9b04-5d87d7510dd0",
+    "status": "PASS",
+    "focus_after_close": "Ampliar frente",
+    "body_scroll_restored": true,
+    "dialog_closed": true,
+    "checked_on": "2026-10-12"
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "date": "2026-10-12",
+  "timezone": "America/Mexico_City",
+  "environment": "AXS Development",
+  "scope": "Two new synthetic fixture pairs only; production and real identity retention purge inactive",
+  "backend_commit": "62b13dab8ab1ce3d4b6b205533417db96bfbac44",
+  "frontend_commit": "be48caab5c831a9a11d19b0c4ad716bba140c405",
+  "deployments": {
+    "backend_verified": "1f1d8d26-78a3-4b43-95b1-8aaec60d8150",
+    "backend_closed": "6a86cead-abb2-4bc3-acbd-3d541488197a",
+    "frontend": "a76246f0-71d0-4c0f-80f5-9355675a3d00",
+    "postgres": "6c8f14ea-ea2d-4a6f-af22-def0cb2a299a",
+    "setup": "0b9e989c-fa11-4288-abe9-ead986cf64a8",
+    "verify": "b7b237e2-d794-4792-842c-07d167bf6e68",
+    "closed": "b007205a-63f3-443b-a4a2-5880e31c8c24"
+  },
+  "validation": {
+    "local_tests_passed": 105,
+    "new_retention_tests": 27,
+    "typescript": "PASS",
+    "lint": "PASS",
+    "diff_check": "PASS",
+    "postgres": {
+      "status": "PASS",
+      "checks": 10,
+      "branch": "br-small-poetry-b5fnlc9t",
+      "rls": true,
+      "role_without_bypass": true,
+      "skip_locked": true,
+      "concurrent_workers": 2
+    },
+    "setup": {
+      "status": "PASS",
+      "phase": "setup",
+      "checks": 21,
+      "synthetic_only": true,
+      "proof": [
+        {
+          "tenant": "axs_demo_condo_a",
+          "visit": "VIS-4e27d34dc2",
+          "eids": [
+            "76fed74a-13d1-4224-b5f1-ffccb6995c4a",
+            "cf44bc92-558a-47a8-8ec7-3c98592aa76a"
+          ],
+          "capture": "488784ee-fd19-474a-8999-4b3ed4a1862d"
+        },
+        {
+          "tenant": "axs_demo_condo_b",
+          "visit": "VIS-ca466ea1a5",
+          "eids": [
+            "96402bd4-cb63-49ca-bfdf-5d630e093d32",
+            "a591d91b-f663-4387-8963-77aff1ca5e1a"
+          ],
+          "capture": "edc7841b-79ec-4d60-b760-d4138cd77898"
+        }
+      ]
+    },
+    "verify": {
+      "status": "PASS",
+      "phase": "verify",
+      "checks": 35,
+      "synthetic_only": true,
+      "proof": [
+        {
+          "tenant": "axs_demo_condo_a",
+          "visit": "VIS-4e27d34dc2",
+          "eids": [
+            "76fed74a-13d1-4224-b5f1-ffccb6995c4a",
+            "cf44bc92-558a-47a8-8ec7-3c98592aa76a"
+          ],
+          "capture": "488784ee-fd19-474a-8999-4b3ed4a1862d",
+          "event_uid": "evt_8b42fedde8d04ffaa99c21f26061abdd",
+          "delivery": 410,
+          "audit_delivered": true,
+          "idempotent": true
+        },
+        {
+          "tenant": "axs_demo_condo_b",
+          "visit": "VIS-ca466ea1a5",
+          "eids": [
+            "96402bd4-cb63-49ca-bfdf-5d630e093d32",
+            "a591d91b-f663-4387-8963-77aff1ca5e1a"
+          ],
+          "capture": "edc7841b-79ec-4d60-b760-d4138cd77898",
+          "event_uid": "evt_84f35203246c4a69860215bd9bce1489",
+          "delivery": 410,
+          "audit_delivered": true,
+          "idempotent": true
+        }
+      ]
+    },
+    "closed": {
+      "status": "PASS",
+      "phase": "closed",
+      "checks": 20,
+      "synthetic_only": true,
+      "proof": [
+        {
+          "tenant": "axs_demo_condo_a",
+          "visit": "VIS-4e27d34dc2",
+          "eids": [
+            "76fed74a-13d1-4224-b5f1-ffccb6995c4a",
+            "cf44bc92-558a-47a8-8ec7-3c98592aa76a"
+          ],
+          "capture": "488784ee-fd19-474a-8999-4b3ed4a1862d",
+          "event_uid": "evt_8b42fedde8d04ffaa99c21f26061abdd",
+          "delivery": 410,
+          "audit_delivered": true,
+          "idempotent": true
+        },
+        {
+          "tenant": "axs_demo_condo_b",
+          "visit": "VIS-ca466ea1a5",
+          "eids": [
+            "96402bd4-cb63-49ca-bfdf-5d630e093d32",
+            "a591d91b-f663-4387-8963-77aff1ca5e1a"
+          ],
+          "capture": "edc7841b-79ec-4d60-b760-d4138cd77898",
+          "event_uid": "evt_84f35203246c4a69860215bd9bce1489",
+          "delivery": 410,
+          "audit_delivered": true,
+          "idempotent": true
+        }
+      ]
+    }
+  },
+  "closed_state": {
+    "AXS_ID_RETENTION_PILOT_ENABLED": false,
+    "AXS_ID_RETENTION_SCHEMA_ENABLED": true,
+    "AXS_ID_PHOTOS_TEST_PURGE_ENABLED": false,
+    "management_http": 404,
+    "photo_http": 410,
+    "photos_deleted": 4,
+    "enrolled_pairs": 2,
+    "completed_pairs": 2,
+    "private_references_removed": true,
+    "audit_completions": 2,
+    "child_credential_removed_from_runner": true
+  },
+  "limitations": [
+    "General per-condominium activation and legacy migration not implemented.",
+    "Maximum incident hold period still a policy decision.",
+    "Storage backup/version retention not proven.",
+    "UI compiled and linted; synthetic actors use existing local test accounts, not a second Clerk browser session.",
+    "Report retains explicit 10,000 photo limit; general pagination pending."
+  ],
+  "evidence_files": [
+    "scripts/development_retention_postgres.ts",
+    "scripts/development_retention_smoke.ts",
+    "scripts/development_retention_fixture_clock.sql",
+    "migrations/20261012_identity_retention.sql"
+  ]
+}

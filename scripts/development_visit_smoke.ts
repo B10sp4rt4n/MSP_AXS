@@ -73,11 +73,139 @@ async function run() {
   console.log("AXS_SMOKE_RESULT " + JSON.stringify({ status: "PASS", run: RUN, checks: results.length, created }));
 }
 
+// Synthetic-only live checks: existing isolated accounts and disposable smoke visits.
+const SYNTHETIC_JPEG = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAJYAlgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDCooor6I+aCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP//Z";
+type IdentityRow = { evidencia_id: string; lado: string; nombre: string };
+let identityChecks = 0;
+async function identityRequest(actor: string | null, path: string, expected: number[], form?: FormData) {
+  const response = await fetch(API + path, {
+    method: form ? "POST" : "GET", redirect: "error", signal: AbortSignal.timeout(30000),
+    headers: actor ? { Authorization: `Bearer ${token(actor)}` } : {},
+    ...(form ? { body: form } : {}),
+  });
+  identityChecks++;
+  console.log("AXS_ID_CHECK " + JSON.stringify({ actor: actor ?? "anonymous", HTTP: response.status, expected, check: identityChecks }));
+  check(expected.includes(response.status), `Identity check ${identityChecks}: unexpected HTTP ${response.status}`);
+  return response;
+}
+
+async function runIdentity() {
+  check(env.APP_ENV === "development", "Development only");
+  check(env.NEON_DEV_ENDPOINT === "ep-withered-resonance-b59tusv3", "Development endpoint required");
+  check(!!env.AXS_TEST_SECRET && !env.AXS_TEST_SECRET.includes("${{"), "Runtime secret required");
+  for (const side of ["a", "b"]) {
+    const actor = `axs_demo_admin_${side}`;
+    const otherActor = `axs_demo_admin_${side === "a" ? "b" : "a"}`;
+    const own = `axs_demo_condo_${side}`;
+    const other = `axs_demo_condo_${side === "a" ? "b" : "a"}`;
+    const me = await request(actor, "GET", "/auth/me", 200);
+    check(me.usuario_id === actor && me.rol === "MSP_ADMIN", "Wrong test account");
+    const visits = await request(actor, "GET", `/visitas/condominio/${own}`, 200);
+    const matches = visits.filter((v: {nombre_visitante: string}) => v.nombre_visitante === `${RUN} ${side.toUpperCase()}`);
+    check(matches.length === 1, "Exactly one existing synthetic visit required");
+    const visit = matches[0];
+    const path = `/identificaciones/${encodeURIComponent(visit.visita_id)}`;
+    const ownQuery = `?condominio_id=${own}`;
+    const otherQuery = `?condominio_id=${other}`;
+    const list = await identityRequest(actor, path + ownQuery, [200]);
+    check(list.headers.get("cache-control")?.includes("no-store"), "Metadata caching prohibited");
+    let rows: IdentityRow[] = (await list.json()).evidencias;
+    if (!rows.length) {
+      const form = new FormData();
+      form.append("nombre", "AXS documento ficticio - prueba automatica");
+      form.append("captura_id", side === "a" ? "ec042124-9fbf-4b1a-b5fd-792b26dde121" : "c51320c8-78c0-42a1-9d1f-26a29940222c");
+      const bytes = Buffer.from(SYNTHETIC_JPEG, "base64");
+      form.append("frente", new Blob([bytes], { type: "image/jpeg" }), "synthetic-front.jpg");
+      form.append("reverso", new Blob([bytes], { type: "image/jpeg" }), "synthetic-back.jpg");
+      rows = (await (await identityRequest(actor, path + ownQuery, [200], form)).json()).evidencias;
+    }
+    check(rows.length === 2 && new Set(rows.map(row => row.lado)).size === 2, "Distinct front and back required");
+    check(rows.every(row => row.nombre === "AXS documento ficticio - prueba automatica"), "Refuse to read non-synthetic identification");
+    await identityRequest(otherActor, path + ownQuery, [403]);
+    await identityRequest(otherActor, path + otherQuery, [404]);
+    await identityRequest(null, path + ownQuery, [401]);
+    for (const row of rows) {
+      const photoPath = `${path}/${encodeURIComponent(row.evidencia_id)}`;
+      const photo = await identityRequest(actor, photoPath + ownQuery, [200]);
+      check(photo.headers.get("content-type")?.startsWith("image/jpeg"), "Photo type mismatch");
+      check(photo.headers.get("cache-control")?.includes("private") && photo.headers.get("cache-control")?.includes("no-store"), "Photo caching prohibited");
+      check((await photo.arrayBuffer()).byteLength > 0, "Empty photo");
+      await identityRequest(otherActor, photoPath + ownQuery, [403]);
+      await identityRequest(otherActor, photoPath + otherQuery, [404]);
+      await identityRequest(null, photoPath + ownQuery, [401]);
+    }
+    const after = await request(actor, "GET", `/visitas/${visit.visita_id}?condominio_id=${own}`, 200);
+    check(after.estado === visit.estado, "Identity changed visit state");
+  }
+  console.log("AXS_ID_RESULT " + JSON.stringify({ status: "PASS", checks: identityChecks, tenants: 2, synthetic: true, auth: "existing-local-test-accounts" }));
+}
+
+
+async function runRetention() {
+  let checks = 0;
+  for (const side of ["a", "b"]) {
+    const actor = `axs_demo_admin_${side}`;
+    const otherActor = `axs_demo_admin_${side === "a" ? "b" : "a"}`;
+    const own = `axs_demo_condo_${side}`;
+    const visits = await request(actor, "GET", `/visitas/condominio/${own}`, 200);
+    const visit = visits.find((v: {nombre_visitante: string}) => v.nombre_visitante === `${RUN} ${side.toUpperCase()}`);
+    check(!!visit, "Existing synthetic visit required");
+    const pairPath = `/identificaciones/${encodeURIComponent(visit.visita_id)}?condominio_id=${own}`;
+    const before = await request(actor, "GET", pairPath, 200);
+    const route = `/reportes/${own}/identificaciones-vencimiento?fecha_corte=2026-12-01`;
+    const response = await identityRequest(actor, route, [200]);
+    checks++;
+    const report = await response.json();
+    check(report.modo === "simulacion" && report.borrado_activado === false, "Read-only simulation required");
+    check(response.headers.get("cache-control")?.includes("no-store"), "Private report caching prohibited");
+    const item = report.items.find((i: {visita_id: string}) => i.visita_id === visit.visita_id);
+    check(item?.clasificacion === "venceria" && item.fotos === 2, "Known synthetic pair should reach proposed deadline");
+    const json = JSON.stringify(report);
+    check(!json.includes("archivo_url") && !json.includes("captura_id") && !json.includes("nombre") && !json.includes("axs-identificaciones/"), "Report exposes identity details");
+    await identityRequest(otherActor, route, [403]); checks++;
+    await identityRequest(null, route, [401]); checks++;
+    const after = await request(actor, "GET", pairPath, 200);
+    check(JSON.stringify(before) === JSON.stringify(after), "Simulation altered evidence metadata");
+  }
+  console.log("AXS_RETENTION_RESULT " + JSON.stringify({status:"PASS",checks,tenants:2,simulation:true,deletion:false}));
+}
+
+
+let purgeChecks = 0;
+async function purgeRequest(actor: string | null, method: string, path: string, expected: number) {
+  const response = await fetch(API + path, {method,redirect:"error",signal:AbortSignal.timeout(90000),
+    headers:actor ? {Authorization:`Bearer ${token(actor)}`} : {}});
+  purgeChecks++;
+  console.log("AXS_PURGE_CHECK "+JSON.stringify({actor:actor??"anonymous",method,HTTP:response.status,expected,check:purgeChecks}));
+  check(response.status===expected,`Purge check ${purgeChecks}: HTTP ${response.status}`);
+  return response;
+}
+async function runPurge() {
+  check(env.APP_ENV==="development" && env.NEON_DEV_ENDPOINT==="ep-withered-resonance-b59tusv3","Development only");
+  const proof = [{"tenant":"axs_demo_condo_a","visit":"VIS-4ced9e365c","photos":2,"event_uid":"evt_820b1bde029a4364a0fddacc241f48ad","operation_id":"6b4e71f9-43e9-4784-b99d-405786a14a6e","storage_absent":true,"delivery":410,"audit_delivered":true,"idempotent":true},{"tenant":"axs_demo_condo_b","visit":"VIS-7dad7600d5","photos":2,"event_uid":"evt_6167e7e1ed38466d917eb0630dca8c62","operation_id":"3da10c6e-c0c1-4d4a-b8fc-fe6b3831f269","storage_absent":true,"delivery":410,"audit_delivered":true,"idempotent":true}];
+  for (const item of proof) {
+    const actor=item.tenant==="axs_demo_condo_a"?"axs_demo_admin_a":"axs_demo_admin_b";
+    const own=item.tenant,id=item.visit;
+    const pair=await request(actor,"GET",`/identificaciones/${id}?condominio_id=${own}`,200);
+    check(pair.estado==="eliminada" && pair.evidencias.length===0,"Deleted pair returned");
+    const ids=own==="axs_demo_condo_a"?["f54dcb8d-e3e1-437c-a814-ab46549796c0","573316a1-1953-4417-9269-2550c63a4f6d"]:["e4993619-a658-4e2c-a140-7ef4ec5360fc","31770ec8-7a29-4947-a6f8-f271141bf1b8"];
+    for(const eid of ids) await purgeRequest(actor,"GET",`/identificaciones/${id}/${eid}?condominio_id=${own}`,410);
+    // Gate is disabled: this request must be rejected before any deletion.
+    await purgeRequest(actor,"DELETE",`/identificaciones/${id}/borrado-prueba?condominio_id=${own}`,404);
+    const history=await request(actor,"GET",`/bitacora/${own}?visita_id=${id}&limite=100`,200);
+    const matches=history.items.filter((x:{accion:string})=>x.accion==="eliminar_identificacion_prueba");
+    check(matches.length===1 && matches[0].event_uid===item.event_uid && matches[0].resultado==="exito","Audit missing or duplicated");
+    const visit=await request(actor,"GET",`/visitas/${id}?condominio_id=${own}`,200);
+    check(visit.estado==="cancelada","Visit state changed");
+  }
+  console.log("AXS_PURGE_RETIRED_RESULT "+JSON.stringify({status:"PASS",checks:purgeChecks,purge_enabled:false,photos_inaccessible:4,audit_records:2,writes_performed:0}));
+}
+
 try {
   if (!env.AXS_TEST_SECRET) console.log("AXS_SMOKE_WAITING runtime variables required");
-  else await run();
+  else await runPurge();
 } catch (error) {
   // Exit successfully so Railway does not retry writes automatically. FAIL is explicit.
-  console.error("AXS_SMOKE_RESULT " + JSON.stringify({ status: "FAIL", run: RUN,
+  console.error("AXS_PURGE_RETIRED_RESULT " + JSON.stringify({ status: "FAIL", run: RUN,
     error: error instanceof Error ? error.message : "Runner failed", checks: results.length, created }));
 }

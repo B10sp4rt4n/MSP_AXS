@@ -23,6 +23,7 @@ from .models import (
     Evidencia,
     EventOutbox,
     SecurityOutbox,
+    IdentityRetention,
 )
 
 __all__ = [
@@ -47,4 +48,5 @@ __all__ = [
     "Evidencia",
     "EventOutbox",
     "SecurityOutbox",
+    "IdentityRetention",
 ]

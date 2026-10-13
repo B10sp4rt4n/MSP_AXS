@@ -20,6 +20,19 @@ ZONA = ZoneInfo("America/Mexico_City")
 MAX_EVENTOS = 5000
 
 
+@router.get("/{condominio_id}/identificaciones-vencimiento")
+def identificaciones_vencimiento(
+    condominio_id: str, response: Response, fecha_corte: date | None = None,
+    usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_core_db),
+    gov: Session = Depends(get_gov_db),
+):
+    require_condominio(db, gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
+    _set_postgres_tenant(db, condominio_id)
+    from backend.services.identificacion_retencion import report
+    response.headers["Cache-Control"] = "private, no-store"
+    return report(db, condominio_id, fecha_corte or datetime.now(ZONA).date())
+
+
 def categoria(e):
     meta = e.metadata_json or {}
     if e.resultado == "denegado":
