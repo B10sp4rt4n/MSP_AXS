@@ -68,6 +68,7 @@ class AUPSessionGuard(BaseHTTPMiddleware):
         "/auth/login",  # Login es la ÚNICA forma de obtener SESSION
         "/auth/register",
         "/admin.html",  # Panel de administración (valida token en cliente)
+        "/webhooks/alexa",  # Sesión Alexa firmada + timestamp + vínculo/scope en router
         "/webhooks/clerk",  # Clerk webhook — verificado por firma svix
         "/health",
         "/debug/db",

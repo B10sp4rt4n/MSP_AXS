@@ -68,3 +68,72 @@ visita y vivienda, no garantía de entrega exactamente una vez.
 No es aún alta autoservicio, account linking ni despliegue comercial. Para
 ampliar el piloto hacen falta vínculos verificables por residente, revocación,
 cola durable y seguimiento de resultados separado de la auditoría de acceso.
+
+## Consulta por voz: nombre y hora
+
+La segunda fase agrega `POST /webhooks/alexa`. La consulta permanece apagada
+hasta configurar `AXS_ALEXA_VOICE_ENABLED=true`, `AXS_ALEXA_SKILL_ID` y
+`AXS_ALEXA_PILOT_RESIDENTE_ID`. Reutiliza los IDs de cuenta Alexa, condominio y
+casa del piloto de notificaciones. Son controles independientes: apagar la voz
+no apaga los avisos, y apagar los avisos no apaga la voz.
+
+El vínculo se configura manualmente sólo para este piloto; no es account
+linking autoservicio. Para Pensamientos 36, el operador verifica la identidad
+del participante antes de asociar su usuario RESIDENTE en AXS. Se revalida en
+cada consulta que pertenezca a esa casa y condominio y conserve scope activo
+con contrato vigente. No hay acceso administrativo a otras viviendas por voz.
+
+### Autenticación y límites
+
+Es una sesión externa firmada por Alexa, no una ruta anónima de lectura. El
+webhook sustituye el JWT de navegador por verificación de la cadena X.509
+contra raíces CA confiables, SAN `echo-api.amazon.com`, firma RSA SHA-256 del
+cuerpo original (`Signature-256`), timestamp de máximo 150 segundos y skill ID
+esperado. Sólo se descargan certificados de HTTPS s3.amazonaws.com/echo.api/,
+sin redirects y con tamaño/timeout acotados. No se acepta un userId sin firma.
+Un guardado de auditoría fallido impide entregar el nombre. El bloqueo de
+recuperación también cubre el webhook. No se guardan nombres ni userIds de
+Amazon en EVENT ni se registran cuerpos de solicitudes.
+
+La lectura informa la última entrada confirmada de las últimas 24 horas,
+excluye preregistros y otras viviendas y dice si ya se registró salida. La hora
+se expresa en America/Mexico_City. No equivale a detectar presencia física.
+El nombre se devuelve como PlainText; no se interpreta como SSML. No incluye
+placas ni identificaciones. Cualquiera con acceso al Echo de esa cuenta podría
+escuchar la respuesta al abrir la skill: no autentica a la persona que habla.
+
+### Conectar la skill en desarrollo
+
+Después de desplegar y comprobar el endpoint:
+
+1. En Alexa Developer Console abrir AXS Condominios, Build → Endpoint.
+2. Elegir HTTPS y usar
+   `https://web-production-ed4f3.up.railway.app/webhooks/alexa`.
+3. Sustituir también los endpoints regionales que estén configurados (NA es el
+   usado por es-MX), o retirarlos para heredar Default. No dejar el antiguo
+   Lambda en una región que sobrescriba Default.
+4. Seleccionar la opción de certificado emitido por una autoridad confiable
+   cuyo dominio coincide con el endpoint. Guardar.
+5. Decir «Alexa, abre accesos condominio», el nombre de invocación usado en
+   el piloto. LaunchRequest ya consulta; no requiere intents nuevos.
+6. Para frases adicionales, crear ConsultarVisitaIntent con ejemplos como
+   «quién llegó», «mi última visita» y «quién entró», y construir el modelo.
+
+Cambiar el endpoint implica que el editor Alexa-hosted deja de atender esas
+peticiones; el código de consulta se mantiene ahora en el backend AXS. No
+reemplazar todo el manifiesto con el ZIP antiguo: conservar permisos y eventos
+de notificación ya configurados. Los eventos asíncronos de la skill no están
+habilitados para gestión de vínculos en esta fase.
+
+### Aceptación y reversión
+
+Probar desde un Echo real: nombre correcto, hora local y última visita de la
+vivienda. Probar también sin entradas recientes, visita ya salida, cuenta sin
+vínculo y scope revocado. `AMAZON.HelpIntent`, Stop y Cancel no leen datos.
+La autenticación se probó con una CA y firmas reales sintéticas; la recepción
+de una solicitud firmada real de Amazon requiere la prueba tras conectar el
+endpoint. No afirmar funcionamiento de voz en producción antes de esa prueba.
+
+Para detener lectura: `AXS_ALEXA_VOICE_ENABLED=false` y desplegar. Para volver a
+la atención anterior, restaurar el endpoint Alexa-hosted en la consola. Los
+avisos de entrada usan su propia bandera `AXS_ALEXA_ENABLED`.
