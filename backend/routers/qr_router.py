@@ -1,6 +1,6 @@
 """Router de QR - MIGRADO A AUP_SESSION"""
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 import logging
 from sqlalchemy.orm import Session
 from backend.db.core import get_core_db, AccessLevel
@@ -11,6 +11,7 @@ from ..core.auth.dependencies import get_current_user
 from ..core.security import verificar_rol
 from backend.db.core import Visita, Usuario
 from ..services import qr_service, visita_service
+from backend.services.alexa_notifications import programar_aviso
 from backend.services.event_outbox import contexto_evento, rechazar_operacion
 from ..core.gov.facade import puede_ejecutar_accion
 import base64
@@ -90,6 +91,7 @@ def validar_qr(
     visita_id: str,
     token: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_core_db),
     db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
@@ -144,6 +146,7 @@ def validar_qr(
             rechazar(str(exc.detail), status_code=exc.status_code)
         raise
 
+    programar_aviso(background_tasks, visita)
     return {
         "status": "aprobado",
         "visita_id": visita_id,

@@ -5,7 +5,7 @@ Las operaciones por ID usan require_visita y restringen vivienda del residente.
 La creación canónica y legacy comparten gobierno y registro EVENT.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from backend.core.security_denial import SecurityDenial
 from sqlalchemy.orm import Session
 from typing import List
@@ -26,6 +26,7 @@ from backend.db.core import get_core_db
 from backend.db.gov import get_gov_db
 from backend.core.scope.msp_boundary import require_visita, authorized_tenant_context
 from backend.services import visita_service
+from backend.services.alexa_notifications import programar_aviso
 from backend.services.event_outbox import contexto_evento, rechazar_operacion
 from backend.schemas.visita import VisitaCreate, VisitaResponse
 from backend.schemas.reglas_acceso import AutorizarVisita
@@ -47,6 +48,7 @@ def crear_visita_con_entrada(
     condominio_id: str,
     data: VisitaCreate,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_core_db),
     current_user: Usuario = Depends(get_current_user),
     db_gov: Session = Depends(get_gov_db),
@@ -54,7 +56,7 @@ def crear_visita_con_entrada(
 ):
     verificar_rol(current_user, ["GUARDIA", "MSP_ADMIN", "ADMIN_CONDOMINIO"])
     return crear_visita(condominio_id, data, request, db, current_user, db_gov, _tenant,
-                        entrada_inmediata=True)
+                        entrada_inmediata=True, background_tasks=background_tasks)
 
 
 @router.post("/{condominio_id}", response_model=VisitaResponse)
@@ -67,6 +69,7 @@ def crear_visita(
     db_gov: Session = Depends(get_gov_db),
     _tenant: str = Depends(authorized_tenant_context(AccessLevel.ADMIN_CONDOMINIO)),                  # PASO 3: SET app.tenant_id
     entrada_inmediata: bool = False,
+    background_tasks: BackgroundTasks = None,
 ):
     """Crea dentro del condominio autorizado por GLOBAL, membresía MSP o scope.
 
@@ -123,6 +126,8 @@ def crear_visita(
         raise
     
     # El evento de éxito queda persistido en CORE junto con la visita.
+    if entrada_inmediata:
+        programar_aviso(background_tasks, visita)
     return visita
 
 
@@ -217,6 +222,7 @@ def visitas_condominio(
 def registrar_entrada_manual(
     visita_id: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_core_db),
     db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),
@@ -236,7 +242,7 @@ def registrar_entrada_manual(
     if visita.qr_token:
         rechazar("Esta visita requiere validar su QR")
     try:
-        return visita_service.registrar_entrada(db, visita_id, auditoria=contexto_evento(
+        visita = visita_service.registrar_entrada(db, visita_id, auditoria=contexto_evento(
             usuario, request.headers.get("Authorization", "").replace("Bearer ", ""),
             motivo="Entrada manual registrada"))
     except HTTPException as exc:
@@ -244,6 +250,8 @@ def registrar_entrada_manual(
             rechazar_operacion(db, usuario, token, tenant_id, visita_id,
                               detail=str(exc.detail), status_code=exc.status_code)
         raise
+    programar_aviso(background_tasks, visita)
+    return visita
 
 
 @router.patch("/{visita_id}/salida")
