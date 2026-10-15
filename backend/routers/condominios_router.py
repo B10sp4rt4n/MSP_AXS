@@ -357,23 +357,31 @@ def listar_casas(
 
     casas = db.query(Casa).filter(Casa.condominio_id == condominio_id).order_by(Casa.numero).all()
 
+    residentes = db.query(Usuario).filter(
+        Usuario.condominio_id == condominio_id,
+        Usuario.rol == "RESIDENTE",
+        Usuario.casa_id.in_([c.casa_id for c in casas]),
+    ).order_by(Usuario.nombre, Usuario.usuario_id).all()
+    por_casa = {}
+    for residente in residentes:
+        por_casa.setdefault(residente.casa_id, []).append({
+            "usuario_id": residente.usuario_id,
+            "nombre": residente.nombre,
+            "email": residente.email,
+            "rol": residente.rol,
+        })
+
     resultado = []
     for casa in casas:
-        residente = db.query(Usuario).filter(
-            Usuario.casa_id == casa.casa_id,
-            Usuario.rol == "RESIDENTE"
-        ).first()
+        miembros = por_casa.get(casa.casa_id, [])
         resultado.append({
             "casa_id": casa.casa_id,
             "numero": casa.numero,
             "tipo": casa.tipo,
             "descripcion": casa.descripcion,
-            "residente": {
-                "usuario_id": residente.usuario_id,
-                "nombre": residente.nombre,
-                "email": residente.email,
-                "rol": residente.rol,
-            } if residente else None,
+            "residentes": miembros,
+            # Compatibilidad con clientes anteriores; no designa contacto principal.
+            "residente": miembros[0] if miembros else None,
         })
 
     return {

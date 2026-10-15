@@ -221,3 +221,37 @@ def test_aislamiento_cruzado_a_b_invitaciones_usuarios_y_viviendas(client, peopl
     resident = people.query(Usuario).filter_by(usuario_id="resident").one()
     assert resident.casa_id is None and resident.clerk_id is None
     assert people.query(UserTenantScope).filter_by(usuario_id="resident").one().tenant_id == "a1"
+
+
+def test_varios_residentes_por_vivienda_y_limites(client, people):
+    from backend.db.core import Casa
+    people.add_all([
+        Casa(casa_id="home", condominio_id="a1", numero="101", tipo="casa"),
+        Casa(casa_id="other", condominio_id="b1", numero="101", tipo="casa"),
+        Casa(casa_id="common", condominio_id="a1", numero="Jardín", tipo="area_comun"),
+    ])
+    people.commit()
+    admin = headers("admin", "ADMIN_CONDOMINIO")
+    ids = []
+    for nombre in ("Ana", "Luis"):
+        result = client.post("/condominios/a1/casas/home/residente", headers=admin,
+                             json={"nombre": nombre, "email": f"{nombre}@test.local"})
+        assert result.status_code == 200, result.text
+        ids.append(result.json()["usuario_id"])
+    data = client.get("/condominios/a1/casas", headers=admin).json()
+    home = next(c for c in data["casas"] if c["casa_id"] == "home")
+    assert [r["nombre"] for r in home["residentes"]] == ["Ana", "Luis"]
+    assert {r["usuario_id"] for r in home["residentes"]} == set(ids)
+    assert home["residente"] in home["residentes"]
+    common = next(c for c in data["casas"] if c["casa_id"] == "common")
+    assert common["residentes"] == [] and common["residente"] is None
+    for identity in ids:
+        scope = people.query(UserTenantScope).filter_by(usuario_id=identity).one()
+        assert scope.tenant_id == "a1" and scope.access_level == AccessLevel.RESIDENTE
+    body = {"nombre": "Otro", "email": "otro@test.local"}
+    for identity, role in [(ids[0], "RESIDENTE"), ("guard", "GUARDIA")]:
+        assert client.post("/condominios/a1/casas/home/residente",
+                           headers=headers(identity, role), json=body).status_code == 403
+    assert client.post("/condominios/b1/casas/other/residente", headers=admin, json=body).status_code == 403
+    assert client.post("/condominios/a1/casas/other/residente", headers=admin, json=body).status_code == 404
+    assert client.post("/condominios/a1/casas/common/residente", headers=admin, json=body).status_code == 400

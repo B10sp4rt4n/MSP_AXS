@@ -26,6 +26,7 @@ jobs:
     - run: node tests/reportes-operacion.browser.cjs
     - run: node tests/resident-import.browser.cjs
     - run: node tests/admin-empty.browser.cjs
+    - run: node tests/multiple-residents.browser.cjs
     - run: node tests/onboarding.browser.cjs
     - run: node tests/provider-console.browser.cjs
       env:
