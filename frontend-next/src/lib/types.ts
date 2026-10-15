@@ -43,6 +43,7 @@ export interface CasaItem {
   tipo: string;
   descripcion?: string;
   residente: ResidenteCasa | null;
+  residentes?: ResidenteCasa[];
 }
 
 export interface CasasResponse {

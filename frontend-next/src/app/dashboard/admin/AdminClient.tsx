@@ -8,7 +8,7 @@ import ConfigurarReglasAcceso, { AutorizarVisita } from "@/components/ReglasAcce
 import Bitacora from "@/components/Bitacora";
 import ReportesOperacion from "@/components/ReportesOperacion";
 import UsuariosCondominio from "@/components/UsuariosCondominio";
-import type { Visita, Condominio, CasasResponse, CasaItem, ResidenteCasa } from "@/lib/types";
+import type { Visita, Condominio, CasasResponse, CasaItem } from "@/lib/types";
 
 const CONDOMINIO_KEY = "axs_condominio_id";
 type Tab = "bitacora" | "visitas" | "casas" | "usuarios" | "reglas" | "reportes";
@@ -301,28 +301,31 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
         </div>
       ) : (
         <div className="space-y-3">
-          {casasData.casas.map((item: CasaItem) => (
+          {casasData.casas.map((item: CasaItem) => {
+            const residentes = item.residentes ?? (item.residente ? [item.residente] : []);
+            return (
             <div key={item.casa_id} className="bg-gray-900 border border-gray-700 rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <p className="font-semibold text-white">{item.numero}</p>
                   <p className="text-xs text-gray-500">{tipoLabel[item.tipo] ?? item.tipo}</p>
                 </div>
-                {!item.residente && ["casa", "depto", "local"].includes(item.tipo) && asignando !== item.casa_id && (
+                {["casa", "depto", "local"].includes(item.tipo) && asignando !== item.casa_id && (
                   <button
                     onClick={() => { setAsignando(item.casa_id); setResForm({ nombre: "", email: "" }); setResError(""); }}
                     className="text-xs bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg">
-                    + Residente
+                    + Agregar residente
                   </button>
                 )}
               </div>
 
-              {item.residente ? (
-                <div className="flex items-center justify-between text-sm mt-1">
-                  <span className="text-gray-300">{item.residente.nombre}</span>
-                  <span className="text-xs text-gray-500">{item.residente.email}</span>
+              {residentes.map(residente => (
+                <div key={residente.usuario_id} className="flex flex-wrap items-center justify-between gap-1 text-sm mt-1">
+                  <span className="text-gray-300">{residente.nombre}</span>
+                  <span className="text-xs text-gray-500 break-all">{residente.email}</span>
                 </div>
-              ) : asignando === item.casa_id ? (
+              ))}
+              {asignando === item.casa_id ? (
                 <div className="mt-2 space-y-2">
                   <input placeholder="Nombre del residente"
                     value={resForm.nombre}
@@ -344,11 +347,11 @@ function TabCasas({ condominioId, getToken }: { condominioId: string; getToken: 
                     </button>
                   </div>
                 </div>
-              ) : (
+              ) : residentes.length === 0 ? (
                 <p className="text-xs text-gray-600 mt-1">{["casa", "depto", "local"].includes(item.tipo) ? "Sin residente asignado" : "Destino común"}</p>
-              )}
+              ) : null}
             </div>
-          ))}
+          ); })}
         </div>
       )}
     </div>
