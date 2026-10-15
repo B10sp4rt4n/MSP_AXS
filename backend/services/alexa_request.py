@@ -18,6 +18,13 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 import httpx
 from OpenSSL import crypto
 
+SKILL_EVENTS = frozenset({
+    'AlexaSkillEvent.SkillAccountLinked', 'AlexaSkillEvent.SkillAccountUnlinked',
+    'AlexaSkillEvent.SkillEnabled', 'AlexaSkillEvent.SkillDisabled',
+    'AlexaSkillEvent.SkillPermissionAccepted', 'AlexaSkillEvent.SkillPermissionChanged',
+    'AlexaSkillEvent.ProactiveSubscriptionChanged',
+})
+
 
 def certificate_url(value):
     url = urlsplit(value)
@@ -85,7 +92,8 @@ def verify_request(body, headers, *, now=None):
     if session.get('user', {}).get('userId', user) != user:
         raise ValueError('Wrong session account')
     stamp = datetime.fromisoformat(envelope['request']['timestamp'].replace('Z', '+00:00'))
-    if stamp.tzinfo is None or abs(((now or datetime.now(timezone.utc)) - stamp).total_seconds()) > 150:
+    tolerance = 3600 if envelope['request'].get('type') in SKILL_EVENTS else 150
+    if stamp.tzinfo is None or abs(((now or datetime.now(timezone.utc)) - stamp).total_seconds()) > tolerance:
         raise ValueError('Stale request')
     if not envelope['request'].get('requestId'):
         raise ValueError('Missing request identity')

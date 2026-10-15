@@ -8,11 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from backend.db.core import AccessLevel, Casa, Usuario, Visita, get_core_db
+from backend.db.core import AccessLevel, AlexaAccount, Casa, Usuario, Visita, get_core_db
+from backend.core.auth.dependencies import get_current_user
 from backend.db.gov import get_gov_db
 from backend.core.scope.msp_boundary import require_condominio
 from backend.core.tenant.context import _set_postgres_tenant
-from backend.services.alexa_request import verify_request
+from backend.services.alexa_request import verify_request, SKILL_EVENTS
+from backend.services import alexa_linking
 from backend.services.event_outbox import contexto_evento, encolar_evento
 from backend.services.security_outbox import guardar_intento
 
@@ -27,16 +29,24 @@ def speech(text):
 def consultar(envelope, request, db, db_gov):
     system = envelope['context']['System']
     user_id = system['user']['userId']
-    target_user = os.getenv('AXS_ALEXA_PILOT_USER_ID', '').strip()
-    tenant = os.getenv('AXS_ALEXA_PILOT_CONDOMINIO_ID', '').strip()
-    house = os.getenv('AXS_ALEXA_PILOT_CASA_ID', '').strip()
-    resident = os.getenv('AXS_ALEXA_PILOT_RESIDENTE_ID', '').strip()
-    if not all((target_user, tenant, house, resident)) or not hmac.compare_digest(user_id, target_user):
-        raise HTTPException(403, 'Cuenta Alexa sin vínculo vigente')
-    usuario = db.query(Usuario).filter_by(usuario_id=resident, rol='RESIDENTE',
-                                        condominio_id=tenant, casa_id=house).one_or_none()
-    if usuario is None:
-        raise HTTPException(403, 'Vínculo de residente no vigente')
+    if alexa_linking.enabled():
+        usuario = alexa_linking.resolve_voice(envelope, db, db_gov)
+        if usuario is None:
+            answer = speech('Vincula tu cuenta AXS en la aplicación Alexa para consultar tu vivienda.')
+            answer['response']['card'] = {'type': 'LinkAccount'}
+            return answer
+        tenant, house = usuario.condominio_id, usuario.casa_id
+    else:
+        target_user = os.getenv('AXS_ALEXA_PILOT_USER_ID', '').strip()
+        tenant = os.getenv('AXS_ALEXA_PILOT_CONDOMINIO_ID', '').strip()
+        house = os.getenv('AXS_ALEXA_PILOT_CASA_ID', '').strip()
+        resident = os.getenv('AXS_ALEXA_PILOT_RESIDENTE_ID', '').strip()
+        if not all((target_user, tenant, house, resident)) or not hmac.compare_digest(user_id, target_user):
+            raise HTTPException(403, 'Cuenta Alexa sin vínculo vigente')
+        usuario = db.query(Usuario).filter_by(usuario_id=resident, rol='RESIDENTE',
+                                            condominio_id=tenant, casa_id=house).one_or_none()
+        if usuario is None:
+            raise HTTPException(403, 'Vínculo de residente no vigente')
     request.state.verified_identity_id = usuario.usuario_id
     # Una solicitud firmada de Amazon es la sesión externa, nunca un userId del cliente sin validar.
     request.state.session_token = envelope['request']['requestId']
@@ -97,7 +107,7 @@ async def read_body(request):
 @router.post('/webhooks/alexa')
 async def alexa_voice(request: Request, db: Session = Depends(get_core_db),
                       db_gov: Session = Depends(get_gov_db)):
-    if os.getenv('AXS_ALEXA_VOICE_ENABLED', '').lower() != 'true':
+    if os.getenv('AXS_ALEXA_VOICE_ENABLED', '').lower() != 'true' and not alexa_linking.enabled():
         raise HTTPException(503, 'Consulta por voz no habilitada')
     body = await read_body(request)
     try:
@@ -106,9 +116,53 @@ async def alexa_voice(request: Request, db: Session = Depends(get_core_db),
         await run_in_threadpool(guardar_intento, request, 'INVALID_SESSION')
         raise HTTPException(401, 'Solicitud Alexa no autenticada')
     try:
+        if envelope['request']['type'] in SKILL_EVENTS:
+            if not alexa_linking.enabled():
+                raise HTTPException(503, 'Vinculación beta no habilitada')
+            return await run_in_threadpool(alexa_linking.handle_event, envelope, db, db_gov)
+        if os.getenv('AXS_ALEXA_VOICE_ENABLED', '').lower() != 'true':
+            raise HTTPException(503, 'Consulta por voz no habilitada')
         return await run_in_threadpool(consultar, envelope, request, db, db_gov)
     except HTTPException as exc:
         db.rollback()
         if exc.status_code == 403:
             await run_in_threadpool(guardar_intento, request, 'RESIDENCE_DENIED')
         raise
+    except Exception:
+        db.rollback()
+        raise
+
+
+@router.get('/alexa/vinculacion')
+def linking_status(db: Session = Depends(get_core_db), db_gov: Session = Depends(get_gov_db),
+                   usuario: Usuario = Depends(get_current_user)):
+    if not alexa_linking.enabled():
+        return {'beta_habilitada': False, 'vinculada': False, 'notificaciones': False}
+    try:
+        alexa_linking.authorized_resident(db, db_gov, resident=usuario.usuario_id)
+    except HTTPException as exc:
+        if exc.status_code not in (403, 404):
+            raise
+        return {'beta_habilitada': True, 'vinculada': False, 'notificaciones': False}
+    rows = db.query(AlexaAccount).filter_by(usuario_id=usuario.usuario_id,
+        condominio_id=usuario.condominio_id, casa_id=usuario.casa_id).all()
+    return {'beta_habilitada': True, 'vinculada': any(alexa_linking.active(r) for r in rows),
+            'notificaciones': any(alexa_linking.notifications_active(r) for r in rows)}
+
+
+@router.delete('/alexa/vinculacion')
+def disconnect(request: Request, db: Session = Depends(get_core_db),
+               db_gov: Session = Depends(get_gov_db), usuario: Usuario = Depends(get_current_user)):
+    if not alexa_linking.enabled():
+        raise HTTPException(503, 'Vinculación beta no habilitada')
+    # Disconnect remains available even if a resident no longer has tenant scope.
+    rows = db.query(AlexaAccount).filter_by(usuario_id=usuario.usuario_id).order_by(AlexaAccount.account_key).all()
+    for row in rows:
+        alexa_linking.lock_account(db, row.account_key)
+        db.refresh(row)
+        if row.usuario_id != usuario.usuario_id:
+            continue
+        row.disabled_at = datetime.utcnow()
+        alexa_linking.audit(db, row, usuario, request.state.session_token, 'desvincular')
+    db.commit()
+    return {'vinculada': False, 'notificaciones': False}

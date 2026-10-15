@@ -1,5 +1,8 @@
 # Alexa: aviso de entrada para una vivienda piloto
 
+Para la beta con vinculación automática por residente, ver [alexa-beta.md](alexa-beta.md).
+El piloto descrito aquí aplica con `AXS_ALEXA_LINKING_ENABLED=false`.
+
 Estado: integración preparada, deshabilitada por defecto. No requiere migración.
 La prueba manual de Amazon se validó con HTTP 202 y recepción en Alexa.
 La integración automática requiere configuración, despliegue y prueba en sitio.

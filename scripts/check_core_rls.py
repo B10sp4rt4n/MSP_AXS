@@ -83,6 +83,23 @@ def check(connection):
             security["owns_table"] or not security["can_enqueue"] or security["can_alter_fact"] or \
             not security["can_ack"] or not security["has_policy"]:
         raise RuntimeError("La bandeja de seguridad no tiene RLS forzado y permisos limitados")
+    if os.getenv("AXS_ALEXA_LINKING_ENABLED", "").lower() == "true":
+        for name in ("AXS_ALEXA_CLERK_CLIENT_ID", "AXS_ALEXA_CLERK_CLIENT_SECRET",
+                     "CLERK_JWT_ISSUER", "AXS_ALEXA_BETA_CONDOMINIOS"):
+            if not os.getenv(name, "").strip():
+                raise RuntimeError("Falta configuración de vinculación Alexa: " + name)
+        alexa = connection.execute(text("""
+            SELECT pg_get_userbyid(c.relowner)=current_user AS owns_table,
+                   has_table_privilege(current_user,c.oid,'SELECT') AND
+                   has_table_privilege(current_user,c.oid,'INSERT') AND
+                   has_table_privilege(current_user,c.oid,'UPDATE') AS can_link,
+                   has_table_privilege(current_user,c.oid,'DELETE') OR
+                   has_table_privilege(current_user,c.oid,'TRUNCATE') AS can_delete
+            FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='public' AND c.relname='alexa_accounts'
+        """)).mappings().one_or_none()
+        if not alexa or alexa["owns_table"] or not alexa["can_link"] or alexa["can_delete"]:
+            raise RuntimeError("Falta migración o permisos limitados de vinculación Alexa")
     return {"role": role["role"], "tables": sorted([r["relname"] for r in rows] + ["event_outbox", "security_outbox"]), "gate": "PASS"}
 
 

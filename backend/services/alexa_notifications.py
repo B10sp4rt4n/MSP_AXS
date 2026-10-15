@@ -1,4 +1,4 @@
-"""Aviso opcional de entrada para un piloto de una sola vivienda.
+"""Aviso opcional de entrada para el piloto o residentes vinculados en beta.
 
 Best effort después del commit y de la respuesta HTTP. No autoriza accesos,
 no comparte datos del visitante y no conserva credenciales en CORE/EVENT.
@@ -19,6 +19,13 @@ def programar_aviso(background_tasks, visita):
     """Sólo rutas autorizadas, tras confirmar una entrada ganadora en CORE."""
     try:
         if background_tasks is None or os.getenv("AXS_ALEXA_ENABLED", "").lower() != "true":
+            return
+        from backend.services import alexa_linking
+        if alexa_linking.enabled():
+            if (visita.destino_tipo == 'vivienda' and visita.destino_id
+                    and visita.estado == 'entrada_registrada' and visita.entrada_registrada_en):
+                background_tasks.add_task(enviar_aviso_vivienda, visita.condominio_id,
+                                          visita.destino_id, visita.visita_id)
             return
         tenant = os.getenv("AXS_ALEXA_PILOT_CONDOMINIO_ID", "").strip()
         house = os.getenv("AXS_ALEXA_PILOT_CASA_ID", "").strip()
@@ -78,3 +85,35 @@ def enviar_aviso(user, reference):
     except Exception:
         # No registrar cuerpos, excepciones, userId, tokens ni secretos.
         logger.warning("Alexa: fallo de envío; la entrada permanece registrada")
+
+
+def enviar_aviso_vivienda(tenant, house, visit_id):
+    """Reauthorize each recipient with fresh sessions after the entrance commit.
+
+    Beta best effort, like the pilot: failures never roll back a gate entrance.
+    No automatic retries or delivery guarantees.
+    """
+    from backend.db.core import AlexaAccount, SessionLocal_CORE
+    from backend.db.gov import SessionLocal_GOV
+    from backend.services import alexa_linking
+    from backend.core.recovery_gate import recovery_allowed
+    if not alexa_linking.enabled() or not recovery_allowed(core_factory=SessionLocal_CORE):
+        return
+    try:
+        with SessionLocal_CORE() as db:
+            keys = [r[0] for r in db.query(AlexaAccount.account_key).filter_by(
+                condominio_id=tenant, casa_id=house).all()]
+        for key in keys:
+            try:
+                with SessionLocal_CORE() as db, SessionLocal_GOV() as gov:
+                    row = db.get(AlexaAccount, key)
+                    if not alexa_linking.notifications_active(row):
+                        continue
+                    alexa_linking.authorized_resident(db, gov, resident=row.usuario_id,
+                                                      tenant=tenant, house=house)
+                    reference = 'AXS' + hashlib.sha256(f'{tenant}:{house}:{visit_id}:entrada'.encode()).hexdigest()
+                    enviar_aviso(row.amazon_user_id, reference)
+            except Exception:
+                logger.warning('Alexa: destinatario no disponible para el aviso')
+    except Exception:
+        logger.warning('Alexa: no se pudo consultar la vinculación beta')
