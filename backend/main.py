@@ -187,6 +187,8 @@ app.include_router(meta.router)
 
 # Clerk webhook (público — no requiere AUP_SESSION)
 app.include_router(webhooks_router.router)
+from backend.routers import alexa_router
+app.include_router(alexa_router.router)
 
 
 # ============================================================
