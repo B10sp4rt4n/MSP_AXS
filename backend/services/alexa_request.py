@@ -1,7 +1,7 @@
 """Autenticar la sesión externa de Alexa antes de acceder a CORE.
 
 Verificación HTTPS de Amazon: certificado CA + SAN, Signature-256 sobre el
-cuerpo original, timestamp de 150 segundos y applicationId de nuestra skill.
+cuerpo original, timestamp (voz 150 s, eventos conocidos 1 h) y applicationId.
 """
 import base64
 from datetime import datetime, timezone

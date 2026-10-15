@@ -63,7 +63,8 @@ publicaciones/otros campos existentes (fragmento, no reemplazo del manifiesto):
 {
   "events": {
     "endpoint": {
-      "uri": "https://web-production-ed4f3.up.railway.app/webhooks/alexa"
+      "uri": "https://web-production-ed4f3.up.railway.app/webhooks/alexa",
+      "sslCertificateType": "Wildcard"
     },
     "publications": [{"eventName": "AMAZON.MessageAlert.Activated"}],
     "subscriptions": [
@@ -77,7 +78,8 @@ publicaciones/otros campos existentes (fragmento, no reemplazo del manifiesto):
 }
 ```
 
-Las regiones que ya tengan endpoint explícito deben apuntar al mismo webhook.
+Las regiones que ya tengan endpoint explícito deben apuntar al mismo webhook
+y usar `sslCertificateType: Wildcard`, como el endpoint de voz ya validado.
 El backend también acepta `SkillAccountUnlinked` si Amazon lo envía; Amazon
 sólo ofrece ese evento con personalización. No habilitar personalización sólo
 para conseguir ese evento. La desactivación, la revocación de permisos y la
