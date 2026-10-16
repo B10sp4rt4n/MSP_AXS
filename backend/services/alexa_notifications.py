@@ -1,4 +1,4 @@
-"""Aviso opcional de entrada para un piloto de una sola vivienda.
+"""Aviso opcional de entrada y salida para un piloto de una sola vivienda.
 
 Best effort después del commit y de la respuesta HTTP. No autoriza accesos,
 no comparte datos del visitante y no conserva credenciales en CORE/EVENT.
@@ -16,7 +16,7 @@ EVENT_URL = "https://api.amazonalexa.com/v1/proactiveEvents/stages/development"
 
 
 def programar_aviso(background_tasks, visita):
-    """Sólo rutas autorizadas, tras confirmar una entrada ganadora en CORE."""
+    """Sólo rutas autorizadas, tras confirmar una transición ganadora en CORE."""
     try:
         if background_tasks is None or os.getenv("AXS_ALEXA_ENABLED", "").lower() != "true":
             return
@@ -26,13 +26,16 @@ def programar_aviso(background_tasks, visita):
         if not tenant or not house or not user.startswith("amzn1.ask.account."):
             logger.warning("Alexa: configuración de vivienda piloto incompleta")
             return
+        movement = {"entrada_registrada": "entrada", "salida_registrada": "salida"}.get(visita.estado)
+        if not movement or not getattr(visita, f"{movement}_registrada_en", None):
+            return
         if (visita.condominio_id != tenant or visita.destino_id != house
                 or visita.destino_tipo != "vivienda"
-                or visita.estado != "entrada_registrada" or not visita.entrada_registrada_en):
+                or not visita.entrada_registrada_en):
             return
         # Copiar escalares; la tarea no usa ORM ni una sesión fuera del request.
         reference = "AXS" + hashlib.sha256(
-            f"{tenant}:{house}:{visita.visita_id}:entrada".encode()
+            f"{tenant}:{house}:{visita.visita_id}:{movement}".encode()
         ).hexdigest()
         background_tasks.add_task(enviar_aviso, user, reference)
     except Exception:
@@ -72,9 +75,9 @@ def enviar_aviso(user, reference):
             if response.status_code != 202:
                 logger.warning("Alexa: respuesta inesperada HTTP %s", response.status_code)
                 return
-            logger.info("Alexa: aviso de entrada aceptado por Amazon")
+            logger.info("Alexa: aviso de movimiento aceptado por Amazon")
     except httpx.HTTPStatusError as exc:
         logger.warning("Alexa: aviso no aceptado HTTP %s", exc.response.status_code)
     except Exception:
         # No registrar cuerpos, excepciones, userId, tokens ni secretos.
-        logger.warning("Alexa: fallo de envío; la entrada permanece registrada")
+        logger.warning("Alexa: fallo de envío; el movimiento permanece registrado")
