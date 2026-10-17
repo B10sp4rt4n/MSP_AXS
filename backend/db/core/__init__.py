@@ -7,6 +7,7 @@ Exporta modelos, engine y session para AUP_CORE.
 from .engine import engine_core, Base_CORE
 from .session import SessionLocal_CORE, get_core_db
 from .models import (
+    AlexaAccount,
     # Enums
     ScopeStatus,
     AccessLevel,
@@ -27,6 +28,7 @@ from .models import (
 )
 
 __all__ = [
+    "AlexaAccount",
     # Engine y Session
     "engine_core",
     "Base_CORE",

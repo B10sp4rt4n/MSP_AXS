@@ -165,7 +165,7 @@ def test_salida_se_informa(client, db_session, pilot, envelope, signer):
     pilot.estado = 'salida_registrada'
     pilot.salida_registrada_en = datetime.utcnow()
     db_session.commit()
-    assert 'Su salida ya fue registrada' in invoke(client, signer, envelope).text
+    assert 'Se registró la salida de Juan Pérez, hoy a las' in invoke(client, signer, envelope).text
 
 
 def test_fallo_auditoria_no_retorna_nombre(client, db_session, pilot, envelope, signer, monkeypatch):
@@ -191,3 +191,17 @@ def test_recovery_bloquea_webhook(client, pilot, monkeypatch):
     response = client.post('/webhooks/alexa', content=b'{}')
     assert response.status_code == 503
     assert response.json()['code'] == 'RECOVERY_LOCKED'
+
+
+def test_salida_reciente_prioriza_visita_con_entrada_antigua(client, db_session, pilot, envelope, signer):
+    pilot.entrada_registrada_en = datetime.utcnow() - timedelta(days=2)
+    pilot.estado = 'salida_registrada'
+    pilot.salida_registrada_en = datetime.utcnow()
+    db_session.add(Visita(visita_id='newer-entry', condominio_id=pilot.condominio_id,
+        destino_id=pilot.destino_id, destino_tipo='vivienda', nombre_visitante='Otra persona',
+        estado='entrada_registrada', entrada_registrada_en=datetime.utcnow() - timedelta(minutes=10)))
+    db_session.commit()
+    response = invoke(client, signer, envelope)
+    assert response.status_code == 200
+    assert 'Se registró la salida de Juan Pérez, hoy a las' in response.text
+    assert 'Otra persona' not in response.text

@@ -13,11 +13,35 @@ Contiene:
 - Evidencia (artefactos de operación)
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Enum as SQLEnum, UniqueConstraint, Index
+from sqlalchemy import Boolean, CheckConstraint, Column, Integer, String, Text, DateTime, ForeignKey, JSON, Enum as SQLEnum, UniqueConstraint, Index
 from datetime import datetime
 import enum
 
 from .engine import Base_CORE
+
+
+class AlexaAccount(Base_CORE):
+    """Control-plane: signed Amazon account events can precede tenant linkage.
+
+    No visitor data or OAuth tokens. Tenant/house bindings are snapshots,
+    reauthorized against current Usuario and AUP_SCOPE on every use.
+    """
+    __tablename__ = "alexa_accounts"
+    __table_args__ = (CheckConstraint(
+        "(usuario_id IS NULL AND condominio_id IS NULL AND casa_id IS NULL AND linked_at IS NULL) OR "
+        "(usuario_id IS NOT NULL AND condominio_id IS NOT NULL AND casa_id IS NOT NULL AND linked_at IS NOT NULL)",
+        name="alexa_complete_binding"),)
+    account_key = Column(String(64), primary_key=True)
+    amazon_user_id = Column(String(1024), unique=True, nullable=False)
+    usuario_id = Column(String, ForeignKey("usuarios.usuario_id"), index=True)
+    condominio_id = Column(String, ForeignKey("condominios_exo.condominio_id"), index=True)
+    casa_id = Column(String, ForeignKey("casas.casa_id"))
+    linked_at = Column(DateTime)
+    disabled_at = Column(DateTime)
+    permission_at = Column(DateTime)
+    permission_granted = Column(Boolean, nullable=False, default=False)
+    subscription_at = Column(DateTime)
+    subscribed = Column(Boolean, nullable=False, default=False)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

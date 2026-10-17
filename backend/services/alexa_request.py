@@ -1,7 +1,7 @@
 """Autenticar la sesión externa de Alexa antes de acceder a CORE.
 
 Verificación HTTPS de Amazon: certificado CA + SAN, Signature-256 sobre el
-cuerpo original, timestamp de 150 segundos y applicationId de nuestra skill.
+cuerpo original, timestamp (voz 150 s, eventos conocidos 1 h) y applicationId.
 """
 import base64
 from datetime import datetime, timezone
@@ -17,6 +17,13 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 import httpx
 from OpenSSL import crypto
+
+SKILL_EVENTS = frozenset({
+    'AlexaSkillEvent.SkillAccountLinked', 'AlexaSkillEvent.SkillAccountUnlinked',
+    'AlexaSkillEvent.SkillEnabled', 'AlexaSkillEvent.SkillDisabled',
+    'AlexaSkillEvent.SkillPermissionAccepted', 'AlexaSkillEvent.SkillPermissionChanged',
+    'AlexaSkillEvent.ProactiveSubscriptionChanged',
+})
 
 
 def certificate_url(value):
@@ -85,7 +92,8 @@ def verify_request(body, headers, *, now=None):
     if session.get('user', {}).get('userId', user) != user:
         raise ValueError('Wrong session account')
     stamp = datetime.fromisoformat(envelope['request']['timestamp'].replace('Z', '+00:00'))
-    if stamp.tzinfo is None or abs(((now or datetime.now(timezone.utc)) - stamp).total_seconds()) > 150:
+    tolerance = 3600 if envelope['request'].get('type') in SKILL_EVENTS else 150
+    if stamp.tzinfo is None or abs(((now or datetime.now(timezone.utc)) - stamp).total_seconds()) > tolerance:
         raise ValueError('Stale request')
     if not envelope['request'].get('requestId'):
         raise ValueError('Missing request identity')

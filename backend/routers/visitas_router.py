@@ -258,6 +258,7 @@ def registrar_entrada_manual(
 def registrar_salida(
     visita_id: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_core_db),
     db_gov: Session = Depends(get_gov_db),
     usuario: Usuario = Depends(get_current_user),
@@ -282,7 +283,9 @@ def registrar_salida(
         if exc.status_code == 400:
             rechazar(str(exc.detail))
         raise
-    return {"status": "ok", "visita_id": visita_id, "estado": visita.estado}
+    programar_aviso(background_tasks, visita)
+    return {"status": "ok", "visita_id": visita_id, "estado": visita.estado,
+            "salida_registrada_en": visita.salida_registrada_en}
 
 
 # ---------------------------------------------------------
