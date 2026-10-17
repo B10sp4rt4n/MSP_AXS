@@ -169,7 +169,7 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
         {ficha.visita.placa && <p className="text-lg">Placa registrada: {ficha.visita.placa}</p>}
         {ficha.visita.proposito && <p className="text-gray-300">Viene por: {ficha.visita.proposito}</p>}
         <p className={resultado?.permitida ? "text-emerald-200" : "text-amber-200"}>{resultado?.mensaje}</p>
-        {operacion === "entrada" && <details><summary className="cursor-pointer py-3">Consultar / capturar identificación</summary><IdentificacionVisita visitaId={ficha.visita.visita_id} condominioId={condominioId} nombreInvitado={ficha.visita.nombre_visitante} /></details>}
+        <IdentificacionVisita key={ficha.visita.visita_id} visitaId={ficha.visita.visita_id} condominioId={condominioId} nombreInvitado={ficha.visita.nombre_visitante} />
         {incierto ? <button disabled={busy} className={`${button} w-full bg-amber-900/40`} onClick={comprobar}>Comprobar registro</button> : <>
           {resultado?.permitida && <button disabled={busy} className={`${button} w-full bg-emerald-800 text-white`} onClick={registrar}>Confirmar {operacion} de {ficha.visita.nombre_visitante}</button>}
           <div className="flex flex-wrap gap-2"><button disabled={busy} className={button} onClick={() => revisar(ficha.visita.visita_id, ficha.qr)}>Actualizar revisión</button><button disabled={busy} className={button} onClick={() => { setFicha(null);  setError(""); }}>Buscar otra visita</button></div>
