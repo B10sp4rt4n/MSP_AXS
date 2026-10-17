@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import PresenciaVisitas from "@/components/PresenciaVisitas";
 import { api } from "@/lib/api";
 import ConfigurarReglasAcceso, { AutorizarVisita } from "@/components/ReglasAcceso";
 import Bitacora from "@/components/Bitacora";
@@ -99,6 +100,7 @@ export default function AdminClient() {
             <button onClick={recargarCondominios} className="mt-4 text-blue-400">Actualizar accesos</button>
           </section>
         )}
+        {condominioId && tab === "visitas" && <PresenciaVisitas key={`presencia-${condominioId}`} condominioId={condominioId} />}
         {condominioId && tab === "reportes" && <ReportesOperacion key={condominioId} condominioId={condominioId} />}
         {condominioId && tab === "bitacora" && <Bitacora key={condominioId} condominioId={condominioId} />}
         {condominioId && tab === "visitas" && <TabVisitas key={condominioId} condominioId={condominioId} getToken={getToken} />}
