@@ -72,6 +72,7 @@ class CondominioResponse(BaseModel):
     nombre: str
     msp_id: str
     total_usuarios: int = 0
+    total_residentes: int = 0
     casas: List[CasaResponse] = []
 
 
@@ -168,6 +169,10 @@ def list_condominios(
             nombre=c.nombre,
             msp_id=c.msp_id or "",
             total_usuarios=total_usuarios,
+            total_residentes=db.query(Usuario).filter(
+                Usuario.condominio_id == c.condominio_id,
+                Usuario.rol == "RESIDENTE",
+            ).count(),
             casas=casas
         ))
     

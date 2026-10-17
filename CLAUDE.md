@@ -366,3 +366,10 @@ Formato: `fecha — decisión — motivo`.
 - Propósito ausente y entrada sin autorización bloqueados; GUARDIA no cambia reglas/autoriza, B no accede a A. Admin A autoriza, GUARDIA entra/sale, doble entrada bloqueada.
 - 11 eventos entregados en un intento sin errores; cada UID aparece una sola vez en EVENT. Configuración efectiva de A restaurada, B sin cambios, originales A/B pendientes. Visita sintética finalizada y scope sintético REVOCADO. Referencia de secreto vaciada sin redeploy; función sin dominio/cron/reinicio.
 - Sólo development recibió fixtures/reglas temporales. Producción no contiene fixtures ni reglas activas. Detalles y límites JWT local vs Clerk/UI en docs/DEVELOPMENT_RULES_VALIDATION.md; este cierre sustituye el estado pendiente anterior.
+
+
+## Preparación de analytics — 17-oct-2026
+- Portal residente muestra creación, entrada y salida por separado en America/Mexico_City; ausencia de salida significa ausencia de registro, no presencia física.
+- GET /condominios/ añade total_residentes: identidades con rol RESIDENTE asignadas al condominio, con o sin vivienda; no equivale a usuarios activos ni incorporaciones completadas.
+- Panel MSP consume ese total, sin inferir personas desde viviendas. Backend anterior sin el campo muestra —.
+- No requiere migración. Preparación independiente de PR #63/#64; no activa Alexa ni analytics.

@@ -13,6 +13,7 @@ type Condominio = {
   nombre: string;
   msp_id: string;
   total_usuarios: number;
+  total_residentes?: number;
   casas: Casa[];
 };
 type MSP = { msp_id: string; nombre: string; total_condominios: number };
@@ -56,17 +57,10 @@ export default function MSPClient() {
 
   useEffect(() => { cargar(); }, [getToken]);
 
-  // Todos los usuarios aplanados de todos los condominios
-  const todosUsuarios = condominios.flatMap(c =>
-    c.casas
-      .filter(ca => ca.residente)
-      .map(ca => ({
-        ...ca.residente!,
-        casa_unidad: ca.casa_unidad,
-        condominio: c.nombre,
-        condominio_id: c.condominio_id,
-      }))
-  );
+  // No sustituir un total ausente por viviendas ocupadas ni por cero.
+  const totalResidentes = condominios.every(c => typeof c.total_residentes === "number")
+    ? condominios.reduce((total, c) => total + c.total_residentes!, 0)
+    : "—";
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -83,7 +77,7 @@ export default function MSPClient() {
         </div>
         <div className="flex gap-3 text-center">
           <Stat label="Condominios" value={condominios.length} />
-          <Stat label="Residentes" value={todosUsuarios.length} />
+          <Stat label="Residentes" value={loading || error ? "—" : totalResidentes} />
         </div>
       </header>
 
@@ -126,7 +120,7 @@ export default function MSPClient() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="bg-gray-800 rounded-lg px-4 py-2 min-w-[80px]">
       <p className="text-xl font-bold text-white">{value}</p>

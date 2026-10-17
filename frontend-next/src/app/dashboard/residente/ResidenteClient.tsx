@@ -71,7 +71,7 @@ export default function ResidenteClient() {
   };
 
   const hora = (dt: string | null) =>
-    dt ? new Date(dt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" }) : "—";
+    dt ? new Date(dt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short", timeZone: "America/Mexico_City" }) : "—";
 
   const cancelar = async (visitaId: string) => {
     try {
@@ -155,7 +155,10 @@ export default function ResidenteClient() {
                 {v.proposito && <p className="text-xs text-gray-300 mt-2">Propósito: {v.proposito}</p>}
                 {["pendiente", "activa"].includes(v.estado) && (!v.autorizada_por || !v.proposito) && <AutorizarVisita visitaId={v.visita_id} condominioId={condominioId} proposito={v.proposito} onSaved={() => loadVisitas(condominioId)} />}
                 <div className="mt-2 text-xs text-gray-500">
-                  <span>Agendada: {hora(v.created_at)}</span>
+                  <p>Registro creado: {hora(v.created_at)}</p>
+                  <p>Entrada: {v.entrada_registrada_en ? hora(v.entrada_registrada_en) : "Sin entrada registrada"}</p>
+                  <p>Salida: {v.salida_registrada_en ? hora(v.salida_registrada_en) : "Sin salida registrada"}</p>
+                  <p className="mt-1">Hora de Ciudad de México</p>
                 </div>
                 {v.estado === "pendiente" && (
                   <button

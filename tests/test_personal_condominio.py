@@ -255,3 +255,26 @@ def test_varios_residentes_por_vivienda_y_limites(client, people):
     assert client.post("/condominios/b1/casas/other/residente", headers=admin, json=body).status_code == 403
     assert client.post("/condominios/a1/casas/other/residente", headers=admin, json=body).status_code == 404
     assert client.post("/condominios/a1/casas/common/residente", headers=admin, json=body).status_code == 400
+
+
+def test_total_residentes_cuenta_personas_no_viviendas(client, people):
+    db = people
+    resident = db.query(Usuario).filter_by(usuario_id="resident").one()
+    resident.casa_unidad = "101"
+    resident.nombre = "Primero"
+    db.add_all([
+        Usuario(usuario_id="second", nombre="Segundo", email="second@test.local", rol="RESIDENTE",
+                condominio_id="a1", casa_unidad="101"),
+        Usuario(usuario_id="without_home", email="without@test.local", rol="RESIDENTE",
+                condominio_id="a1"),
+        Usuario(usuario_id="other_tenant", email="other@test.local", rol="RESIDENTE",
+                condominio_id="b1", casa_unidad="101"),
+    ])
+    db.commit()
+    response = client.get("/condominios/", headers=headers("msp", "MSP_ADMIN"))
+    assert response.status_code == 200, response.text
+    rows = response.json()
+    assert [row["condominio_id"] for row in rows] == ["a1"]
+    assert rows[0]["total_residentes"] == 3
+    assert rows[0]["total_usuarios"] == 5
+    assert len(rows[0]["casas"]) == 1
