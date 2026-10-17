@@ -6,6 +6,7 @@ const mocks={
  '@/components/IdentificacionVisita':`exports.default=()=>null;`,
  '@/lib/api':`exports.api={get:async p=>{window.calls.push(p);
  if(p==='/condominios/')return [{condominio_id:'a',nombre:'Caseta A'},{condominio_id:'b',nombre:'Caseta B'}];
+ if(p.endsWith('/casas'))return {casas:[{casa_id:'home24',numero:'24',tipo:'casa',residentes:[{nombre:'Laura Gómez'}]}, {casa_id:'home25',numero:'25',tipo:'casa',residentes:[{nombre:'Laura González'}]}, {casa_id:'home30',numero:'30',tipo:'casa',residentes:[{nombre:'Pedro Hogar'}]}]};
  if(p.includes('reglas-acceso'))return {exigir_autorizacion:true,exigir_proposito:true,tipos_visita:['eventual']};
  if(p.includes('/condominio/'))return window.rows;
  if(p.startsWith('/qr/validar/')){window.qrWrites++;const v=window.rows.find(x=>p.includes('/'+x.visita_id+'/'));v.estado='entrada_registrada';v.entrada_registrada_en=new Date().toISOString();return {status:'aprobado'};}
@@ -33,6 +34,7 @@ function bundle(name, parent=path.join(process.cwd(),'entry.js')) {
  const browser=await chromium.launch({headless:true});
  try{
   const page=await browser.newPage({viewport:{width:390,height:844}});
+  page.on('pageerror', e=>console.error('Browser error:',e.message));
   await page.route('**/*',r=>r.fulfill({contentType:'text/html',body:'<div id="root"></div>'}));
   async function open(uncertain=false){
    await page.goto('http://127.0.0.1:47893/');
@@ -42,49 +44,60 @@ function bundle(name, parent=path.join(process.cwd(),'entry.js')) {
     window.rows=[{...base,visita_id:'one',casa_unidad:'24',placa:'ABC123'},{...base,visita_id:'two',casa_unidad:'25'}, {...base,visita_id:'closed',casa_unidad:'26',estado:'salida_registrada',salida_registrada_en:new Date(now-3600000).toISOString()}, {...base,visita_id:'qr',nombre_visitante:'Pedro QR',casa_unidad:'30',estado:'pendiente',entrada_registrada_en:null,vigencia:new Date(now).toISOString(),qr_vigencia:new Date(now+3600000).toISOString(),qr_token:'valid'}];
    },uncertain);
    await page.addScriptTag({content:script});
-   await page.getByRole('button',{name:'Registrar salida',exact:true}).waitFor();
+   await page.getByRole('heading',{name:'¿A quién visita o a qué casa va?',exact:true}).waitFor();
   }
   await open();
   assert.equal(await page.getByText('María Pérez',{exact:true}).count(),0);
-  await page.getByRole('button',{name:'Registrar salida',exact:true}).click();
-  await page.getByRole('button',{name:'No tiene QR',exact:true}).click();
-  await page.getByLabel('Nombre, vivienda, placa o referencia de visita').fill('maria');
+  await page.getByRole('button',{name:'Salida',exact:true}).click();
+  await page.getByLabel('Nombre del residente, casa o lugar').fill('Laura');
+  await page.getByRole('button',{name:/Elegir Casa 24: Laura Gómez/}).click();
+  await page.getByRole('heading',{name:'¿Cómo se llama el visitante?',exact:true}).waitFor();
+  await page.getByLabel('Nombre del visitante o placa').fill('maria');
   await page.getByRole('button',{name:'Buscar visita',exact:true}).click();
-  await page.getByText('2 coincidencias. Elige la persona y el destino correctos.').waitFor();
+  await page.getByRole('button',{name:/María Pérez · 24/}).waitFor();
+  assert.equal(await page.getByRole('button',{name:/María Pérez · 25/}).count(),0);
   assert.equal(await page.evaluate(()=>window.writes),0);
   await page.getByRole('button',{name:/María Pérez · 24/}).click();
-  await page.getByRole('button',{name:'Registrar salida de María Pérez',exact:true}).waitFor();
-  assert.equal(await page.getByRole('button',{name:'Registrar salida de María Pérez',exact:true}).isDisabled(),true);
-  await page.getByLabel('Confirmé que la persona y el destino corresponden a esta visita.').check();
-  await page.getByRole('button',{name:'Registrar salida de María Pérez',exact:true}).click();
+  await page.getByRole('button',{name:'Confirmar salida de María Pérez',exact:true}).waitFor();
+  assert.equal(await page.getByText('Hora programada:',{exact:true}).count(),0);
+  await page.getByRole('button',{name:'Confirmar salida de María Pérez',exact:true}).click();
   await page.getByRole('heading',{name:'Salida registrada',exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>window.writes),1);
   // A lost response plus unavailable read locks retry until read-back succeeds.
   await open(true);
-  await page.getByRole('button',{name:'Registrar salida',exact:true}).click();
-  await page.getByRole('button',{name:'No tiene QR',exact:true}).click();
-  await page.getByLabel('Nombre, vivienda, placa o referencia de visita').fill('ABC123');
+  await page.getByRole('button',{name:'Salida',exact:true}).click();
+  await page.getByLabel('Nombre del residente, casa o lugar').fill('Laura');
+  await page.getByRole('button',{name:/Elegir Casa 24: Laura Gómez/}).click();
+  await page.getByRole('heading',{name:'¿Cómo se llama el visitante?',exact:true}).waitFor();
+  await page.getByLabel('Nombre del visitante o placa').fill('ABC123');
   await page.getByRole('button',{name:'Buscar visita',exact:true}).click();
   await page.getByRole('button',{name:/María Pérez · 24/}).click();
-  await page.getByLabel('Confirmé que la persona y el destino corresponden a esta visita.').check();
-  await page.getByRole('button',{name:'Registrar salida de María Pérez',exact:true}).click();
+  await page.getByRole('button',{name:'Confirmar salida de María Pérez',exact:true}).click();
   await page.getByRole('button',{name:'Comprobar registro',exact:true}).waitFor();
   assert.equal(await page.getByLabel('Estás operando en').isDisabled(),true);
-  assert.equal(await page.getByRole('button',{name:'Registrar salida de María Pérez',exact:true}).count(),0);
+  assert.equal(await page.getByRole('button',{name:'Confirmar salida de María Pérez',exact:true}).count(),0);
   await page.evaluate(()=>{window.readFails=false;});
   await page.getByRole('button',{name:'Comprobar registro',exact:true}).click();
   await page.getByRole('heading',{name:'Salida registrada',exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>window.writes),1);
   // Scanning only identifies: mutation happens after explicit identity confirmation.
   await open();
-  await page.getByRole('button',{name:'Registrar entrada',exact:true}).click();
+  await page.getByLabel('Nombre del residente, casa o lugar').fill('24');
+  await page.getByRole('button',{name:/Elegir Casa 24: Laura Gómez/}).click();
+  await page.getByText('Usar lector QR o pegar código',{exact:true}).click();
+  await page.getByLabel('Código AXS').fill('AXS|qr|valid');
+  await page.getByRole('button',{name:'Revisar QR',exact:true}).click();
+  await page.getByText('Esta visita corresponde a otro destino. Confirma la casa con el visitante y vuelve a elegirla.').waitFor();
+  assert.equal(await page.evaluate(()=>window.qrWrites),0);
+  await page.getByRole('button',{name:'Cambiar casa o persona visitada',exact:true}).click();
+  await page.getByLabel('Nombre del residente, casa o lugar').fill('30');
+  await page.getByRole('button',{name:/Elegir Casa 30: Pedro Hogar/}).click();
   await page.getByText('Usar lector QR o pegar código',{exact:true}).click();
   await page.getByLabel('Código AXS').fill('AXS|qr|valid');
   await page.getByRole('button',{name:'Revisar QR',exact:true}).click();
   await page.getByRole('heading',{name:'Pedro QR',exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>window.qrWrites),0);
-  await page.getByLabel('Confirmé que la persona y el destino corresponden a esta visita.').check();
-  await page.getByRole('button',{name:'Registrar entrada de Pedro QR',exact:true}).click();
+  await page.getByRole('button',{name:'Confirmar entrada de Pedro QR',exact:true}).click();
   await page.getByRole('heading',{name:'Entrada registrada',exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>window.qrWrites),1);
   console.log('PASS: guided recovery, homonyms, plate, expired open visit, confirmed QR, uncertain response reconciliation without duplicate writes.');

@@ -9,7 +9,7 @@ import type { Condominio } from "@/lib/types";
 
 const CONDOMINIO_KEY = "axs_condominio_id";
 
-export default function NuevaVisitaClient() {
+export default function NuevaVisitaClient({ initialDestino = "", initialCondominio = "" }: { initialDestino?: string; initialCondominio?: string }) {
   const router = useRouter();
   const { getToken } = useAuth();
   const [condominios, setCondominios] = useState<Condominio[]>([]);
@@ -32,12 +32,12 @@ export default function NuevaVisitaClient() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const stored = localStorage.getItem(CONDOMINIO_KEY) || "";
+    const stored = initialCondominio || localStorage.getItem(CONDOMINIO_KEY) || "";
     getToken().then(token => api.get<Condominio[]>("/condominios/", token!)).then((data) => {
       setCondominios(data);
       setCondominioId(data.find(c => c.condominio_id === stored)?.condominio_id || data[0]?.condominio_id || "");
     }).catch((e: unknown) => setError(e instanceof Error ? e.message : "Error al cargar condominios"));
-  }, [getToken]);
+  }, [getToken, initialCondominio]);
 
   useEffect(() => {
     let active = true;
@@ -49,11 +49,14 @@ export default function NuevaVisitaClient() {
       if (!token) throw new Error("Sin sesión");
       return api.get<{ destino_id: string; nombre: string; tipo: string }[]>(
         `/condominios/${encodeURIComponent(condominioId)}/destinos`, token);
-    }).then(data => { if (active) setDestinos(data); })
+    }).then(data => { if (active) {
+      setDestinos(data);
+      if (condominioId === initialCondominio && data.some(d => d.destino_id === initialDestino)) setForm(f => ({ ...f, destino_id: initialDestino }));
+    } })
       .catch((e: unknown) => { if (active) setCatalogError(e instanceof Error ? e.message : "Error al cargar destinos"); })
       .finally(() => { if (active) setCatalogLoading(false); });
     return () => { active = false; };
-  }, [condominioId, getToken]);
+  }, [condominioId, getToken, initialCondominio, initialDestino]);
 
   const set = (field: string, value: string) =>
     setForm((f) => ({ ...f, [field]: value }));
