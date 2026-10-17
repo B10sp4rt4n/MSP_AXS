@@ -1,219 +1,49 @@
 "use client";
 
-import ListaVisitasDesplegable from "@/components/ListaVisitasDesplegable";
-
-import { useEffect, useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
-import type { Visita, Condominio } from "@/lib/types";
-import IdentificacionVisita from "@/components/IdentificacionVisita";
+import type { Condominio } from "@/lib/types";
+import type { Operacion } from "@/lib/guardia-flow";
+import GuardiaOperacion from "@/components/GuardiaOperacion";
 
-const CONDOMINIO_KEY = "axs_condominio_id";
-
-export default function GuardiaClient() {
-  const router = useRouter();
+export default function GuardiaClient({ initialMode = null }: { initialMode?: Operacion | null }) {
   const { getToken } = useAuth();
-  const [condominioId, setCondominioId] = useState<string>("");
   const [condominios, setCondominios] = useState<Condominio[]>([]);
-  const [visitas, setVisitas] = useState<Visita[]>([]);
+  const [condominioId, setCondominioId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const requestId = useRef(0);
-
-  // Cargar condominios disponibles
+  const [revision, setRevision] = useState(0);
+  const [blocked, setBlocked] = useState(false);
   useEffect(() => {
-    const stored = localStorage.getItem(CONDOMINIO_KEY);
-    getToken().then(token => api.get<Condominio[]>("/condominios/", token!))
-      .then((data) => {
-        setCondominios(data);
-        const id = data.find(c => c.condominio_id === stored)?.condominio_id || data[0]?.condominio_id || "";
-        setCondominioId(id);
-      })
-      .catch(() => setError("No se pudieron cargar los condominios"));
-  }, [getToken]);
-
-  const refresh = useCallback(() => {
-    if (!condominioId) return;
-    const id = ++requestId.current;
-    setLoading(true); setError(""); setVisitas([]);
-    getToken().then(token => api.get<Visita[]>(`/visitas/condominio/${encodeURIComponent(condominioId)}`, token!))
-      .then(data => { if (id === requestId.current) setVisitas(data); })
-      .catch(() => { if (id === requestId.current) setError("No se pudieron cargar las visitas"); })
-      .finally(() => { if (id === requestId.current) setLoading(false); });
-  }, [condominioId, getToken]);
-
-  useEffect(() => {
-    if (condominioId) localStorage.setItem(CONDOMINIO_KEY, condominioId);
-    refresh();
-    return () => { requestId.current++; };
-  }, [condominioId, refresh]);
-
-  return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <header className="border-b border-gray-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.push("/dashboard")} className="text-gray-400 hover:text-white">
-            ← Inicio
-          </button>
-          <h1 className="text-lg font-bold">Portal Guardia</h1>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => router.push("/dashboard/guardia/validar")}
-            className="bg-green-700 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg"
-          >
-            Validar QR
-          </button>
-          <button
-            onClick={() => router.push("/dashboard/guardia/nueva")}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg"
-          >
-            + Registrar
-          </button>
-        </div>
-      </header>
-
-      <main className="p-4 max-w-2xl mx-auto">
-        {/* Selector de condominio */}
-        <div className="mb-4">
-          <label className="text-xs text-gray-400 mb-1 block">Condominio</label>
-          <select
-            value={condominioId}
-            onChange={(e) => { requestId.current++; setVisitas([]); setLoading(true); setCondominioId(e.target.value); }}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
-          >
-            {condominios.map((c) => (
-              <option key={c.condominio_id} value={c.condominio_id}>
-                {c.nombre}
-              </option>
-            ))}
+    let active = true;
+    setLoading(true); setError("");
+    async function cargar() {
+      try {
+        const token = await getToken();
+        if (!token) throw new Error("Tu sesión terminó. Vuelve a iniciar sesión.");
+        const data = await api.get<Condominio[]>("/condominios/", token, AbortSignal.timeout(20000));
+        let stored = "";
+        try { stored = localStorage.getItem("axs_condominio_id") || ""; } catch { /* Storage may be unavailable. */ }
+        if (active) { setCondominios(data); setCondominioId(data.find(c => c.condominio_id === stored)?.condominio_id || data[0]?.condominio_id || ""); }
+      } catch { if (active) setError("No pudimos comprobar tus condominios. Revisa tu conexión y vuelve a intentar."); }
+      finally { if (active) setLoading(false); }
+    }
+    void cargar();
+    return () => { active = false; };
+  }, [getToken, revision]);
+  useEffect(() => { if (condominioId) { try { localStorage.setItem("axs_condominio_id", condominioId); } catch { /* Keep operating without persistence. */ } } }, [condominioId]);
+  return <div className="min-h-screen bg-gray-950 text-white">
+    <header className="flex items-center justify-between border-b border-gray-800 px-4 py-4"><h1 className="text-xl font-bold">AXS · Caseta</h1>{!blocked && <a href="/dashboard" className="rounded-lg px-4 py-3 text-gray-300">Inicio</a>}</header>
+    <main className="mx-auto max-w-2xl space-y-6 p-4">
+      {loading ? <p role="status">Comprobando acceso a caseta…</p> : error ? <div role="alert"><p>{error}</p><button className="min-h-12 rounded-xl border px-4" onClick={() => setRevision(v => v + 1)}>Reintentar</button></div> : !condominios.length ? <p>Sin condominio asignado. Solicita a administración que revise tus permisos.</p> : <>
+        <div><label htmlFor="guardia-condominio" className="mb-2 block text-sm text-gray-300">Estás operando en</label>
+          <select id="guardia-condominio" disabled={blocked || condominios.length === 1} value={condominioId} onChange={e => setCondominioId(e.target.value)} className="min-h-12 w-full rounded-xl border border-gray-600 bg-gray-900 px-3 text-lg">
+            {condominios.map(c => <option key={c.condominio_id} value={c.condominio_id}>{c.nombre}</option>)}
           </select>
         </div>
-
-        {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
-
-        <p className="mb-4 text-sm text-blue-200">Dentro / salida pendiente: {loading || error ? "—" : visitas.filter(v => v.estado === "entrada_registrada" && !v.salida_registrada_en).length}</p>
-        <ListaVisitasDesplegable>
-        {/* Lista de visitas */}
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-gray-300">Visitas del condominio</h2>
-          <button onClick={refresh} className="text-xs text-blue-400 hover:text-blue-300">
-            Actualizar
-          </button>
-        </div>
-
-        {loading ? (
-          <p className="text-gray-500 text-sm">Cargando...</p>
-        ) : visitas.length === 0 ? (
-          <div className="text-center py-12 text-gray-600">
-            <p className="text-4xl mb-3">🚗</p>
-            <p>Sin visitas registradas</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {visitas.map((v) => (
-              <VisitaCard key={v.visita_id} condominioId={condominioId} visita={v} onRefresh={refresh} getToken={getToken} />
-            ))}
-          </div>
-        )}
-        </ListaVisitasDesplegable>
-      </main>
-    </div>
-  );
-}
-
-function VisitaCard({
-  condominioId,
-  visita,
-  onRefresh,
-  getToken,
-}: {
-  condominioId: string;
-  visita: Visita;
-  onRefresh: () => void;
-  getToken: () => Promise<string | null>;
-}) {
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-
-  const estadoColor: Record<string, string> = {
-    pendiente:           "bg-yellow-500/20 text-yellow-300",
-    activa:              "bg-green-500/20 text-green-300",
-    entrada_registrada:  "bg-blue-500/20 text-blue-300",
-    salida_registrada:   "bg-gray-500/20 text-gray-400",
-    completada:          "bg-gray-500/20 text-gray-400",
-    cancelada:           "bg-red-500/20 text-red-400",
-  };
-
-  const hora = (dt: string | null) =>
-    dt ? new Date(dt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) : "—";
-
-  const canEnter = ["pendiente", "activa"].includes(visita.estado) && !visita.qr_token && !visita.entrada_registrada_en;
-  const canExit = visita.estado === "entrada_registrada" && !!visita.entrada_registrada_en;
-
-  const registrarEntrada = async () => {
-    setLoading(true);
-    setErr("");
-    try {
-      const token = await getToken();
-      await api.patch(`/visitas/${visita.visita_id}/entrada?condominio_id=${encodeURIComponent(condominioId)}`, {}, token!);
-      onRefresh();
-    } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Error al registrar entrada");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const registrarSalida = async () => {
-    setLoading(true);
-    setErr("");
-    try {
-      const token = await getToken();
-      await api.patch(`/visitas/${visita.visita_id}/salida?condominio_id=${encodeURIComponent(condominioId)}`, {}, token!);
-      onRefresh();
-    } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Error al registrar salida");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-4">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="font-semibold text-white">{visita.nombre_visitante}</p>
-          <p className="text-xs text-gray-400 mt-0.5">Destino: {visita.casa_unidad} · {visita.tipo_visita}</p>
-        </div>
-        <span className={`text-xs px-2 py-1 rounded-full font-medium ${estadoColor[visita.estado] ?? "bg-gray-700 text-gray-300"}`}>
-          {visita.estado}
-        </span>
-      </div>
-      <div className="mt-3 flex gap-4 text-xs text-gray-500">
-        <span>Entrada: {hora(visita.entrada_registrada_en)}</span>
-        <span>Salida: {hora(visita.salida_registrada_en)}</span>
-      </div>
-      {visita.destino_motivo && <p className="text-xs text-yellow-300 mt-2">Excepción: {visita.destino_motivo}</p>}
-      {err && <p className="text-red-400 text-xs mt-2">{err}</p>}
-      <IdentificacionVisita visitaId={visita.visita_id} condominioId={condominioId} nombreInvitado={visita.nombre_visitante} />
-      {canEnter && (
-        <button onClick={registrarEntrada} disabled={loading}
-          className="mt-3 w-full bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-lg">
-          {loading ? "Registrando..." : "Registrar Entrada"}
-        </button>
-      )}
-      {canExit && (
-        <button
-          onClick={registrarSalida}
-          disabled={loading}
-          className="mt-3 w-full bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-lg"
-        >
-          {loading ? "Registrando..." : "Registrar Salida"}
-        </button>
-      )}
-    </div>
-  );
+        <GuardiaOperacion key={condominioId} condominioId={condominioId} initialMode={initialMode} onBlocked={setBlocked} />
+      </>}
+    </main>
+  </div>;
 }

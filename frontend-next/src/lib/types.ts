@@ -3,6 +3,7 @@ export interface Visita {
   condominio_id: string;
   nombre_visitante: string;
   proposito?: string | null;
+  placa?: string | null;
   autorizada_por?: string | null;
   autorizada_en?: string | null;
   casa_unidad: string;
@@ -12,6 +13,8 @@ export interface Visita {
   tipo_visita: string;
   estado: string; // pendiente | activa | completada | cancelada
   qr_token: string | null;
+  vigencia?: string | null;
+  qr_vigencia?: string | null;
   entrada_registrada_en: string | null;
   salida_registrada_en: string | null;
   created_at: string;

@@ -33,6 +33,11 @@ function fixture({ role = 'GUARDIA', userId = 'clerk-guard', token = 'test-token
       } } };
       if (name === '@/components/PortalRoleGate') return load('components/PortalRoleGate.tsx');
       if (name === '@/lib/portal-roles') return load('lib/portal-roles.ts');
+      if (name.startsWith('@/')) {
+        const candidate = name.slice(2);
+        const file = ['.tsx', '.ts', '.js'].map(ext => candidate + ext).find(f => fs.existsSync(path.resolve(__dirname, '../src', f)));
+        if (file) return load(file);
+      }
       return require(name);
     };
     vm.runInThisContext(`(function(require,module,exports){${source}\n})`, { filename })(localRequire, module, module.exports);

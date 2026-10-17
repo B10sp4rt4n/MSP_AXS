@@ -44,6 +44,12 @@ def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Option
     )
     try:
         db.add(visita)
+        placa = (getattr(data, "placa", None) or "").strip()
+        if placa:
+            db.flush()
+            db.add(Evidencia(evidencia_id=str(uuid.uuid4()), visita_id=visita_id,
+                            categoria="preregistro", sub_tipo="metadata", archivo_url="",
+                            hash_sha256="", metadata_json={"placa": placa}))
         if auditoria:
             db.flush()
             encolar_visita(db, visita, auditoria)
@@ -276,12 +282,37 @@ def obtener_visitas_residente(db: Session, condominio_id: str, casa_unidad: str)
 # Obtener visitas por condominio
 # ---------------------------------------------------------
 def obtener_visitas_condominio(db: Session, condominio_id: str):
-    return (
+    visitas = (
         db.query(Visita)
         .filter(Visita.condominio_id == condominio_id)
         .order_by(Visita.vigencia.desc())
         .all()
     )
+    return adjuntar_placas(db, visitas, condominio_id)
+
+
+def adjuntar_placas(db, visitas, condominio_id):
+    """Only expose the recorded plate, never the rest of evidence metadata.
+
+    Join back to the authorized tenant even when callers pass visit IDs.
+    No persistence or inferred plate values are involved.
+    """
+    ids = [v.visita_id for v in visitas if v.condominio_id == condominio_id]
+    placas = {}
+    if ids:
+        rows = (db.query(Evidencia.visita_id, Evidencia.metadata_json)
+                .join(Visita, Evidencia.visita_id == Visita.visita_id)
+                .filter(Visita.condominio_id == condominio_id,
+                        Evidencia.visita_id.in_(ids), Evidencia.categoria == "preregistro")
+                .order_by(Evidencia.created_at.asc(), Evidencia.id.asc()).all())
+        for visita_id, metadata in rows:
+            placa = metadata.get("placa") if isinstance(metadata, dict) else None
+            if isinstance(placa, str) and placa.strip():
+                placas[visita_id] = placa.strip()
+    for visita in visitas:
+        visita.placa = placas.get(visita.visita_id) if visita.condominio_id == condominio_id else None
+    return visitas
+
 
 
 # ---------------------------------------------------------

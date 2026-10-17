@@ -9,11 +9,13 @@ type RequestOptions = {
   method?: string;
   body?: unknown;
   token: string;
+  signal?: AbortSignal;
 };
 
-async function request<T>(path: string, { method = "GET", body, token }: RequestOptions): Promise<T> {
+async function request<T>(path: string, { method = "GET", body, token, signal }: RequestOptions): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method,
+    signal,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
@@ -62,9 +64,9 @@ export const api = {
     }
     return res.blob();
   },
-  get: <T>(path: string, token: string) => request<T>(path, { token }),
+  get: <T>(path: string, token: string, signal?: AbortSignal) => request<T>(path, { token, signal }),
   post: <T>(path: string, body: unknown, token: string) => request<T>(path, { method: "POST", body, token }),
   put: <T>(path: string, body: unknown, token: string) => request<T>(path, { method: "PUT", body, token }),
-  patch: <T>(path: string, body: unknown, token: string) => request<T>(path, { method: "PATCH", body, token }),
+  patch: <T>(path: string, body: unknown, token: string, signal?: AbortSignal) => request<T>(path, { method: "PATCH", body, token, signal }),
   delete: <T>(path: string, token: string) => request<T>(path, { method: "DELETE", token }),
 };

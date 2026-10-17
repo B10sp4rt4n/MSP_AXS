@@ -28,6 +28,7 @@ jobs:
     - run: node tests/admin-empty.browser.cjs
     - run: node tests/multiple-residents.browser.cjs
     - run: node tests/onboarding.browser.cjs
+    - run: node tests/guardia-flow.browser.cjs
     - run: node tests/provider-console.browser.cjs
       env:
         AXS_SCREENSHOT_DIR: screenshots/provider-console
