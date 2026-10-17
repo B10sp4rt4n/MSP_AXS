@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
 import type { Visita } from "@/lib/types";
@@ -9,28 +9,8 @@ import { horaPresencia, instante, resumirPresencia } from "@/lib/presencia";
 type Props = { condominioId: string; residente?: boolean };
 export default function PresenciaVisitas({ condominioId, residente = false }: Props) {
   const { getToken } = useAuth();
-  const [seleccion, setSeleccion] = useState<"dentro" | "entradas" | "salidas" | null>(null);
+  const [seleccion, setSeleccion] = useState<"dentro" | "entradas" | "salidas">("dentro");
   const detalleId = useId();
-  const sectionRef = useRef<HTMLElement>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    if (!seleccion) return;
-    const closeOutside = (event: PointerEvent) => {
-      if (event.target instanceof Node && !sectionRef.current?.contains(event.target)) setSeleccion(null);
-    };
-    const closeEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSeleccion(null);
-        triggerRef.current?.focus();
-      }
-    };
-    document.addEventListener("pointerdown", closeOutside);
-    document.addEventListener("keydown", closeEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOutside);
-      document.removeEventListener("keydown", closeEscape);
-    };
-  }, [seleccion]);
   const [revision, setRevision] = useState(0);
   const [resultado, setResultado] = useState<{ clave: string; visitas: Visita[]; fecha: number } | null>(null);
   const [error, setError] = useState("");
@@ -56,7 +36,7 @@ export default function PresenciaVisitas({ condominioId, residente = false }: Pr
     { tone: "text-[#FFB4A8] border-red-400/40 bg-[radial-gradient(ellipse_at_top_left,rgba(239,68,68,0.30),rgba(17,24,39,0.85))] hover:border-red-300", id: "salidas" as const, label: "Salidas hoy", visitas: resumen.salidas },
   ] : [];
   const actual = tarjetas.find(t => t.id === seleccion);
-  return <section ref={sectionRef} aria-label="Presencia de visitas" className="mb-6 rounded-xl border border-purple-700 bg-gray-900 p-4">
+  return <section aria-label="Presencia de visitas" className="mb-6 rounded-xl border border-purple-700 bg-gray-900 p-4">
     <div className="flex items-center justify-between gap-3">
       <h2 className="font-semibold text-lg">¿Quién sigue dentro?</h2>
       <button onClick={() => setRevision(v => v + 1)} className="text-sm text-purple-300 hover:underline">Actualizar presencia</button>
@@ -64,17 +44,17 @@ export default function PresenciaVisitas({ condominioId, residente = false }: Pr
     <p className="text-xs text-gray-400 mt-2">{residente ? "Visitas de tu vivienda" : "Visitas del condominio"} con entrada y sin salida registrada. No confirma presencia física en tiempo real.</p>
     {error ? <p role="alert" className="mt-4 text-red-300">{error}</p> : loading || !resumen || !datos ? <p role="status" className="mt-4 text-gray-400">Consultando presencia…</p> : <>
       <div className="grid grid-cols-3 gap-2 my-4" aria-label="Filtrar visitas por estado">
-        {tarjetas.map(t => <button key={t.id} type="button" aria-expanded={seleccion === t.id} aria-controls={detalleId}
-          onClick={event => { triggerRef.current = event.currentTarget; setSeleccion(value => value === t.id ? null : t.id); }}
-          className={`cursor-pointer min-h-36 rounded-xl border px-2 py-5 sm:px-5 text-center backdrop-blur-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 ${t.tone} ${seleccion === t.id ? "ring-2 ring-white/70" : ""}`}>
-          <span className="block text-sm sm:text-base font-semibold">{t.label}</span>
-          <span className="mt-1 block text-4xl sm:text-5xl font-semibold tabular-nums">{t.visitas.length}</span>
-          <span className="mt-2 block text-xs">{seleccion === t.id ? "Cerrar ▴" : "Ver visitas ▾"}</span>
+        {tarjetas.map(t => <button key={t.id} type="button" aria-pressed={seleccion === t.id} aria-controls={detalleId}
+          onClick={() => setSeleccion(t.id)}
+          className={`cursor-pointer rounded-lg border p-3 text-center backdrop-blur-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 ${t.tone} ${seleccion === t.id ? "ring-2 ring-white/70" : ""}`}>
+          <span className="block text-xs font-medium">{t.label}</span>
+          <span className="mt-1 block text-3xl font-semibold tabular-nums">{t.visitas.length}</span>
+          <span className="mt-2 block text-xs">Ver visitas →</span>
         </button>)}
       </div>
       <p className="text-xs text-gray-400">Actualizado: {horaPresencia(new Date(datos.fecha).toISOString())}. Hora de Ciudad de México.</p>
       {resumen.ultimo && <p className="text-sm mt-3">Último movimiento: {resumen.ultimo.tipo} de <strong>{resumen.ultimo.visita.nombre_visitante}</strong> · {horaPresencia(resumen.ultimo.fecha)}</p>}
-      <div id={detalleId} hidden={!actual} className="mt-4" role="region" aria-label={actual?.label}>
+      <div id={detalleId} className="mt-4" role="region" aria-label={actual?.label}>
         <h3 className="font-semibold">{actual?.label}</h3>
         <p role="status" className="text-xs text-gray-400 mt-1">{actual?.visitas.length ?? 0} visitas en esta selección.</p>
         {actual?.visitas.length === 0 ? <p className="mt-3 text-gray-300">No hay visitas para este estado.</p> : <ul className="mt-3 space-y-3">

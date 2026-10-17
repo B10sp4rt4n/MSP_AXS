@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
 import type { CasaItem, Visita } from "@/lib/types";
@@ -17,6 +17,8 @@ type Ficha = { visita: Visita; reglas: Reglas | null; qr: string | null };
 export default function GuardiaOperacion({ condominioId, initialMode = null, onBlocked }: { condominioId: string; initialMode?: Operacion | null; onBlocked: (value: boolean) => void }) {
   const { getToken } = useAuth();
   const [operacion, setOperacion] = useState<Operacion>(initialMode ?? "entrada");
+  const [abierto, setAbierto] = useState(false);
+  const panelId = useId();
   const [destino, setDestino] = useState<CasaItem | null>(null);
   const [consulta, setConsulta] = useState("");
   const [historial, setHistorial] = useState(false);
@@ -39,8 +41,9 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
     return t;
   }, [getToken]);
   const detalle = useCallback(async (id: string) => api.get<Visita>(`/visitas/${encodeURIComponent(id)}?condominio_id=${encodeURIComponent(condominioId)}`, await token(), AbortSignal.timeout(20000)), [condominioId, token]);
-  function reset(op: Operacion = "entrada") {
-    setDestino(null); setOperacion(op); setConsulta(""); setHistorial(false); setRows(null); setFicha(null); setCamara(false); setManual(false);
+  function reset(op?: Operacion) {
+    setAbierto(op !== undefined);
+    setDestino(null); setOperacion(op ?? "entrada"); setConsulta(""); setHistorial(false); setRows(null); setFicha(null); setCamara(false); setManual(false);
     setCodigo(""); setError("");  setIncierto(false); setExito(null);
   }
   useEffect(() => {
@@ -136,10 +139,16 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
     <p className="text-sm text-gray-300">Volveremos al inicio en unos segundos.</p>
   </section>;
   return <section className="space-y-5" aria-label="Operación de caseta">
-    <div className="flex gap-2" aria-label="Tipo de movimiento">
-      <button className={`${button} ${operacion === "entrada" ? "bg-emerald-900/40 text-emerald-200" : ""}`} aria-pressed={operacion === "entrada"} disabled={busy || incierto} onClick={() => reset("entrada")}>Entrada</button>
-      <button className={`${button} ${operacion === "salida" ? "bg-purple-900/40 text-purple-200" : ""}`} aria-pressed={operacion === "salida"} disabled={busy || incierto} onClick={() => reset("salida")}>Salida</button>
+    <div className="grid grid-cols-2 gap-3" aria-label="Tipo de movimiento">
+      {(["entrada", "salida"] as const).map(op => <button key={op} type="button"
+        className={`min-h-24 w-full rounded-2xl border-2 border-gray-600 px-4 py-6 text-2xl font-bold focus-visible:outline-2 focus-visible:outline-purple-400 disabled:opacity-50 ${abierto && operacion === op ? op === "entrada" ? "bg-emerald-900/40 text-emerald-200 border-emerald-500" : "bg-purple-900/40 text-purple-200 border-purple-500" : "hover:bg-gray-800"}`}
+        aria-expanded={abierto && operacion === op} aria-controls={panelId} disabled={busy || incierto}
+        onClick={() => { if (operacion === op) setAbierto(value => !value); else reset(op); }}>
+        {op === "entrada" ? "Entrada" : "Salida"}<span aria-hidden="true" className="ml-2">{abierto && operacion === op ? "▴" : "▾"}</span>
+      </button>)}
     </div>
+    <div id={panelId} hidden={!abierto} className="space-y-5">
+    {abierto && <>
     {!destino ? <GuardiaDestino key={operacion} condominioId={condominioId} salida={operacion === "salida"} onSelect={casa => { setDestino(casa); setManual(true); }} /> : <>
       <div className="rounded-xl border border-purple-500 bg-purple-950/30 p-4">
         <p className="text-sm text-purple-200">{operacion === "entrada" ? "Viene a" : "Viene de"}</p>
@@ -188,5 +197,7 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
         {operacion === "entrada" && <details><summary className="cursor-pointer py-3 text-sm text-gray-300">La visita no tiene registro previo</summary><p className="mb-3 text-sm">Contacta al residente o a administración. Si las reglas permiten registro en caseta, puedes usar el formulario; no sustituye una autorización ni un QR requeridos.</p><a className={`${button} inline-block`} href={`/dashboard/guardia/nueva?destino=${encodeURIComponent(destino.casa_id)}&condominio=${encodeURIComponent(condominioId)}`}>Abrir registro en caseta</a></details>}
       </>}
     </>}
+    </>}
+    </div>
   </section>;
 }
