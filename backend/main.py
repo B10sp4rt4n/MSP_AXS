@@ -169,6 +169,8 @@ app.include_router(bitacora_router.router)
 from backend.routers import reportes_router
 app.include_router(reportes_router.router)
 app.include_router(msp_router.router)
+from backend.routers import solicitudes_acceso_router
+app.include_router(solicitudes_acceso_router.router)
 app.include_router(visitas_router.router)
 app.include_router(qr_router.router)
 app.include_router(evidencias_router.router)

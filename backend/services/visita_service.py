@@ -67,6 +67,7 @@ def crear_visita(db: Session, data: Any, condominio_id: str, casa_unidad: Option
 def actualizar_qr(db: Session, visita_id: str, token: str, qr_vigencia: datetime, *, auditoria: dict | None = None) -> Optional[Visita]:
     query = db.query(Visita).filter(
         Visita.visita_id == visita_id,
+        Visita.solicitud_remota_id.is_(None),
         Visita.estado.in_(["pendiente", "activa"]),
         Visita.entrada_registrada_en.is_(None),
         Visita.salida_registrada_en.is_(None),
@@ -117,6 +118,8 @@ def registrar_entrada(db: Session, visita_id: str, *, qr_token: str | None = Non
                    entrada=True, autorizada_por=visita.autorizada_por, autorizada_en=visita.autorizada_en,
                    fecha_visita=visita.vigencia)
     now = datetime.utcnow()
+    from backend.services.solicitudes_acceso import validar_entrada
+    validar_entrada(db, visita, now, auditoria)
     query = db.query(Visita).filter(
         Visita.visita_id == visita_id,
         Visita.estado.in_(["pendiente", "activa"]),

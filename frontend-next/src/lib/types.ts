@@ -1,4 +1,6 @@
 export interface Visita {
+  solicitud_remota_id?: string | null;
+  autorizacion_remota_hasta?: string | null;
   visita_id: string;
   condominio_id: string;
   nombre_visitante: string;

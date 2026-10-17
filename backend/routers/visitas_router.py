@@ -355,6 +355,8 @@ def autorizar_visita(visita_id: str, data: AutorizarVisita, request: Request,
                            own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
     obtener_reglas(db, visita.condominio_id, bloquear=True)
     db.refresh(visita)
+    if visita.solicitud_remota_id:
+        raise HTTPException(409, "Responde desde la solicitud de acceso de la app")
     if visita.estado not in ["pendiente", "activa"] or visita.entrada_registrada_en:
         raise HTTPException(400, "Sólo se autoriza una visita pendiente de entrada")
     proposito = (data.proposito if data.proposito is not None else visita.proposito or "").strip() or None

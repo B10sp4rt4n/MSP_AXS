@@ -1,5 +1,6 @@
 "use client";
 
+import SolicitudesAcceso from "@/components/SolicitudesAcceso";
 import ListaVisitasDesplegable from "@/components/ListaVisitasDesplegable";
 
 import { useEffect, useState, useCallback } from "react";
@@ -119,6 +120,7 @@ export default function ResidenteClient() {
           </div>
         )}
 
+        {condominioId && <SolicitudesAcceso key={`solicitudes:${condominioId}`} condominioId={condominioId} residente />}
         {condominioId && <PresenciaVisitas key={condominioId} condominioId={condominioId} residente />}
 
         <ListaVisitasDesplegable>
@@ -159,7 +161,7 @@ export default function ResidenteClient() {
                   </span>
                 </div>
                 {v.proposito && <p className="text-xs text-gray-300 mt-2">Propósito: {v.proposito}</p>}
-                {["pendiente", "activa"].includes(v.estado) && (!v.autorizada_por || !v.proposito) && <AutorizarVisita visitaId={v.visita_id} condominioId={condominioId} proposito={v.proposito} onSaved={() => loadVisitas(condominioId)} />}
+                {!v.solicitud_remota_id && ["pendiente", "activa"].includes(v.estado) && (!v.autorizada_por || !v.proposito) && <AutorizarVisita visitaId={v.visita_id} condominioId={condominioId} proposito={v.proposito} onSaved={() => loadVisitas(condominioId)} />}
                 <div className="mt-2 text-xs text-gray-500">
                   <p>Registro creado: {hora(v.created_at)}</p>
                   <p>Entrada: {v.entrada_registrada_en ? hora(v.entrada_registrada_en) : "Sin entrada registrada"}</p>

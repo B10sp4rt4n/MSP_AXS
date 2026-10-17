@@ -37,7 +37,7 @@ async function request<T>(path: string, { method = "GET", body, token, signal }:
       : detail && typeof detail === "object" && "message" in detail && typeof detail.message === "string"
         ? `${detail.message}${"scope_ids" in detail && Array.isArray(detail.scope_ids) ? ` (permisos: ${detail.scope_ids.join(", ")})` : ""}`
         : "";
-    throw new Error(message || `Error ${res.status}`);
+    throw new ApiError(message || `Error ${res.status}`, res.status);
   }
 
   return res.json();
@@ -65,7 +65,7 @@ export const api = {
     return res.blob();
   },
   get: <T>(path: string, token: string, signal?: AbortSignal) => request<T>(path, { token, signal }),
-  post: <T>(path: string, body: unknown, token: string) => request<T>(path, { method: "POST", body, token }),
+  post: <T>(path: string, body: unknown, token: string, signal?: AbortSignal) => request<T>(path, { method: "POST", body, token, signal }),
   put: <T>(path: string, body: unknown, token: string) => request<T>(path, { method: "PUT", body, token }),
   patch: <T>(path: string, body: unknown, token: string, signal?: AbortSignal) => request<T>(path, { method: "PATCH", body, token, signal }),
   delete: <T>(path: string, token: string) => request<T>(path, { method: "DELETE", token }),

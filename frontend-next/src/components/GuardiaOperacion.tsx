@@ -4,6 +4,7 @@ import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
 import type { CasaItem, Visita } from "@/lib/types";
 import { buscarVisitas, evaluarVisita, type Operacion } from "@/lib/guardia-flow";
+import SolicitudesAcceso from "@/components/SolicitudesAcceso";
 import GuardiaDestino from "@/components/GuardiaDestino";
 import { visitaEnDestino, nombreDestino } from "@/lib/guardia-destino";
 import type { Reglas } from "@/components/ReglasAcceso";
@@ -148,6 +149,10 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
       </div>
       {error && <p role="alert" className="rounded-xl border border-amber-700 bg-amber-950/30 p-4 text-amber-100">{error}</p>}
       {busy && <p role="status">Comprobando con AXS…</p>}
+      {operacion === "entrada" && !busy && !incierto && !camara && !ficha?.visita.qr_token && ["casa", "depto", "local"].includes(destino.tipo) && <SolicitudesAcceso
+        key={`${condominioId}:${destino.casa_id}:${ficha?.visita.visita_id ?? "nueva"}`}
+        condominioId={condominioId} destinoId={destino.casa_id} visita={ficha?.visita}
+        onRevisar={id => { void revisar(id); }} /> }
       {camara ? <GuardiaQrScanner onRead={leerQR} onCancel={() => { setCamara(false); setManual(true); }} /> : ficha ? <article className="space-y-4 rounded-2xl border border-gray-700 bg-gray-900 p-5">
         <p className="text-sm text-purple-200">Confirma esta visita</p>
         <h3 className="text-2xl font-bold">{ficha.visita.nombre_visitante}</h3>

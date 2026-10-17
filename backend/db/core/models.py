@@ -268,6 +268,8 @@ class Visita(Base_CORE):
     casa_unidad = Column(String)
     tipo_visita = Column(String)  # frecuente, eventual, proveedor
     vigencia = Column(DateTime)
+    solicitud_remota_id = Column(String, nullable=True)
+    autorizacion_remota_hasta = Column(DateTime, nullable=True)
     qr_token = Column(String, unique=True, nullable=True)
     qr_vigencia = Column(DateTime, nullable=True)
     estado = Column(String, default="pendiente")  # pendiente, activa, completada, cancelada
@@ -359,3 +361,21 @@ class RecoveryCheckpoint(Base_CORE):
     release_nonce = Column(String, nullable=True)
     report = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class SolicitudAcceso(Base_CORE):
+    """Durable resident inbox; authorization never represents physical entry."""
+    __tablename__ = "solicitudes_acceso"
+    solicitud_id = Column(String, primary_key=True)
+    condominio_id = Column(String, ForeignKey("condominios_exo.condominio_id"), nullable=False, index=True)
+    visita_id = Column(String, ForeignKey("visitas.visita_id"), nullable=False, index=True)
+    destino_id = Column(String, ForeignKey("casas.casa_id"), nullable=False)
+    solicitada_por = Column(String, ForeignKey("usuarios.usuario_id"), nullable=False)
+    destinatarios = Column(JSON, nullable=False)
+    fingerprint = Column(String, nullable=False)
+    estado = Column(String, nullable=False, default="pendiente")
+    creada_en = Column(DateTime, nullable=False, default=datetime.utcnow)
+    expira_en = Column(DateTime, nullable=False)
+    respondida_por = Column(String, ForeignKey("usuarios.usuario_id"), nullable=True)
+    respondida_en = Column(DateTime, nullable=True)
+    consentimiento_en = Column(DateTime, nullable=True)
