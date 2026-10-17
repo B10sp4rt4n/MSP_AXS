@@ -9,3 +9,11 @@ test('cerradas no son recuperables como abiertas; historial sí permite revisarl
 test('autorización, tiempo y QR requeridos no se evaden por buscar sin QR',()=>{assert.equal(evaluarVisita(base,'entrada',reglas,null,now).permitida,true);for(const changes of [{autorizada_por:null},{proposito:''},{vigencia:'2026-10-16T15:00:00Z'},{vigencia:'2026-10-18T15:00:00Z'},{qr_token:'required'}])assert.equal(evaluarVisita({...base,...changes},'entrada',reglas,null,now).permitida,false);});
 test('no mezcla homónimos: búsqueda devuelve ambas visitas y permite precisar vivienda o placa',()=>{const other={...base,visita_id:'v2',casa_unidad:'25',placa:'ABC123'};assert.equal(buscarVisitas([base,other],'maria','entrada').length,2);assert.equal(buscarVisitas([base,other],'maria 25','entrada')[0].visita_id,'v2');assert.equal(buscarVisitas([base,other],'abc123','entrada')[0].visita_id,'v2');});
 test('fechas inconsistentes y estado cancelado bloquean acciones',()=>{for(const v of [{...base,estado:'cancelada'},{...base,estado:'entrada_registrada',entrada_registrada_en:'bad'},{...base,estado:'entrada_registrada',entrada_registrada_en:'2026-10-18T15:00:00Z'}]){assert.equal(evaluarVisita(v,'entrada',reglas,null,now).permitida,false);assert.equal(evaluarVisita(v,'salida',reglas,null,now).permitida,false);}});
+
+test('permiso remoto requerido aun con reglas opcionales apagadas; QR sigue obligatorio',()=>{
+ const r={exigir_autorizacion:false,exigir_proposito:false,tipos_visita:[]};
+ const v={...base,solicitud_remota_id:'request',autorizacion_remota_hasta:'2026-10-17T15:05:00Z'};
+ assert.equal(evaluarVisita(v,'entrada',r,null,now).permitida,true);
+ for(const change of [{autorizacion_remota_hasta:null},{autorizacion_remota_hasta:'2026-10-17T15:00:00Z'},{autorizada_por:null},{qr_token:'obligatorio'}])
+  assert.equal(evaluarVisita({...v,...change},'entrada',r,null,now).permitida,false);
+});

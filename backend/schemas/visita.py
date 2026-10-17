@@ -18,6 +18,8 @@ class VisitaCreate(VisitaBase):
 
 
 class VisitaResponse(VisitaBase):
+    solicitud_remota_id: str | None = None
+    autorizacion_remota_hasta: datetime | None = None
     placa: str | None = None
     visita_id: str
     condominio_id: str
@@ -36,7 +38,7 @@ class VisitaResponse(VisitaBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-    @field_validator("entrada_registrada_en", "salida_registrada_en", "created_at", "autorizada_en")
+    @field_validator("entrada_registrada_en", "salida_registrada_en", "created_at", "autorizada_en", "autorizacion_remota_hasta")
     @classmethod
     def audit_timestamp_utc(cls, value: datetime | None) -> datetime | None:
         # CORE persists audit timestamps with datetime.utcnow() in naive columns.
@@ -51,4 +53,6 @@ class PreregistroCreate(BaseModel):
     fecha_visita: datetime
     tipo_visita: str
     notas: str | None = None
+    solicitud_remota_id: str | None = None
+    autorizacion_remota_hasta: datetime | None = None
     placa: str | None = None

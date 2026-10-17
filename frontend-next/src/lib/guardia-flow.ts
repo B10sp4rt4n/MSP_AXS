@@ -26,6 +26,8 @@ export function evaluarVisita(v: Visita, op: Operacion, reglas: Reglas | null, q
   if (entrada !== null) return no("Esta visita ya tiene entrada. Si la persona sale, usa Registrar salida.");
   if (!["pendiente", "activa"].includes(v.estado)) return no("Esta visita está cancelada o finalizada. Solicita una nueva autorización.");
   if (!reglas) return no("No pudimos comprobar las reglas de acceso. Actualiza la revisión antes de continuar.");
+  if (v.solicitud_remota_id && (!v.autorizada_por || !v.autorizada_en || (instante(v.autorizacion_remota_hasta ?? null) ?? 0) <= ahora))
+    return no("No hay permiso remoto vigente. Consulta la solicitud del residente antes de continuar.");
   const aplica = reglas.tipos_visita.includes(v.tipo_visita);
   if ((reglas.exigir_autorizacion || reglas.exigir_proposito) && !["eventual", "frecuente", "visita_personal", "proveedor", "entrega"].includes(v.tipo_visita))
     return no("El tipo de visita requiere revisión de administración.");

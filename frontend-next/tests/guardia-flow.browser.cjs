@@ -5,6 +5,7 @@ const mocks={
  '@clerk/nextjs':`const getToken=async()=>'synthetic';exports.useAuth=()=>({getToken});`,
  '@/components/IdentificacionVisita':`exports.default=()=>null;`,
  '@/lib/api':`exports.api={get:async p=>{window.calls.push(p);
+ if(p.startsWith('/solicitudes-acceso/'))return [];
  if(p==='/condominios/')return [{condominio_id:'a',nombre:'Caseta A'},{condominio_id:'b',nombre:'Caseta B'}];
  if(p.endsWith('/casas'))return {casas:[{casa_id:'home24',numero:'24',tipo:'casa',residentes:[{nombre:'Laura Gómez'}]}, {casa_id:'home25',numero:'25',tipo:'casa',residentes:[{nombre:'Laura González'}]}, {casa_id:'home30',numero:'30',tipo:'casa',residentes:[{nombre:'Pedro Hogar'}]}]};
  if(p.includes('reglas-acceso'))return {exigir_autorizacion:true,exigir_proposito:true,tipos_visita:['eventual']};

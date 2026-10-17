@@ -8,6 +8,7 @@ from .engine import engine_core, Base_CORE
 from .session import SessionLocal_CORE, get_core_db
 from .models import (
     AlexaAccount,
+    SolicitudAcceso,
     # Enums
     ScopeStatus,
     AccessLevel,
