@@ -45,7 +45,13 @@ function bundle(name, parent=path.join(process.cwd(),'entry.js')) {
     window.rows=[{...base,visita_id:'one',casa_unidad:'24',placa:'ABC123'},{...base,visita_id:'two',casa_unidad:'25'}, {...base,visita_id:'closed',casa_unidad:'26',estado:'salida_registrada',salida_registrada_en:new Date(now-3600000).toISOString()}, {...base,visita_id:'qr',nombre_visitante:'Pedro QR',casa_unidad:'30',estado:'pendiente',entrada_registrada_en:null,vigencia:new Date(now).toISOString(),qr_vigencia:new Date(now+3600000).toISOString(),qr_token:'valid'}];
    },uncertain);
    await page.addScriptTag({content:script});
+   await page.getByRole('button',{name:'Entrada',exact:true}).waitFor();
+   assert.equal(await page.getByLabel('Nombre del residente, casa o lugar').count(),0);
+   await page.getByRole('button',{name:'Entrada',exact:true}).click();
    await page.getByRole('heading',{name:'¿A quién visita o a qué casa va?',exact:true}).waitFor();
+   await page.getByRole('button',{name:'Entrada',exact:true}).click();
+   assert.equal(await page.getByLabel('Nombre del residente, casa o lugar').count(),0);
+   await page.getByRole('button',{name:'Entrada',exact:true}).click();
   }
   await open();
   assert.equal(await page.getByText('María Pérez',{exact:true}).count(),0);
