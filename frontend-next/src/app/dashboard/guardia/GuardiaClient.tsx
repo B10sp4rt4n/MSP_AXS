@@ -1,5 +1,7 @@
 "use client";
 
+import ListaVisitasDesplegable from "@/components/ListaVisitasDesplegable";
+
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
@@ -93,6 +95,7 @@ export default function GuardiaClient() {
         {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
         <p className="mb-4 text-sm text-blue-200">Dentro / salida pendiente: {loading || error ? "—" : visitas.filter(v => v.estado === "entrada_registrada" && !v.salida_registrada_en).length}</p>
+        <ListaVisitasDesplegable>
         {/* Lista de visitas */}
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-gray-300">Visitas del condominio</h2>
@@ -115,6 +118,7 @@ export default function GuardiaClient() {
             ))}
           </div>
         )}
+        </ListaVisitasDesplegable>
       </main>
     </div>
   );

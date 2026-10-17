@@ -1,5 +1,7 @@
 "use client";
 
+import ListaVisitasDesplegable from "@/components/ListaVisitasDesplegable";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
@@ -103,7 +105,7 @@ export default function AdminClient() {
         {condominioId && tab === "visitas" && <PresenciaVisitas key={`presencia-${condominioId}`} condominioId={condominioId} />}
         {condominioId && tab === "reportes" && <ReportesOperacion key={condominioId} condominioId={condominioId} />}
         {condominioId && tab === "bitacora" && <Bitacora key={condominioId} condominioId={condominioId} />}
-        {condominioId && tab === "visitas" && <TabVisitas key={condominioId} condominioId={condominioId} getToken={getToken} />}
+        {condominioId && tab === "visitas" && <ListaVisitasDesplegable><TabVisitas key={condominioId} condominioId={condominioId} getToken={getToken} /></ListaVisitasDesplegable>}
         {condominioId && tab === "casas"   && <TabCasas   condominioId={condominioId} getToken={getToken} />}
         {condominioId && tab === "usuarios"&& <UsuariosCondominio key={condominioId} condominioId={condominioId} getToken={getToken} />}
         {condominioId && tab === "reglas" && <ConfigurarReglasAcceso key={condominioId} condominioId={condominioId} />}
