@@ -34,13 +34,13 @@ export function evaluarVisita(v: Visita, op: Operacion, reglas: Reglas | null, q
   if (v.qr_token || (aplica && reglas.exigir_autorizacion)) {
     const fecha = instante(v.vigencia ?? null);
     if (fecha === null) return no("Falta una fecha válida de acceso. Solicita revisión a administración.");
-    if (ahora < fecha - 30 * 60000) return no("La visita todavía no está en su horario de entrada. Consulta la hora programada.");
-    if (ahora >= fecha + 60 * 60000) return no("El horario de entrada terminó. Solicita una nueva autorización.");
+    if (ahora < fecha - 30 * 60000) return no("Todavía no puede ingresar. Contacta al residente.");
+    if (ahora >= fecha + 60 * 60000) return no("Necesita una nueva autorización. Contacta al residente.");
   }
   if (v.qr_token) {
     if (!qr || qr !== v.qr_token) return no("Esta visita requiere su QR. Pide al visitante que lo recupere con el residente; no crees otra visita para sustituirlo.");
     const hasta = instante(v.qr_vigencia ?? null);
     if (hasta === null || ahora >= hasta) return no("El QR venció. Solicita una nueva autorización de entrada.");
   }
-  return { permitida: true, mensaje: "Datos revisados. Confirma la persona y el destino antes de registrar." };
+  return { permitida: true, mensaje: "Puede ingresar. Confirma que es la persona que tienes enfrente." };
 }
