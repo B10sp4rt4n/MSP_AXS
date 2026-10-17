@@ -1,5 +1,7 @@
 "use client";
 
+import ListaVisitasDesplegable from "@/components/ListaVisitasDesplegable";
+
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
@@ -119,6 +121,7 @@ export default function ResidenteClient() {
 
         {condominioId && <PresenciaVisitas key={condominioId} condominioId={condominioId} residente />}
 
+        <ListaVisitasDesplegable>
         <h2 className="text-sm font-semibold text-gray-300 mb-3">Mis visitas</h2>
 
         {loading ? (
@@ -175,6 +178,7 @@ export default function ResidenteClient() {
             ))}
           </div>
         )}
+        </ListaVisitasDesplegable>
       </main>
     </div>
   );
