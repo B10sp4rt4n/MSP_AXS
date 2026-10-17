@@ -14,8 +14,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AX-S MSP — Control de Acceso",
+  title: "AXS — Control de Acceso",
   description: "Sistema de control de acceso para condominios",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "AXS", statusBarStyle: "default" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
