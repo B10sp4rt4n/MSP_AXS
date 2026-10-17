@@ -338,8 +338,9 @@ def obtener_visita(
     usuario: Usuario = Depends(get_current_user),  # AUP_SESSION validada
     condominio_id: str | None = None,
 ):
-    return require_visita(db, db_gov, usuario, visita_id, AccessLevel.RESIDENTE,
-                          own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
+    visita = require_visita(db, db_gov, usuario, visita_id, AccessLevel.RESIDENTE,
+                            own_unit=usuario.rol == "RESIDENTE", condominio_id=condominio_id)
+    return visita_service.adjuntar_placas(db, [visita], visita.condominio_id)[0]
 
 
 @router.patch("/{visita_id}/autorizar", response_model=VisitaResponse)

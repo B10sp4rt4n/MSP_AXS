@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:roles": "node --test tests/role-access.test.cjs tests/bitacora.test.cjs tests/provider-contracts.test.cjs tests/presencia.test.cjs"
+    "test:roles": "node --test tests/role-access.test.cjs tests/bitacora.test.cjs tests/provider-contracts.test.cjs tests/presencia.test.cjs tests/guardia-flow.test.cjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.7",

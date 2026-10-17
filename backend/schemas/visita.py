@@ -10,6 +10,7 @@ class VisitaBase(BaseModel):
 
 
 class VisitaCreate(VisitaBase):
+    placa: str | None = Field(default=None, max_length=32)
     condominio_id: str
     casa_unidad: str | None = None
     destino_id: str | None = None
@@ -17,6 +18,7 @@ class VisitaCreate(VisitaBase):
 
 
 class VisitaResponse(VisitaBase):
+    placa: str | None = None
     visita_id: str
     condominio_id: str
     casa_unidad: str | None
