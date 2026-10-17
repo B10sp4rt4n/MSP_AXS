@@ -34,6 +34,7 @@ function bundle(name, parent=path.join(process.cwd(),'entry.js')) {
  const browser=await chromium.launch({headless:true});
  try{
   const page=await browser.newPage({viewport:{width:390,height:844}});
+  page.on('pageerror', e=>console.error('Browser error:',e.message));
   await page.route('**/*',r=>r.fulfill({contentType:'text/html',body:'<div id="root"></div>'}));
   async function open(uncertain=false){
    await page.goto('http://127.0.0.1:47893/');
@@ -49,7 +50,7 @@ function bundle(name, parent=path.join(process.cwd(),'entry.js')) {
   assert.equal(await page.getByText('María Pérez',{exact:true}).count(),0);
   await page.getByRole('button',{name:'Salida',exact:true}).click();
   await page.getByLabel('Nombre del residente, casa o lugar').fill('Laura');
-  await page.getByRole('button',{name:/Casa 24 Laura Gómez/}).click();
+  await page.getByRole('button',{name:/Elegir Casa 24: Laura Gómez/}).click();
   await page.getByRole('heading',{name:'¿Cómo se llama el visitante?',exact:true}).waitFor();
   await page.getByLabel('Nombre del visitante o placa').fill('maria');
   await page.getByRole('button',{name:'Buscar visita',exact:true}).click();
@@ -66,7 +67,7 @@ function bundle(name, parent=path.join(process.cwd(),'entry.js')) {
   await open(true);
   await page.getByRole('button',{name:'Salida',exact:true}).click();
   await page.getByLabel('Nombre del residente, casa o lugar').fill('Laura');
-  await page.getByRole('button',{name:/Casa 24 Laura Gómez/}).click();
+  await page.getByRole('button',{name:/Elegir Casa 24: Laura Gómez/}).click();
   await page.getByRole('heading',{name:'¿Cómo se llama el visitante?',exact:true}).waitFor();
   await page.getByLabel('Nombre del visitante o placa').fill('ABC123');
   await page.getByRole('button',{name:'Buscar visita',exact:true}).click();
@@ -82,7 +83,7 @@ function bundle(name, parent=path.join(process.cwd(),'entry.js')) {
   // Scanning only identifies: mutation happens after explicit identity confirmation.
   await open();
   await page.getByLabel('Nombre del residente, casa o lugar').fill('24');
-  await page.getByRole('button',{name:/Casa 24 Laura Gómez/}).click();
+  await page.getByRole('button',{name:/Elegir Casa 24: Laura Gómez/}).click();
   await page.getByText('Usar lector QR o pegar código',{exact:true}).click();
   await page.getByLabel('Código AXS').fill('AXS|qr|valid');
   await page.getByRole('button',{name:'Revisar QR',exact:true}).click();
@@ -90,7 +91,7 @@ function bundle(name, parent=path.join(process.cwd(),'entry.js')) {
   assert.equal(await page.evaluate(()=>window.qrWrites),0);
   await page.getByRole('button',{name:'Cambiar casa o persona visitada',exact:true}).click();
   await page.getByLabel('Nombre del residente, casa o lugar').fill('30');
-  await page.getByRole('button',{name:/Casa 30 Pedro Hogar/}).click();
+  await page.getByRole('button',{name:/Elegir Casa 30: Pedro Hogar/}).click();
   await page.getByText('Usar lector QR o pegar código',{exact:true}).click();
   await page.getByLabel('Código AXS').fill('AXS|qr|valid');
   await page.getByRole('button',{name:'Revisar QR',exact:true}).click();

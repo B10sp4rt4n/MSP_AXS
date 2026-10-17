@@ -58,7 +58,7 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
   }
   const revisar = useCallback(async (id: string, qr: string | null = null) => {
     if (lock.current) return;
-    lock.current = true; setBusy(true); setError(""); setFicha(null); 
+    lock.current = true; setBusy(true); setError(""); setFicha(null);
     try {
       const v = await detalle(id);
       if (v.condominio_id !== condominioId) throw new Error("Esta visita no corresponde al condominio seleccionado.");
@@ -89,7 +89,7 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
     try {
       const v = await detalle(ficha.visita.visita_id);
       if (!cerrar(v, operacion) && alive.current) {
-        setFicha({ ...ficha, visita: v }); setIncierto(false); 
+        setFicha({ ...ficha, visita: v }); setIncierto(false);
         setError("La consulta no muestra el movimiento. Revisa de nuevo los datos antes de confirmar; AXS impedirá duplicarlo si otra caseta ya lo registró.");
       }
     } catch { if (alive.current) setError("Seguimos sin poder confirmar el registro. No repitas la operación: comprueba otra vez o solicita apoyo a administración."); }

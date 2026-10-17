@@ -36,7 +36,7 @@ export default function GuardiaDestino({ condominioId, salida, onSelect }: { con
       {!consulta.trim() && <p className="text-gray-400">Escribe a quién busca o el lugar que te indique.</p>}
       {consulta.trim() && !resultados.length && <p role="status" className="text-amber-200">No encontramos ese nombre o destino. Confirma con la persona a quién visita; si no aparece, consulta a administración.</p>}
       <div className="space-y-3">
-        {resultados.slice(0, 8).map(casa => <button type="button" key={casa.casa_id} onClick={() => onSelect(casa)} className="min-h-20 w-full rounded-xl border border-gray-600 bg-gray-900 p-4 text-left hover:border-purple-400 focus-visible:outline-2 focus-visible:outline-purple-400">
+        {resultados.slice(0, 8).map(casa => <button type="button" key={casa.casa_id} aria-label={`Elegir ${nombreDestino(casa)}: ${(casa.residentes ?? (casa.residente ? [casa.residente] : [])).map(r => r.nombre).filter(Boolean).join(", ")}`} onClick={() => onSelect(casa)} className="min-h-20 w-full rounded-xl border border-gray-600 bg-gray-900 p-4 text-left hover:border-purple-400 focus-visible:outline-2 focus-visible:outline-purple-400">
           <span className="block text-xl font-semibold text-purple-200">{nombreDestino(casa)}</span>
           <span className="mt-1 block text-gray-200">{(casa.residentes ?? (casa.residente ? [casa.residente] : [])).map(r => r.nombre).filter(Boolean).join(" · ") || casa.descripcion || "Destino del condominio"}</span>
           <span className="mt-2 block text-sm text-gray-400">Elegir este destino →</span>
