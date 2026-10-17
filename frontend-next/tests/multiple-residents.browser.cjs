@@ -11,7 +11,9 @@ for (const component of ['ReglasAcceso','Bitacora','ReportesOperacion','Usuarios
   mocks['@/components/'+component] = 'exports.default=()=>null;exports.AutorizarVisita=()=>null;';
 }
 function bundle(name, parent=path.join(process.cwd(),'entry.js')) {
-  const file = mocks[name] ? name : require.resolve(name, {paths:[path.dirname(parent)]});
+  const alias = name.startsWith('@/') ? path.join(process.cwd(), 'src', name.slice(2)) : null;
+  const local = alias && ['.tsx', '.ts', '.js'].map(ext => alias + ext).find(file => fs.existsSync(file));
+  const file = mocks[name] ? name : local || require.resolve(name, {paths:[path.dirname(parent)]});
   if(ids.has(file)) return ids.get(file);
   const id=modules.length; ids.set(file,id); modules.push('');
   let source=mocks[name] || fs.readFileSync(file,'utf8');

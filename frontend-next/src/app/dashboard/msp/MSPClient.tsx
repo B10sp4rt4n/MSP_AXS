@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import PresenciaVisitas from "@/components/PresenciaVisitas";
 import { api } from "@/lib/api";
 import UsuariosCondominio from "@/components/UsuariosCondominio";
 
@@ -18,11 +19,12 @@ type Condominio = {
 };
 type MSP = { msp_id: string; nombre: string; total_condominios: number };
 
-type Tab = "condominios" | "usuarios";
+type Tab = "condominios" | "usuarios" | "presencia";
 
 export default function MSPClient() {
   const router = useRouter();
   const { getToken } = useAuth();
+  const [presenciaId, setPresenciaId] = useState("");
   const [tab, setTab] = useState<Tab>("condominios");
   const [condominios, setCondominios] = useState<Condominio[]>([]);
   const [msps, setMsps] = useState<MSP[]>([]);
@@ -83,12 +85,12 @@ export default function MSPClient() {
 
       {/* Tabs */}
       <div className="border-b border-gray-800 px-4 flex gap-1">
-        {(["condominios", "usuarios"] as Tab[]).map(t => (
+        {(["condominios", "usuarios", "presencia"] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-3 text-sm font-medium capitalize transition-colors ${
               tab === t ? "border-b-2 border-blue-500 text-white" : "text-gray-400 hover:text-white"
             }`}>
-            {t === "condominios" ? "Condominios" : "Usuarios"}
+            {t === "condominios" ? "Condominios" : t === "presencia" ? "Presencia" : "Usuarios"}
           </button>
         ))}
       </div>
@@ -98,6 +100,16 @@ export default function MSPClient() {
       <main className="p-4 max-w-4xl mx-auto">
         {loading ? (
           <p className="text-gray-500 text-sm pt-8 text-center">Cargando...</p>
+        ) : tab === "presencia" ? (
+          error ? <p role="alert">Actualiza tus accesos antes de consultar presencia.</p> :
+          <div>
+            <label htmlFor="presencia-condominio" className="block text-sm mb-2">Condominio a consultar</label>
+            <select id="presencia-condominio" value={presenciaId} onChange={e => setPresenciaId(e.target.value)} className="mb-4 w-full rounded-lg bg-gray-800 p-3">
+              <option value="">Selecciona un condominio</option>
+              {condominios.map(c => <option key={c.condominio_id} value={c.condominio_id}>{c.nombre}</option>)}
+            </select>
+            {condominios.some(c => c.condominio_id === presenciaId) && <PresenciaVisitas key={presenciaId} condominioId={presenciaId} />}
+          </div>
         ) : tab === "condominios" ? (
           <TabCondominios
             condominios={condominios}
