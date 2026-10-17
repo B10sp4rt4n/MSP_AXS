@@ -31,9 +31,9 @@ export default function PresenciaVisitas({ condominioId, residente = false }: Pr
   const datos = resultado?.clave === clave ? resultado : null;
   const resumen = datos ? resumirPresencia(datos.visitas, datos.fecha) : null;
   const tarjetas = resumen ? [
-    { id: "dentro" as const, label: "Sin salida", visitas: resumen.dentro },
-    { id: "entradas" as const, label: "Entradas hoy", visitas: resumen.entradas },
-    { id: "salidas" as const, label: "Salidas hoy", visitas: resumen.salidas },
+    { tone: "border-emerald-400/40 bg-[radial-gradient(ellipse_at_top_left,rgba(16,185,129,0.30),rgba(17,24,39,0.85))] hover:border-emerald-300", id: "dentro" as const, label: "Sin salida", visitas: resumen.dentro },
+    { tone: "border-purple-400/40 bg-[radial-gradient(ellipse_at_top_left,rgba(229,255,0,0.20),rgba(139,44,255,0.28),rgba(17,24,39,0.85))] hover:border-purple-300", id: "entradas" as const, label: "Entradas hoy", visitas: resumen.entradas },
+    { tone: "border-red-400/40 bg-[radial-gradient(ellipse_at_top_left,rgba(239,68,68,0.30),rgba(17,24,39,0.85))] hover:border-red-300", id: "salidas" as const, label: "Salidas hoy", visitas: resumen.salidas },
   ] : [];
   const actual = tarjetas.find(t => t.id === seleccion);
   return <section aria-label="Presencia de visitas" className="mb-6 rounded-xl border border-purple-700 bg-gray-900 p-4">
@@ -46,10 +46,10 @@ export default function PresenciaVisitas({ condominioId, residente = false }: Pr
       <div className="grid grid-cols-3 gap-2 my-4" aria-label="Filtrar visitas por estado">
         {tarjetas.map(t => <button key={t.id} type="button" aria-pressed={seleccion === t.id} aria-controls={detalleId}
           onClick={() => setSeleccion(t.id)}
-          className={`cursor-pointer rounded-lg border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 ${seleccion === t.id ? "border-purple-400 bg-purple-900/40" : "border-gray-700 bg-gray-800 hover:border-purple-400 hover:bg-gray-700"}`}>
+          className={`cursor-pointer rounded-lg border p-3 text-left backdrop-blur-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 ${t.tone} ${seleccion === t.id ? "ring-2 ring-white/70" : ""}`}>
           <span className="block text-xs text-gray-300">{t.label}</span>
           <span className="block text-2xl font-semibold">{t.visitas.length}</span>
-          <span className="mt-2 block text-xs text-purple-300">Ver visitas →</span>
+          <span className="mt-2 block text-xs text-gray-200">Ver visitas →</span>
         </button>)}
       </div>
       <p className="text-xs text-gray-400">Actualizado: {horaPresencia(new Date(datos.fecha).toISOString())}. Hora de Ciudad de México.</p>
