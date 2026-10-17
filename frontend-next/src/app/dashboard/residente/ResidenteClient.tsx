@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { AutorizarVisita } from "@/components/ReglasAcceso";
+import PresenciaVisitas from "@/components/PresenciaVisitas";
 import { api } from "@/lib/api";
 import type { Visita, Condominio } from "@/lib/types";
 
@@ -115,6 +116,8 @@ export default function ResidenteClient() {
             </select>
           </div>
         )}
+
+        {condominioId && <PresenciaVisitas key={condominioId} condominioId={condominioId} residente />}
 
         <h2 className="text-sm font-semibold text-gray-300 mb-3">Mis visitas</h2>
 
