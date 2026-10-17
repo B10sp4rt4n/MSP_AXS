@@ -16,7 +16,7 @@ export function resumirPresencia(visitas: Visita[], ahora: number) {
   const hoy = dia.format(ahora);
   const dentro: Visita[] = [];
   const revisar: Visita[] = [];
-  let entradasHoy = 0, salidasHoy = 0;
+  const entradas: Visita[] = [], salidas: Visita[] = [];
   let ultimo: { visita: Visita; tipo: "Entrada" | "Salida"; fecha: string; instante: number } | null = null;
   for (const v of visitas) {
     const entrada = instante(v.entrada_registrada_en), salida = instante(v.salida_registrada_en);
@@ -29,13 +29,13 @@ export function resumirPresencia(visitas: Visita[], ahora: number) {
       || (entrada !== null && salida === null && v.estado !== "entrada_registrada");
     if (inconsistente) { revisar.push(v); continue; }
     if (entrada !== null && salida === null) dentro.push(v);
-    if (entrada !== null && dia.format(entrada) === hoy) entradasHoy++;
-    if (salida !== null && dia.format(salida) === hoy) salidasHoy++;
+    if (entrada !== null && dia.format(entrada) === hoy) entradas.push(v);
+    if (salida !== null && dia.format(salida) === hoy) salidas.push(v);
     const movimiento = salida ?? entrada;
     if (movimiento !== null && (!ultimo || movimiento > ultimo.instante)) {
       ultimo = { visita: v, tipo: salida !== null ? "Salida" : "Entrada", fecha: (salida !== null ? v.salida_registrada_en : v.entrada_registrada_en)!, instante: movimiento };
     }
   }
   dentro.sort((a,b) => instante(a.entrada_registrada_en)! - instante(b.entrada_registrada_en)!);
-  return { dentro, revisar, entradasHoy, salidasHoy, ultimo };
+  return { dentro, revisar, entradas, salidas, entradasHoy: entradas.length, salidasHoy: salidas.length, ultimo };
 }

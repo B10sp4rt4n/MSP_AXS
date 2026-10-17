@@ -28,3 +28,17 @@ test('ordena por antigüedad sin mutar la lista; último movimiento por fecha', 
  const rows=[visita('nueva','entrada_registrada','2026-10-17T12:30:00Z'),visita('vieja','entrada_registrada','2026-10-15T12:00:00Z')];
  const r=resumirPresencia(rows,now); assert.deepEqual(r.dentro.map(v=>v.visita_id),['vieja','nueva']); assert.equal(r.ultimo.visita.visita_id,'nueva'); assert.equal(rows[0].visita_id,'nueva');
 });
+
+test('detalle de tarjetas coincide con contadores y permite entrada y salida el mismo día', () => {
+ const r=resumirPresencia([
+  visita('ambas','salida_registrada','2026-10-17T07:00:00Z','2026-10-17T12:00:00Z'),
+  visita('ayer','salida_registrada','2026-10-16T07:00:00Z','2026-10-17T08:00:00Z'),
+  visita('dentro','entrada_registrada','2026-10-17T09:00:00Z'),
+  visita('invalida','salida_registrada',null,'2026-10-17T10:00:00Z')
+ ],now);
+ assert.deepEqual(r.entradas.map(v=>v.visita_id),['ambas','dentro']);
+ assert.deepEqual(r.salidas.map(v=>v.visita_id),['ambas','ayer']);
+ assert.equal(r.entradas.length,r.entradasHoy);
+ assert.equal(r.salidas.length,r.salidasHoy);
+ assert.deepEqual(r.dentro.map(v=>v.visita_id),['dentro']);
+});
