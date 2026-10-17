@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from starlette.concurrency import run_in_threadpool
 
 from backend.db.core import AccessLevel, AlexaAccount, Casa, Usuario, Visita, get_core_db
@@ -62,33 +63,36 @@ def consultar(envelope, request, db, db_gov):
     if kind == 'IntentRequest' and intent in ('AMAZON.StopIntent', 'AMAZON.CancelIntent'):
         return speech('Hasta luego.')
     if kind == 'IntentRequest' and intent == 'AMAZON.HelpIntent':
-        return speech('Abre accesos condominio para escuchar la última entrada de tu vivienda en las últimas veinticuatro horas.')
+        return speech('Abre mis visitas para escuchar el último movimiento de tu vivienda en las últimas veinticuatro horas.')
     if kind != 'LaunchRequest' and not (kind == 'IntentRequest' and intent == 'ConsultarVisitaIntent'):
-        return speech('Para consultar tu última visita, di: Alexa, abre accesos condominio.')
+        return speech('Para consultar tu última visita, di: Alexa, abre mis visitas.')
     now = datetime.now(timezone.utc)
+    movement_time = func.coalesce(Visita.salida_registrada_en, Visita.entrada_registrada_en)
     visita = db.query(Visita).filter(
         Visita.condominio_id == tenant, Visita.destino_id == house,
         Visita.destino_tipo == 'vivienda',
         Visita.estado.in_(['entrada_registrada', 'salida_registrada']),
-        Visita.entrada_registrada_en >= (now - timedelta(hours=24)).replace(tzinfo=None),
-        Visita.entrada_registrada_en <= now.replace(tzinfo=None),
-    ).order_by(Visita.entrada_registrada_en.desc(), Visita.visita_id).first()
+        movement_time >= (now - timedelta(hours=24)).replace(tzinfo=None),
+        movement_time <= now.replace(tzinfo=None),
+    ).order_by(movement_time.desc(), Visita.visita_id).first()
     if visita is None:
-        answer = speech('No hay entradas registradas para tu vivienda en las últimas veinticuatro horas.')
+        answer = speech('No hay entradas ni salidas registradas para tu vivienda en las últimas veinticuatro horas.')
     else:
-        entry = visita.entrada_registrada_en
+        is_exit = visita.salida_registrada_en is not None
+        movement = "salida" if is_exit else "entrada"
+        entry = visita.salida_registrada_en if is_exit else visita.entrada_registrada_en
         entry = entry.replace(tzinfo=timezone.utc) if entry.tzinfo is None else entry
         local = entry.astimezone(ZoneInfo('America/Mexico_City'))
         today = now.astimezone(ZoneInfo('America/Mexico_City')).date()
         day = 'hoy' if local.date() == today else 'ayer'
         name = ' '.join((visita.nombre_visitante or 'una visita sin nombre registrado').split())[:160]
-        text = f'Se registró la entrada de {name}, {day} a las {local:%H:%M}.'
-        if visita.salida_registrada_en is not None:
-            text += ' Su salida ya fue registrada.'
+        text = f'Se registró la {movement} de {name}, {day} a las {local:%H:%M}.'
+        if not is_exit:
+            text += ' Aún no hay una salida registrada para esta visita.'
         answer = speech(text)
     # EVENT precede a la respuesta; nunca incluye nombre ni el userId de Amazon.
     ctx = contexto_evento(usuario, req['requestId'], accion='consultar',
-                          motivo='Consulta por voz de última entrada de vivienda')
+                          motivo='Consulta por voz de último movimiento de vivienda')
     encolar_evento(db, tenant, visita.visita_id if visita else house, ctx,
                   metadata={'canal': 'alexa', 'casa_id': house, 'encontrada': visita is not None})
     db.commit()

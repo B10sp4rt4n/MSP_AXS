@@ -1,4 +1,4 @@
-# Alexa: aviso de entrada para una vivienda piloto
+# Alexa: avisos de entrada y salida para una vivienda piloto
 
 Para la beta con vinculación automática por residente, ver [alexa-beta.md](alexa-beta.md).
 El piloto descrito aquí aplica con `AXS_ALEXA_LINKING_ENABLED=false`.
@@ -9,8 +9,8 @@ La integración automática requiere configuración, despliegue y prueba en siti
 
 ## Comportamiento
 
-Tras confirmar una entrada en CORE y su auditoría EVENT pendiente, las rutas de
-alta con entrada, entrada manual y validación QR programan un aviso en segundo
+Tras confirmar una entrada o salida en CORE y su auditoría EVENT pendiente, las rutas de
+alta con entrada, entrada manual, validación QR y registro de salida programan un aviso en segundo
 plano. Se compara condominio_id + casa_id del catálogo + destino_tipo=vivienda.
 No se usa el número de casa como identidad. Las visitas previas sin destino_id
 no notifican: deben usar un destino del catálogo.
@@ -18,7 +18,7 @@ no notifican: deben usar un destino del catálogo.
 El aviso usa AMAZON.MessageAlert.Activated, igual que la prueba manual:
 «Tienes un mensaje de AXS Condominios». No anuncia nombre, placa, casa,
 identificación ni motivo de la visita. No autoriza ni solicita autorización.
-Un preregistro sin entrada, salida, cancelación o intento rechazado no notifica.
+Las entradas y salidas confirmadas notifican. Un preregistro, cancelación o intento rechazado no notifica.
 
 Se envía a una cuenta Alexa (Unicast), no a un Echo individual. Los dispositivos
 compatibles de esa cuenta pueden recibir el aviso. El piloto se limita a la
@@ -55,7 +55,7 @@ en stages/development durante este piloto.
 6. Comprobar entrada por QR y por registro manual.
 7. Desactivar AXS_ALEXA_ENABLED=false y verificar que AXS sigue registrando entradas.
 
-Logs: «aviso de entrada aceptado por Amazon» significa HTTP 202, no entrega
+Logs: «aviso de movimiento aceptado por Amazon» significa HTTP 202, no entrega
 confirmada al dispositivo. Confirmar la recepción preguntando a Alexa.
 
 ## Límites del piloto
@@ -98,8 +98,9 @@ Un guardado de auditoría fallido impide entregar el nombre. El bloqueo de
 recuperación también cubre el webhook. No se guardan nombres ni userIds de
 Amazon en EVENT ni se registran cuerpos de solicitudes.
 
-La lectura informa la última entrada confirmada de las últimas 24 horas,
-excluye preregistros y otras viviendas y dice si ya se registró salida. La hora
+La lectura informa el último movimiento confirmado (entrada o salida) de las últimas 24 horas,
+con su hora. Incluye salidas recientes aunque la entrada sea anterior a esa ventana.
+Excluye preregistros y otras viviendas; para una entrada informa que aún no hay salida registrada. La hora
 se expresa en America/Mexico_City. No equivale a detectar presencia física.
 El nombre se devuelve como PlainText; no se interpreta como SSML. No incluye
 placas ni identificaciones. Cualquiera con acceso al Echo de esa cuenta podría
@@ -139,4 +140,15 @@ endpoint. No afirmar funcionamiento de voz en producción antes de esa prueba.
 
 Para detener lectura: `AXS_ALEXA_VOICE_ENABLED=false` y desplegar. Para volver a
 la atención anterior, restaurar el endpoint Alexa-hosted en la consola. Los
-avisos de entrada usan su propia bandera `AXS_ALEXA_ENABLED`.
+avisos de entrada y salida usan su propia bandera `AXS_ALEXA_ENABLED`.
+
+
+### Paridad de salida
+
+Registrar una salida conserva su hora en CORE y su auditoría en EVENT antes de
+programar el aviso opcional. Repetir la salida debe rechazarse sin otro aviso.
+La referencia de Amazon distingue entrada y salida de una misma visita.
+El aviso proactivo sigue siendo genérico (AXS Condominios); el detalle y la hora
+se escuchan al abrir «mis visitas». Un fallo de Alexa no revierte el registro.
+La vigencia del QR no confirma una salida. El tablero de vigilancia conserva
+las visitas con entrada y sin salida registrada como pendientes de cierre.

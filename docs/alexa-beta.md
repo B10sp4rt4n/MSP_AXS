@@ -10,9 +10,9 @@ funcionando con `AXS_ALEXA_LINKING_ENABLED=false`.
 1. Acepta la invitación a la beta de AXS Condominios y activa la skill.
 2. Vincula su cuenta usando el inicio de sesión de AXS (Clerk).
 3. Autoriza notificaciones en la aplicación Alexa.
-4. Las entradas confirmadas en su vivienda generan el aviso «Tienes un mensaje
+4. Las entradas y salidas confirmadas en su vivienda generan el aviso «Tienes un mensaje
    de AXS Condominios». Con «Alexa, abre accesos condominio» escucha nombre y
-   hora de la última entrada de su vivienda en las últimas 24 horas.
+   hora del último movimiento (entrada o salida) de su vivienda en las últimas 24 horas.
 
 Activar la beta no concede por sí solo el permiso de notificaciones. No se
 copian IDs ni tokens por vecino. El usuario debe existir en AXS con clerk_id,
@@ -98,7 +98,7 @@ baja local funcionan sin él.
 | `AXS_ALEXA_CLERK_CLIENT_SECRET` | Secreto de la aplicación Clerk |
 | `AXS_ALEXA_BETA_CONDOMINIOS` | `condo_b6b00ba13ba5` inicialmente (San Luis); lista de IDs separados por coma |
 | `AXS_ALEXA_LINKING_ENABLED` | `true` después de completar Clerk y Amazon |
-| `AXS_ALEXA_ENABLED` | `true` para avisos de entradas |
+| `AXS_ALEXA_ENABLED` | `true` para avisos de entradas y salidas |
 | `AXS_ALEXA_VOICE_ENABLED` | `true` para consulta por voz |
 
 Conservar `AXS_ALEXA_SKILL_ID` y las credenciales existentes
@@ -151,7 +151,7 @@ requiere certificación y configurar el endpoint live en un cambio separado.
 - Habilitar beta y vincular a Salvador desde Alexa sin invocar la skill.
 - Conceder notificaciones; comprobar estado propio vinculado/notificaciones.
 - Registrar entrada de prueba a Pensamientos 36: comprobar aviso en Echo y
-  nombre/hora al abrir accesos condominio. Probar manual, QR y alta con entrada.
+  nombre/hora al abrir mis visitas. Probar manual, QR y alta con entrada.
 - Registrar otra casa y un preregistro sin entrada: no debe recibir avisos.
 - Probar otro residente con otra casa: cada cuenta recibe sólo su vivienda.
 - Revocar notificaciones/desactivar skill/baja local: no enviar nuevos avisos.
@@ -163,3 +163,5 @@ Fuentes oficiales:
 - https://developer.amazon.com/en-US/docs/alexa/smapi/add-events-to-your-skill-with-smapi.html
 - https://developer.amazon.com/en-US/docs/alexa/smapi/proactive-events-api.html
 - https://developer.amazon.com/docs/alexaplus/account-linking/configure-authorization-code-grant.html
+
+La ventana de 24 horas usa la hora del movimiento: una salida reciente se incluye aunque la entrada ocurrió días antes. La referencia proactiva distingue entrada y salida; se vuelve a validar la residencia, el scope, el contrato y el consentimiento al enviar. Consultar `docs/alexa-integracion-63-64.md` antes de ampliar la beta.

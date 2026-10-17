@@ -129,7 +129,12 @@ def test_member_grant_and_revocation_only_by_operator(tenants, db_core_session, 
 
 def test_visit_routes_apply_boundary_before_mutation(tenants, db_core_session, db_gov_session):
     db, gov = db_core_session, db_gov_session
-    denied(lambda: registrar_salida("v_a1_101", Request({"type": "http", "headers": []}), db, gov, tenants["admin_b"], condominio_id="a1"))
+    from fastapi import BackgroundTasks
+    tasks = BackgroundTasks()
+    denied(lambda: registrar_salida("v_a1_101", Request({"type": "http", "headers": []}),
+                                   background_tasks=tasks, db=db, db_gov=gov,
+                                   usuario=tenants["admin_b"], condominio_id="a1"))
+    assert not tasks.tasks
     denied(lambda: obtener_visita("v_a1_102", db, gov, tenants["resident_a1"]))
     denied(lambda: reenviar_qr("v_a1_102", Request({"type": "http", "headers": []}), db, gov, tenants["resident_a1"]))
     assert db.query(Visita).filter_by(visita_id="v_a1_101").one().estado == "pendiente"

@@ -6,7 +6,7 @@ from fastapi import HTTPException, BackgroundTasks
 import httpx
 import pytest
 
-from backend.db.core import AlexaAccount, Casa, Usuario, UserTenantScope, ScopeStatus, EventOutbox
+from backend.db.core import AlexaAccount, Casa, Usuario, UserTenantScope, ScopeStatus, EventOutbox, Visita
 from backend.services import alexa_linking as linking, alexa_notifications as notifications
 from backend.core.auth.jwt import create_access_token
 from tests.test_alexa_voice import envelope, signer, pilot, invoke, USER
@@ -141,13 +141,23 @@ def test_status_and_self_disconnect(client, db_session, beta, signer, envelope):
     assert not linking.active(db_session.query(AlexaAccount).one())
 
 
-@pytest.mark.parametrize('case', ['valid', 'other-house', 'moved', 'revoked', 'no-permission', 'recovery'])
-def test_notifications_reauthorize_recipients(client, db_session, db_gov_session, beta, signer, envelope, monkeypatch, pilot, case):
+@pytest.mark.parametrize('movement', ['entrada', 'salida'])
+@pytest.mark.parametrize('case', ['valid', 'other-house', 'other-tenant', 'moved', 'revoked', 'no-permission', 'disabled', 'contract', 'recovery'])
+def test_notifications_reauthorize_recipients(client, db_session, db_gov_session, beta, signer, envelope, monkeypatch, pilot, case, movement):
     monkeypatch.setenv('AXS_ALEXA_ENABLED', 'true')
     grant(client, signer, envelope)
     link(client, signer, envelope)
-    if case == 'moved':
+    pilot.estado = movement + '_registrada'
+    setattr(pilot, movement + '_registrada_en', datetime.utcnow())
+    tasks = BackgroundTasks()
+    notifications.programar_aviso(tasks, pilot)
+    assert tasks.tasks[0].args[-1] == movement
+    if case == 'disabled':
+        db_session.query(AlexaAccount).update({'disabled_at': datetime.utcnow()})
+    elif case == 'moved':
         beta.casa_id = None
+    elif case == 'contract':
+        db_session.query(UserTenantScope).one().metadata_json = {'grant_origin': {'kind': 'msp', 'msp_id': 'expired-provider', 'contract_id': 'closed'}}
     elif case == 'revoked':
         db_session.query(UserTenantScope).update({'estado': ScopeStatus.REVOCADO})
     elif case == 'no-permission':
@@ -166,8 +176,8 @@ def test_notifications_reauthorize_recipients(client, db_session, db_gov_session
     monkeypatch.setattr(backend.db.gov, 'SessionLocal_GOV', gov)
     sent = []
     monkeypatch.setattr(notifications, 'enviar_aviso', lambda *args: sent.append(args))
-    notifications.enviar_aviso_vivienda(pilot.condominio_id,
-        'other-house' if case == 'other-house' else pilot.destino_id, pilot.visita_id)
+    notifications.enviar_aviso_vivienda('other-tenant' if case == 'other-tenant' else pilot.condominio_id,
+        'other-house' if case == 'other-house' else pilot.destino_id, pilot.visita_id, movement)
     assert len(sent) == (1 if case == 'valid' else 0)
     if sent:
         assert sent[0][0] == USER
@@ -233,3 +243,96 @@ def test_revoked_scope_hides_status_but_can_disconnect(client, db_session, beta,
     assert not client.get('/alexa/vinculacion', headers=headers).json()['notificaciones']
     assert client.delete('/alexa/vinculacion', headers=headers).status_code == 200
     assert not linking.active(db_session.query(AlexaAccount).one())
+
+
+@pytest.mark.parametrize('movement', ['entrada', 'salida'])
+@pytest.mark.parametrize('denial', [None, 'scope', 'moved', 'token', 'disabled', 'contract'])
+def test_oauth_latest_movement_isolated(client, db_session, beta, signer, envelope, pilot, movement, denial):
+    assert link(client, signer, envelope).status_code == 200
+    envelope['context']['System']['user']['accessToken'] = 'valid-access-token'
+    now = datetime.utcnow()
+    pilot.entrada_registrada_en = now - timedelta(days=2) if movement == 'salida' else now - timedelta(minutes=10)
+    pilot.estado = movement + '_registrada'
+    if movement == 'salida':
+        pilot.salida_registrada_en = now - timedelta(minutes=5)
+    for suffix, tenant, house in [('house', pilot.condominio_id, 'foreign-house'),
+                                   ('tenant', 'foreign-tenant', pilot.destino_id)]:
+        db_session.add(Visita(visita_id='foreign-' + suffix, condominio_id=tenant,
+            destino_id=house, destino_tipo='vivienda', nombre_visitante='SECRET_' + suffix,
+            estado='salida_registrada', entrada_registrada_en=now - timedelta(days=3),
+            salida_registrada_en=now - timedelta(seconds=1)))
+    if denial == 'scope':
+        db_session.query(UserTenantScope).update({'estado': ScopeStatus.REVOCADO})
+    elif denial == 'contract':
+        db_session.query(UserTenantScope).one().metadata_json = {'grant_origin': {'kind': 'msp', 'msp_id': 'expired-provider', 'contract_id': 'closed'}}
+    elif denial == 'moved':
+        beta.casa_id = 'foreign-house'
+    elif denial == 'token':
+        envelope['context']['System']['user']['accessToken'] = 'invalid-token'
+    elif denial == 'disabled':
+        db_session.query(AlexaAccount).update({'disabled_at': now})
+    db_session.commit()
+    response = invoke(client, signer, envelope)
+    assert 'SECRET_' not in response.text
+    if denial:
+        assert 'Juan Pérez' not in response.text
+        assert response.status_code == (200 if denial == 'disabled' else 403)
+    else:
+        assert response.status_code == 200
+        assert 'Se registró la ' + movement + ' de Juan Pérez' in response.text
+
+
+def test_beta_exit_requires_timestamp_and_distinct_reference(client, db_session, db_gov_session,
+        beta, signer, envelope, pilot, monkeypatch):
+    monkeypatch.setenv('AXS_ALEXA_ENABLED', 'true')
+    grant(client, signer, envelope)
+    assert link(client, signer, envelope).status_code == 200
+    @contextmanager
+    def core(): yield db_session
+    @contextmanager
+    def gov(): yield db_gov_session
+    import backend.db.core, backend.db.gov
+    monkeypatch.setattr(backend.db.core, 'SessionLocal_CORE', core)
+    monkeypatch.setattr(backend.db.gov, 'SessionLocal_GOV', gov)
+    sent = []
+    monkeypatch.setattr(notifications, 'enviar_aviso', lambda *args: sent.append(args))
+    tasks = BackgroundTasks()
+    notifications.programar_aviso(tasks, pilot)
+    pilot.estado = 'salida_registrada'
+    missing = BackgroundTasks()
+    notifications.programar_aviso(missing, pilot)
+    assert not missing.tasks
+    pilot.salida_registrada_en = datetime.utcnow()
+    notifications.programar_aviso(tasks, pilot)
+    for task in tasks.tasks:
+        task.func(*task.args, **task.kwargs)
+    assert len(sent) == 2 and sent[0][0] == sent[1][0] == USER
+    assert sent[0][1] != sent[1][1]
+
+
+def test_notification_rechecks_binding_after_enumeration(client, db_session, db_gov_session,
+        beta, signer, envelope, pilot, monkeypatch):
+    grant(client, signer, envelope)
+    assert link(client, signer, envelope).status_code == 200
+    row = db_session.query(AlexaAccount).one()
+    calls = 0
+    @contextmanager
+    def core():
+        nonlocal calls
+        calls += 1
+        # Recovery check is mocked; first session enumerates, second reloads.
+        if calls == 2:
+            row.casa_id = 'rebound-house'
+            db_session.commit()
+        yield db_session
+    @contextmanager
+    def gov(): yield db_gov_session
+    import backend.db.core, backend.db.gov
+    import backend.core.recovery_gate as recovery
+    monkeypatch.setattr(recovery, 'recovery_allowed', lambda **kw: True)
+    monkeypatch.setattr(backend.db.core, 'SessionLocal_CORE', core)
+    monkeypatch.setattr(backend.db.gov, 'SessionLocal_GOV', gov)
+    sent = []
+    monkeypatch.setattr(notifications, 'enviar_aviso', lambda *args: sent.append(args))
+    notifications.enviar_aviso_vivienda(pilot.condominio_id, pilot.destino_id, pilot.visita_id, 'salida')
+    assert calls == 2 and not sent

@@ -76,7 +76,7 @@ def test_fallo_no_propaga_ni_expone_secretos(pilot, monkeypatch, caplog, mode):
     assert "amzn1.ask.account.test" not in caplog.text
 
 
-@pytest.mark.parametrize("mode", ["manual", "qr", "direct"])
+@pytest.mark.parametrize("mode", ["manual", "qr", "direct", "salida"])
 def test_rutas_notifican_solo_entrada_confirmada(client, db_session, condominio_base, pilot, monkeypatch, mode):
     db_session.add(Casa(casa_id="house1", condominio_id=condominio_base.condominio_id, numero="101", tipo="casa"))
     db_session.add(Usuario(usuario_id="alexa-guard", email="guard@alexa.test", rol="GUARDIA",
@@ -87,6 +87,9 @@ def test_rutas_notifican_solo_entrada_confirmada(client, db_session, condominio_
     row = Visita(visita_id="visit1", condominio_id=condominio_base.condominio_id, casa_unidad="101",
                  destino_id="house1", destino_tipo="vivienda", estado="pendiente",
                  nombre_visitante="Test", tipo_visita="eventual", vigencia=datetime.utcnow())
+    if mode == "salida":
+        row.estado = "entrada_registrada"
+        row.entrada_registrada_en = datetime.utcnow() - timedelta(hours=2)
     if mode == "qr":
         row.qr_token = "testqr"
         row.qr_vigencia = datetime.utcnow() + timedelta(minutes=30)
@@ -95,7 +98,9 @@ def test_rutas_notifican_solo_entrada_confirmada(client, db_session, condominio_
     sent = []
     def send(*args):
         # The response background task sees an already committed entrance.
-        saved = db_session.query(Visita).filter_by(estado="entrada_registrada").one()
+        saved = db_session.query(Visita).filter_by(estado="salida_registrada" if mode == "salida" else "entrada_registrada").one()
+        if mode == "salida":
+            assert saved.salida_registrada_en is not None
         assert saved.entrada_registrada_en is not None
         sent.append(args)
     monkeypatch.setattr(alexa, "enviar_aviso", send)
@@ -106,6 +111,9 @@ def test_rutas_notifican_solo_entrada_confirmada(client, db_session, condominio_
         response = client.post(f"/visitas/entrada/{condominio_base.condominio_id}", headers=headers,
             json={"condominio_id": condominio_base.condominio_id, "destino_id": "house1", "nombre_visitante": "Test",
                   "tipo_visita": "eventual", "vigencia": datetime.utcnow().isoformat()})
+    elif mode == "salida":
+        response = client.patch("/visitas/visit1/salida", headers=headers)
+        assert client.patch("/visitas/visit1/salida", headers=headers).status_code == 400
     elif mode == "qr":
         response = client.get("/qr/validar/visit1/testqr", headers=headers)
         assert client.get("/qr/validar/visit1/testqr", headers=headers).status_code == 400
@@ -114,3 +122,17 @@ def test_rutas_notifican_solo_entrada_confirmada(client, db_session, condominio_
         assert client.patch("/visitas/visit1/entrada", headers=headers).status_code == 400
     assert response.status_code == 200, response.text
     assert len(sent) == 1
+
+
+def test_salida_requiere_hora_y_referencia_distinta(pilot):
+    entry = BackgroundTasks()
+    alexa.programar_aviso(entry, pilot)
+    pilot.estado = 'salida_registrada'
+    missing = BackgroundTasks()
+    alexa.programar_aviso(missing, pilot)
+    assert not missing.tasks
+    pilot.salida_registrada_en = datetime.utcnow()
+    exit_tasks = BackgroundTasks()
+    alexa.programar_aviso(exit_tasks, pilot)
+    assert len(exit_tasks.tasks) == 1
+    assert entry.tasks[0].args != exit_tasks.tasks[0].args
