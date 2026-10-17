@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import AxsBrand from "@/components/AxsBrand";
 import { useEffect, useState } from "react";
 import { UserButton, useAuth, useUser } from "@clerk/nextjs";
 import { api } from "@/lib/api";
@@ -86,10 +86,7 @@ export default function DashboardClient() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1><Image src="/brand/axs-logo-on-purple.svg" alt="AXS" width={175} height={64} priority /></h1>
-          <p className="text-xs text-gray-400">Control de Acceso</p>
-        </div>
+        <AxsBrand />
         <div className="flex items-center gap-3">
           <div className="text-right">
             <p className="text-sm text-gray-300">
