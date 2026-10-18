@@ -1,6 +1,5 @@
 "use client";
 
-import IdentityProfile from "@/components/IdentityProfile";
 import AxsBrand from "@/components/AxsBrand";
 import { useEffect, useState } from "react";
 import { UserButton, useAuth, useUser } from "@clerk/nextjs";
@@ -86,9 +85,12 @@ export default function DashboardClient() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-gray-800 px-6 py-4 flex flex-wrap gap-4 items-center justify-between">
         <AxsBrand />
         <div className="flex items-center gap-3">
+          <a href="/dashboard/configuracion" className="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-blue-400">
+            Configuración
+          </a>
           <div className="text-right">
             <p className="text-sm text-gray-300">
               {me?.nombre ?? user?.firstName ?? user?.emailAddresses[0]?.emailAddress}
@@ -117,7 +119,6 @@ export default function DashboardClient() {
             <DashCard key={p.href} title={p.title} href={p.href} icon={p.icon} desc={p.desc} />
           ))}
         </div>
-        {me && userId && <IdentityProfile key={userId} />}
       </main>
     </div>
   );
