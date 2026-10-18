@@ -399,7 +399,7 @@ class ExternalIdentity(Base_CORE):
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     __table_args__ = (
         UniqueConstraint("usuario_id", "provider", name="uq_external_identity_provider"),
-        CheckConstraint("provider IN ('whatsapp', 'facebook', 'instagram')", name="external_provider"),
+        CheckConstraint("provider IN ('whatsapp', 'facebook', 'instagram', 'amazon')", name="external_provider"),
         CheckConstraint("(verified_at IS NULL AND verification_method IS NULL) OR "
                         "(verified_at IS NOT NULL AND verification_method IS NOT NULL)",
                         name="external_verification"),

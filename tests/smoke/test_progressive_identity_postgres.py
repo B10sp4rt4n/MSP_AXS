@@ -29,6 +29,13 @@ def test_progressive_identity_migration_repeatable_preserves_existing_users():
         with engine.begin() as conn:
             assert conn.execute(text(f"SELECT usuario_id,nombre,celular,celular_verified_at,celular_consent_at FROM {schema}.usuarios")).one() == ("person", "Existing user", None, None, None)
             conn.execute(text(f"INSERT INTO {schema}.external_identities VALUES ('i','person','facebook','https://facebook.com/person',now(),'profile-reference-v1',NULL,NULL,NULL,now())"))
+        amazon_sql = Path("migrations/20261018_amazon_identity.sql").read_text().replace("public.", schema + ".")
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            conn.exec_driver_sql(amazon_sql)
+            conn.exec_driver_sql(amazon_sql)
+        with engine.begin() as conn:
+            assert conn.execute(text(f"SELECT reference FROM {schema}.external_identities WHERE identity_id='i'")).scalar_one() == "https://facebook.com/person"
+            conn.execute(text(f"INSERT INTO {schema}.external_identities VALUES ('amazon','person','amazon','person@example.com',now(),'profile-reference-v1',NULL,NULL,NULL,now())"))
         with engine.connect() as conn:
             with pytest.raises(IntegrityError):
                 conn.execute(text(f"INSERT INTO {schema}.external_identities VALUES ('duplicate','person','facebook','https://facebook.com/other',now(),'profile-reference-v1',NULL,NULL,NULL,now())"))

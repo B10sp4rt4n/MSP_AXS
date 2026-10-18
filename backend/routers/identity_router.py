@@ -6,7 +6,7 @@ from uuid import uuid4
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Response
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, TypeAdapter, ValidationError, field_validator
 from sqlalchemy.orm import Session
 
 from backend.core.auth.dependencies import get_current_user
@@ -14,7 +14,7 @@ from backend.db.core import Usuario, get_core_db
 from backend.db.core.models import ExternalIdentity
 
 router = APIRouter(prefix="/auth/me/identity", tags=["Identidad"])
-Provider = Literal["whatsapp", "facebook", "instagram"]
+Provider = Literal["whatsapp", "facebook", "instagram", "amazon"]
 CONSENT_VERSION = "profile-reference-v1"
 
 
@@ -50,6 +50,11 @@ class ReferenceUpdate(BaseModel):
 
 
 def normalized_reference(provider, value):
+    if provider == "amazon":
+        try:
+            return TypeAdapter(EmailStr).validate_python(value)
+        except ValidationError:
+            raise HTTPException(422, "Usa el correo de tu cuenta Amazon") from None
     if provider == "whatsapp":
         try:
             return phone(value)
