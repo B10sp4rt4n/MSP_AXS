@@ -7,6 +7,7 @@ TipoVisita = Literal["eventual", "frecuente", "visita_personal", "proveedor", "e
 
 class ReglasAcceso(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    foto_salida: Literal["bajo_demanda", "siempre_visible", "deshabilitada"] = "bajo_demanda"
     exigir_proposito: StrictBool = False
     exigir_autorizacion: StrictBool = False
     tipos_visita: list[TipoVisita] = Field(default_factory=lambda: [
