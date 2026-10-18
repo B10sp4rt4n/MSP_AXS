@@ -1,5 +1,6 @@
 "use client";
 
+import IdentityProfile from "@/components/IdentityProfile";
 import AxsBrand from "@/components/AxsBrand";
 import { useEffect, useState } from "react";
 import { UserButton, useAuth, useUser } from "@clerk/nextjs";
@@ -116,6 +117,7 @@ export default function DashboardClient() {
             <DashCard key={p.href} title={p.title} href={p.href} icon={p.icon} desc={p.desc} />
           ))}
         </div>
+        {me && userId && <IdentityProfile key={userId} />}
       </main>
     </div>
   );
