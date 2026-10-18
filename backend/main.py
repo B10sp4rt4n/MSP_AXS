@@ -162,6 +162,8 @@ except Exception as exc:
 # 🐤 Router canario AUP (demostrador)
 app.include_router(canario_router.router)
 app.include_router(auth_router.router)
+from backend.routers import identity_router
+app.include_router(identity_router.router)
 
 # Routers protegidos (requieren AUP_SESSION)
 from backend.routers import bitacora_router

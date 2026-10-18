@@ -160,6 +160,9 @@ class Usuario(Base_CORE):
     email = Column(String, unique=True, index=True)
     rol = Column(String)  # MSP_ADMIN, ADMIN_CONDOMINIO, GUARDIA, RESIDENTE
     password_hash = Column(Text, nullable=True)  # Nullable para usuarios Clerk
+    celular = Column(String(16), nullable=True)  # E.164; nunca credencial de acceso
+    celular_verified_at = Column(DateTime, nullable=True)
+    celular_consent_at = Column(DateTime, nullable=True)
     creado = Column(DateTime, default=datetime.utcnow)
 
 
@@ -379,3 +382,28 @@ class SolicitudAcceso(Base_CORE):
     respondida_por = Column(String, ForeignKey("usuarios.usuario_id"), nullable=True)
     respondida_en = Column(DateTime, nullable=True)
     consentimiento_en = Column(DateTime, nullable=True)
+
+
+class ExternalIdentity(Base_CORE):
+    """Private, self-declared references. Never a credential or an AUP_SCOPE."""
+    __tablename__ = "external_identities"
+    identity_id = Column(String, primary_key=True)
+    usuario_id = Column(String, ForeignKey("usuarios.usuario_id"), nullable=False, index=True)
+    provider = Column(String(16), nullable=False)
+    reference = Column(String(300), nullable=True)
+    consent_at = Column(DateTime, nullable=False)
+    consent_version = Column(String(40), nullable=False)
+    verified_at = Column(DateTime, nullable=True)
+    verification_method = Column(String(80), nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (
+        UniqueConstraint("usuario_id", "provider", name="uq_external_identity_provider"),
+        CheckConstraint("provider IN ('whatsapp', 'facebook', 'instagram')", name="external_provider"),
+        CheckConstraint("(verified_at IS NULL AND verification_method IS NULL) OR "
+                        "(verified_at IS NOT NULL AND verification_method IS NOT NULL)",
+                        name="external_verification"),
+        CheckConstraint("(revoked_at IS NULL AND reference IS NOT NULL) OR "
+                        "(revoked_at IS NOT NULL AND reference IS NULL AND verified_at IS NULL)",
+                        name="external_revocation"),
+    )
