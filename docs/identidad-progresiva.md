@@ -41,3 +41,21 @@ Reversión: volver a la versión previa del código y conservar las columnas/tab
 `tests/test_progressive_identity.py` recorre la API con SQLite sintético y el validador real de scopes: alta previa sin datos, aislamiento entre personas, dos comunidades con la misma identidad, rechazo de una tercera y de elevación administrativa, revocación de scope, cambio de cuenta, independencia de verificaciones, consentimiento, revocación, reintentos y rechazo de inyección/URLs inválidas.
 
 Las pruebas sintéticas no acreditan integración real con Meta/WhatsApp ni operación residencial multivivienda. La migración PostgreSQL debe probarse en un entorno aislado antes de producción.
+
+### Amazon
+
+Amazon es una identidad externa opcional: el usuario declara el correo de su
+cuenta, con consentimiento independiente. No se infiere del correo de AXS.
+El dato permanece sin verificar; puede cambiarse o retirarse con las mismas
+reglas de revocación y reinicio de verificación que las otras referencias.
+No reserva una cuenta ni concede permisos.
+
+Esta referencia no representa Login with Amazon ni el identificador específico
+de una skill Alexa. `AlexaAccount` conserva su flujo de vinculación, autorización
+y revocación independiente; guardar o retirar el correo no conecta ni desconecta
+Alexa. No se almacenan contraseñas ni tokens en el perfil.
+
+Despliegue: aplicar `migrations/20261018_amazon_identity.sql` en CORE después de la
+migración de identidad progresiva y antes del código. Amplía la restricción de
+proveedores, sin modificar los registros existentes. Cualquier futura verificación
+OAuth requiere revisar los requisitos oficiales de Amazon y su autorización.

@@ -140,5 +140,30 @@ def test_missing_consent_and_provider_validation(identity_api):
     client, *_ = identity_api
     for consent in (False, None):
         assert client.put("/auth/me/identity/external/instagram", json={"reference": "https://instagram.com/person", "consent": consent}).status_code == 422
-    assert put(client, "amazon").status_code == 422
+    assert put(client, "unknown").status_code == 422
     assert put(client, "whatsapp", "5512345678").status_code == 422
+
+
+def test_amazon_reference_lifecycle_does_not_link_alexa_or_grant_scope(identity_api):
+    from backend.db.core.models import AlexaAccount
+    client, db, owner, *_ = identity_api
+    assert put(client, "amazon", "not-an-email").status_code == 422
+    assert client.put("/auth/me/identity/external/amazon", json={
+        "reference": "person@example.com", "consent": False}).status_code == 422
+    assert put(client, "amazon", "person@example.com").status_code == 200
+    row = db.query(ExternalIdentity).one()
+    identity_id = row.identity_id
+    assert row.verified_at is None and row.consent_at
+    row.verified_at = datetime.utcnow()
+    row.verification_method = "synthetic-proof"
+    db.commit()
+    assert put(client, "amazon", "changed@example.com").status_code == 200
+    assert row.verified_at is None and row.verification_method is None
+    assert row.identity_id == identity_id and owner.usuario_id == "person"
+    assert client.delete("/auth/me/identity/external/amazon").status_code == 200
+    assert row.reference is None and row.revoked_at
+    assert put(client, "amazon", "new@example.com").status_code == 200
+    assert row.revoked_at is None and row.verified_at is None
+    assert db.query(AlexaAccount).count() == 0
+    assert db.query(UserTenantScope).count() == 0
+    assert owner.rol == "RESIDENTE"

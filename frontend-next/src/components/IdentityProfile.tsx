@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
 
-type Provider = "whatsapp" | "facebook" | "instagram";
+type Provider = "whatsapp" | "facebook" | "instagram" | "amazon";
 type Identity = { provider: Provider; reference: string | null; verified_at: string | null; revoked_at: string | null };
 type Profile = { usuario_id: string; celular: string | null; celular_verified_at: string | null; identities: Identity[] };
-const PROVIDERS: Provider[] = ["whatsapp", "facebook", "instagram"];
-const LABELS = { whatsapp: "WhatsApp", facebook: "Facebook", instagram: "Instagram" };
+const PROVIDERS: Provider[] = ["whatsapp", "facebook", "instagram", "amazon"];
+const LABELS = { whatsapp: "WhatsApp", facebook: "Facebook", instagram: "Instagram", amazon: "Amazon" };
 
 export default function IdentityProfile() {
   const { getToken } = useAuth();
@@ -75,12 +75,13 @@ function IdentityField({ name, label, value, verified, busy, save }: {
     <fieldset disabled={busy}>
       <label htmlFor={`identity-${name}`} className="block font-medium">{label} (opcional)</label>
       <input id={`identity-${name}`} className="mt-2 w-full rounded border border-gray-600 bg-gray-950 p-2"
-        type={phone ? "tel" : "url"} maxLength={phone ? 16 : 300} value={draft}
-        placeholder={phone ? "+525512345678" : `https://${name}.com/usuario`}
+        type={phone ? "tel" : name === "amazon" ? "email" : "url"} maxLength={phone ? 16 : 300} value={draft}
+        placeholder={phone ? "+525512345678" : name === "amazon" ? "Correo de tu cuenta Amazon" : `https://${name}.com/usuario`}
         aria-describedby={`identity-${name}-status`} onChange={event => setDraft(event.target.value)} />
       <p id={`identity-${name}-status`} className="mt-1 text-sm text-gray-400">
         {value ? (verified ? "Verificado" : "Declarado por ti; sin verificar") : "Sin registrar"}
         {name === "whatsapp" && ". Puede ser distinto de tu celular."}
+        {name === "amazon" && ". Solo guardamos el correo como referencia. No verifica tu cuenta ni vincula Alexa; retirarlo tampoco desconecta Alexa."}
       </p>
       <label className="mt-2 flex items-start gap-2 text-sm text-gray-300">
         <input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />
