@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
 
 export interface Reglas {
+  foto_salida?: "bajo_demanda" | "siempre_visible" | "deshabilitada";
   exigir_proposito: boolean;
   exigir_autorizacion: boolean;
   tipos_visita: string[];
@@ -93,6 +94,16 @@ export default function ConfigurarReglasAcceso({ condominioId }: { condominioId:
         </label>)}
       </fieldset>
     </fieldset>
+    <label className="block space-y-2">Foto de evidencia de salida
+      <select aria-label="Foto de evidencia de salida" disabled={saving} value={actual.foto_salida ?? "bajo_demanda"}
+        onChange={e => { setEdit({ ...actual, foto_salida: e.target.value as Reglas["foto_salida"] }); setMessage(""); }}
+        className="block min-h-12 w-full rounded-lg border border-gray-600 bg-gray-800 px-3">
+        <option value="bajo_demanda">Bajo demanda — botón Agregar foto</option>
+        <option value="siempre_visible">Siempre visible — captura abierta, opcional</option>
+        <option value="deshabilitada">Deshabilitada</option>
+      </select>
+      <span className="block text-sm text-gray-400">Aplica a todas las salidas. La fotografía nunca es obligatoria.</span>
+    </label>
     <p className="text-xs text-gray-400">Los cambios aplican a las siguientes entradas, incluidas visitas ya creadas. Las entradas registradas se conservan.</p>
     {(saveError || !actual.tipos_visita.length) && <p role="alert" className="text-red-400 text-sm">{saveError || "Selecciona al menos un tipo de visita."}</p>}
     {message && <p role="status" className="text-green-400 text-sm">{message}</p>}

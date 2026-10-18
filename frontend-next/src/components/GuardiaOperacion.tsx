@@ -11,6 +11,8 @@ import type { Reglas } from "@/components/ReglasAcceso";
 import GuardiaQrScanner from "./GuardiaQrScanner";
 import IdentificacionVisita from "@/components/IdentificacionVisita";
 
+import EvidenciaSalida, { VistaFotoSalida } from "./EvidenciaSalida";
+
 const button = "min-h-12 rounded-xl border border-gray-600 px-4 py-3 font-semibold hover:bg-gray-800 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-purple-400";
 type Ficha = { visita: Visita; reglas: Reglas | null; qr: string | null };
 
@@ -24,6 +26,10 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
   const [historial, setHistorial] = useState(false);
   const [rows, setRows] = useState<Visita[] | null>(null);
   const [ficha, setFicha] = useState<Ficha | null>(null);
+  const [foto, setFoto] = useState<{ file: File; captura: string } | null>(null);
+  const [fotoAbierta, setFotoAbierta] = useState(false);
+  const [fotoError, setFotoError] = useState("");
+  const [fotoGuardada, setFotoGuardada] = useState(false);
   const [camara, setCamara] = useState(false);
   const [manual, setManual] = useState(false);
   const [codigo, setCodigo] = useState("");
@@ -42,15 +48,16 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
   }, [getToken]);
   const detalle = useCallback(async (id: string) => api.get<Visita>(`/visitas/${encodeURIComponent(id)}?condominio_id=${encodeURIComponent(condominioId)}`, await token(), AbortSignal.timeout(20000)), [condominioId, token]);
   function reset(op?: Operacion) {
+    setFoto(null); setFotoAbierta(false); setFotoError(""); setFotoGuardada(false);
     setAbierto(op !== undefined);
     setDestino(null); setOperacion(op ?? "entrada"); setConsulta(""); setHistorial(false); setRows(null); setFicha(null); setCamara(false); setManual(false);
     setCodigo(""); setError("");  setIncierto(false); setExito(null);
   }
   useEffect(() => {
-    if (!exito) return;
+    if (!exito || foto || busy) return;
     const timer = setTimeout(() => { reset(); }, 10000);
     return () => clearTimeout(timer);
-  }, [exito]);
+  }, [exito, foto, busy]);
   async function buscar() {
     if (lock.current) return;
     lock.current = true; setBusy(true); setError(""); setRows(null);
@@ -62,13 +69,13 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
   }
   const revisar = useCallback(async (id: string, qr: string | null = null) => {
     if (lock.current) return;
-    lock.current = true; setBusy(true); setError(""); setFicha(null);
+    lock.current = true; setBusy(true); setError(""); setFicha(null); setFoto(null); setFotoAbierta(false); setFotoError(""); setFotoGuardada(false);
     try {
       const v = await detalle(id);
       if (v.condominio_id !== condominioId) throw new Error("Esta visita no corresponde al condominio seleccionado.");
       if (!destino || !visitaEnDestino(v, destino)) throw new Error("Esta visita corresponde a otro destino. Confirma la casa con el visitante y vuelve a elegirla.");
       if (qr && qr !== v.qr_token) throw new Error("Este QR no corresponde al registro vigente. Busca sin QR para revisar la visita.");
-      const reglas = operacion === "entrada" ? await api.get<Reglas>(`/condominios/${encodeURIComponent(condominioId)}/reglas-acceso`, await token(), AbortSignal.timeout(20000)) : null;
+      const reglas = await api.get<Reglas>(`/condominios/${encodeURIComponent(condominioId)}/reglas-acceso`, await token(), AbortSignal.timeout(20000)).catch(e => { if (operacion === "entrada") throw e; return null; });
       if (alive.current) setFicha({ visita: v, reglas, qr });
     } catch (e) { if (alive.current) setError(e instanceof Error && !/fetch|timeout|abort/i.test(e.message) ? e.message : "No pudimos revisar la visita. Comprueba tu conexión e intenta de nuevo."); }
     finally { lock.current = false; if (alive.current) setBusy(false); }
@@ -81,10 +88,26 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
   }, [revisar]);
   const resultado = ficha && operacion ? evaluarVisita(ficha.visita, operacion, ficha.reglas, ficha.qr) : null;
   const coincidencias = destino && rows ? buscarVisitas(rows.filter(v => visitaEnDestino(v, destino)), consulta, operacion, historial) : [];
-  function cerrar(v: Visita, op: Operacion) {
+  async function guardarFoto(id: string) {
+    if (!foto) return;
+    setFotoError("");
+    try {
+      const body = new FormData(); body.append("foto", foto.file); body.append("captura_id", foto.captura);
+      await api.upload(`/evidencias-salida/${encodeURIComponent(id)}?condominio_id=${encodeURIComponent(condominioId)}`, body, await token(), AbortSignal.timeout(30000));
+      if (alive.current) setFotoGuardada(true);
+    } catch (e) { if (alive.current) setFotoError(`La salida quedó registrada. No se confirmó la foto. ${e instanceof Error ? e.message : "Puedes reintentar o continuar sin ella."}`); }
+  }
+  async function reintentarFoto() {
+    if (!ficha || lock.current) return;
+    lock.current = true; setBusy(true);
+    try { await guardarFoto(ficha.visita.visita_id); }
+    finally { lock.current = false; if (alive.current) setBusy(false); }
+  }
+  async function cerrar(v: Visita, op: Operacion) {
     const fecha = op === "entrada" ? v.entrada_registrada_en : v.salida_registrada_en;
     if (!fecha) return false;
     if (alive.current) { setExito({ nombre: v.nombre_visitante, fecha, op }); setIncierto(false); setError(""); }
+    if (op === "salida" && foto) await guardarFoto(v.visita_id);
     return true;
   }
   async function comprobar() {
@@ -92,7 +115,7 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
     lock.current = true; setBusy(true);
     try {
       const v = await detalle(ficha.visita.visita_id);
-      if (!cerrar(v, operacion) && alive.current) {
+      if (!await cerrar(v, operacion) && alive.current) {
         setFicha({ ...ficha, visita: v }); setIncierto(false);
         setError("La consulta no muestra el movimiento. Revisa de nuevo los datos antes de confirmar; AXS impedirá duplicarlo si otra caseta ya lo registró.");
       }
@@ -106,7 +129,7 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
     try {
       const v = await detalle(ficha.visita.visita_id);
       if (!destino || !visitaEnDestino(v, destino)) throw new Error("El destino cambió. Vuelve a identificar la visita.");
-      const reglas = operacion === "entrada" ? await api.get<Reglas>(`/condominios/${encodeURIComponent(condominioId)}/reglas-acceso`, await token(), AbortSignal.timeout(20000)) : null;
+      const reglas = await api.get<Reglas>(`/condominios/${encodeURIComponent(condominioId)}/reglas-acceso`, await token(), AbortSignal.timeout(20000)).catch(e => { if (operacion === "entrada") throw e; return null; });
       const revision = evaluarVisita(v, operacion, reglas, ficha.qr);
       if (!revision.permitida) {
         if (alive.current) { setFicha({ ...ficha, visita: v, reglas });  setError(revision.mensaje); }
@@ -121,11 +144,11 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
         await api.patch(`/visitas/${encodeURIComponent(v.visita_id)}/${operacion}${scope}`, {}, auth, AbortSignal.timeout(20000));
       }
       const actual = await detalle(v.visita_id);
-      if (!cerrar(actual, operacion)) throw new Error("El servidor aún no confirma el movimiento.");
+      if (!await cerrar(actual, operacion)) throw new Error("El servidor aún no confirma el movimiento.");
     } catch (e) {
       if (!alive.current) return;
       if (enviado) {
-        try { if (cerrar(await detalle(ficha.visita.visita_id), operacion)) return; } catch { /* Resolve with a read before permitting a retry. */ }
+        try { if (await cerrar(await detalle(ficha.visita.visita_id), operacion)) return; } catch { /* Resolve with a read before permitting a retry. */ }
         setIncierto(true);
         setError("No pudimos confirmar el movimiento. Pulsa Comprobar registro antes de hacer cualquier otro intento.");
       } else setError("No pudimos comprobar la visita antes de registrar. Actualiza la revisión e intenta de nuevo.");
@@ -135,8 +158,13 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
   if (exito) return <section role="status" className="rounded-2xl border border-emerald-500 bg-emerald-950/40 p-6 text-center space-y-4">
     <h2 className="text-2xl font-bold text-emerald-200">{exito.op === "entrada" ? "Entrada registrada" : "Salida registrada"}</h2>
     <p className="text-xl">{exito.nombre}</p><p>El movimiento quedó guardado en AXS.</p>
-    <button className={button} onClick={() => reset()}>Atender a la siguiente persona</button>
-    <p className="text-sm text-gray-300">Volveremos al inicio en unos segundos.</p>
+    {foto && <div className="space-y-3">
+      {busy && <p role="status">Guardando foto de salida…</p>}
+      {fotoGuardada && <p role="status">Foto de salida guardada.</p>}
+      {fotoError && <><p role="alert" className="text-amber-200">{fotoError}</p><button disabled={busy} className={button} onClick={reintentarFoto}>Reintentar foto</button></>}
+    </div>}
+    <button disabled={busy} className={button} onClick={() => reset()}>Atender a la siguiente persona</button>
+    <p className="text-sm text-gray-300">{foto ? fotoError ? "Puedes continuar sin confirmar la foto. La salida no se pierde." : "Puedes continuar con la siguiente persona." : "Volveremos al inicio en unos segundos."}</p>
   </section>;
   return <section className="space-y-5" aria-label="Operación de caseta">
     <div className="grid grid-cols-2 gap-3" aria-label="Tipo de movimiento">
@@ -170,6 +198,26 @@ export default function GuardiaOperacion({ condominioId, initialMode = null, onB
         {ficha.visita.proposito && <p className="text-gray-300">Viene por: {ficha.visita.proposito}</p>}
         <p className={resultado?.permitida ? "text-emerald-200" : "text-amber-200"}>{resultado?.mensaje}</p>
         <IdentificacionVisita key={ficha.visita.visita_id} visitaId={ficha.visita.visita_id} condominioId={condominioId} nombreInvitado={ficha.visita.nombre_visitante} />
+        {ficha.visita.salida_registrada_en && <EvidenciaSalida key={`salida:${ficha.visita.visita_id}`} visitaId={ficha.visita.visita_id} condominioId={condominioId} />}
+        {operacion === "salida" && resultado?.permitida && !incierto && <>
+          {!ficha.reglas ? <p className="text-sm text-amber-200">No se pudo consultar la opción de foto. Puedes registrar la salida o actualizar la revisión.</p> : ficha.reglas.foto_salida !== "deshabilitada" && <div className="space-y-3 rounded-xl border border-gray-600 p-4">
+            <p className="font-semibold">Evidencia de salida (opcional)</p>
+            {(fotoAbierta || ficha.reglas.foto_salida === "siempre_visible") ? <>
+              <label className="block">Tomar o seleccionar foto
+                <input key={foto?.captura ?? "empty-photo"} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={busy}
+                  className="block min-h-12 w-full py-3" onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 8 * 1024 * 1024) { setFotoError("La foto debe pesar como máximo 8 MB."); e.target.value = ""; setFoto(null); return; }
+                    setFoto({ file, captura: crypto.randomUUID() }); setFotoError(""); setFotoGuardada(false);
+                  }} />
+              </label>
+              <p className="text-sm text-gray-300">Se adjuntará al confirmar la salida. Puedes continuar sin fotografía.</p>
+            </> : <button disabled={busy} className={button} onClick={() => setFotoAbierta(true)}>Agregar foto</button>}
+            {foto && <><VistaFotoSalida file={foto.file} /><button disabled={busy} className={button} onClick={() => { setFoto(null); setFotoError(""); }}>Quitar foto</button></>}
+            {fotoError && <p role="alert" className="text-amber-200">{fotoError}</p>}
+          </div>}
+        </>}
         {incierto ? <button disabled={busy} className={`${button} w-full bg-amber-900/40`} onClick={comprobar}>Comprobar registro</button> : <>
           {resultado?.permitida && <button disabled={busy} className={`${button} w-full bg-emerald-800 text-white`} onClick={registrar}>Confirmar {operacion} de {ficha.visita.nombre_visitante}</button>}
           <div className="flex flex-wrap gap-2"><button disabled={busy} className={button} onClick={() => revisar(ficha.visita.visita_id, ficha.qr)}>Actualizar revisión</button><button disabled={busy} className={button} onClick={() => { setFicha(null);  setError(""); }}>Buscar otra visita</button></div>

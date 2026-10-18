@@ -48,9 +48,9 @@ export class ApiError extends Error {
 }
 
 export const api = {
-  upload: async <T>(path: string, body: FormData, token: string): Promise<T> => {
+  upload: async <T>(path: string, body: FormData, token: string, signal?: AbortSignal): Promise<T> => {
     const res = await fetch(`${API_URL}${path}`, {
-      method: "POST", headers: { Authorization: `Bearer ${token}` }, body,
+      method: "POST", signal, headers: { Authorization: `Bearer ${token}` }, body,
     });
     const result = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(typeof result.detail === "string" ? result.detail : `No se guardó (${res.status})`);
