@@ -113,7 +113,11 @@ export default function SolicitudesAcceso({ condominioId, destinoId, visita, res
       if (alive.current) { setDecision(null); setFresh(false); setError(`${e instanceof Error ? e.message : "No se confirmó la respuesta"}. Actualiza para comprobar qué quedó registrado antes de responder otra vez.`); }
     } finally { lock.current = false; if (alive.current) setBusy(false); }
   }
-  const visibles = rows.filter(r => (!destinoId || r.destino_id === destinoId) && (!visita || r.visita_id === visita.visita_id));
+  // Caseta only needs requests that have not already resulted in an entry.
+  // Keep the durable request and visit intact for resident context and history.
+  const visibles = rows.filter(r =>
+    (residente || (r.estado !== "consumida" && !r.entrada_registrada)) &&
+    (!destinoId || r.destino_id === destinoId) && (!visita || r.visita_id === visita.visita_id));
   const vigente = (r: Solicitud) => fresh && now > 0 && new Date(r.expira_en).getTime() > now;
   return <section aria-label="Solicitudes de acceso" className="space-y-3 rounded-xl border border-purple-700 p-4">
     <h2 className="text-lg font-semibold">{residente ? "Alguien te visita en caseta" : "Autorización del residente"}</h2>
