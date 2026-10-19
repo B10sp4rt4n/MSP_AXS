@@ -80,6 +80,22 @@ function bundle(name, parent=path.join(process.cwd(),'entry.js')) {
   await open(true,'expirada');
   await page.getByText('La solicitud venció. No hay permiso vigente para entrar.',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Permitir entrada',exact:true}).count(),0);
+  // A completed entry must disappear from the guard inbox on its next poll,
+  // including a stale authorization state with a confirmed entry flag.
+  for (const estado of ['consumida', 'permitida']) {
+   await open(false);
+   await page.evaluate(()=>window.rows=[{solicitud_id:'closed',visita_id:'left',destino_id:'home',casa_unidad:'101',nombre_visitante:'Visita que salió',proposito:'Entrega',estado:'pendiente',expira_en:new Date(Date.now()+300000).toISOString(),entrada_registrada:false}]);
+   await page.getByRole('button',{name:'Actualizar solicitudes',exact:true}).click();
+   await page.getByText('Visita que salió · 101',{exact:true}).waitFor();
+   await page.evaluate(estado=>{window.rows[0].estado=estado;window.rows[0].entrada_registrada=true;},estado);
+   await page.getByText('Visita que salió · 101',{exact:true}).waitFor({state:'detached',timeout:10000});
+   await page.getByText('No hay solicitudes para mostrar.',{exact:true}).waitFor();
+   assert.equal(await page.evaluate(()=>window.rows.length),1);
+   assert.equal(await page.evaluate(()=>window.posts.length),0);
+  }
+  // The resident can still see the completed decision as context.
+  await open(true,'consumida');
+  await page.getByText('Entrada registrada en caseta.',{exact:true}).waitFor();
   assert.deepEqual(errors,[]);
   console.log('PASS remote app: lost create/reply, stable ID/destination, explicit consent, rejection, expiry, no automatic entry');
  } finally {await browser.close();}
