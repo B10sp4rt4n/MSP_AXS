@@ -24,7 +24,7 @@ const react=bundle('react'),dom=bundle('react-dom/client'),component=bundle(path
 const script=`const mods=[${modules.join(',')}],cache={};function require(id){if(!cache[id]){const m={exports:{}};cache[id]=m;mods[id](require,m,m.exports)}return cache[id].exports}require(${dom}).createRoot(document.getElementById('root')).render(require(${react}).createElement(require(${component}).default));`;
 const browser=await chromium.launch({headless:true});try{
  const page=await browser.newPage({viewport:{width:390,height:844}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.setContent('<div id="root"></div>');await page.evaluate(()=>{window.rows=[];window.writes=[];if(!crypto.randomUUID)crypto.randomUUID=()=> '00000000-0000-4000-8000-000000000001';});await page.addScriptTag({content:script});
+ await page.setContent('<div id="root"></div>');await page.evaluate(()=>{window.rows=[];window.writes=[];if(!crypto.randomUUID)crypto.randomUUID=()=> '00000000-0000-4000-8000-000000000001';});await page.addScriptTag({content:script});await page.getByRole('heading',{name:'Solicitudes ARCO',exact:true}).waitFor();assert.deepEqual(errors,[]);
  await page.getByLabel('Cliente',{exact:true}).selectOption('b');await page.getByRole('alert').waitFor();assert.equal(await page.getByRole('button',{name:'Registrar solicitud',exact:true}).count(),0);
  await page.getByLabel('Cliente',{exact:true}).selectOption('a');
  for(const [label,value] of [['Referencia privada del titular','SYNTHETIC_001'],['Responsable asignado','Operador'],['Recepción original','2026-01-01T09:00'],['Vencimiento de determinación','2026-01-20T09:00']])await page.getByLabel(label).fill(value);

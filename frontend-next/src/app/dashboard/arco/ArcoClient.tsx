@@ -95,7 +95,7 @@ export default function ArcoClient() {
     <p>Registro privado para el personal de privacidad designado. Usa referencias del expediente seguro; no captures nombres, fotografías, contraseñas ni documentos aquí.</p>
     <p className="text-sm text-gray-400">Las fechas de recepción y vencimiento se capturan en la zona horaria de tu dispositivo. El historial se muestra en horario de Ciudad de México. Los plazos deben revisarse con el calendario aplicable.</p>
     <label className="grid gap-2">Cliente
-      <select className={style} disabled={busy} value={tenant} onChange={e => {
+      <select aria-label="Cliente" className={style} disabled={busy} value={tenant} onChange={e => {
         generation.current++; setTenant(e.target.value); setRows(null); setSelected(null); setOffset(0); setError(""); retry.current = null;
       }}><option value="">Selecciona un cliente</option>{tenants.map(t => <option key={t.condominio_id} value={t.condominio_id}>{t.nombre}</option>)}</select>
     </label>
