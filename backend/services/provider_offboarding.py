@@ -1,6 +1,7 @@
 """Explicit grant provenance and atomic, per-condominium provider offboarding."""
 from datetime import datetime
 from fastapi import HTTPException
+from backend.core.security_denial import SecurityDenial
 from backend.db.core import Condominio, UserTenantScope, ScopeStatus, AccessLevel, EventOutbox, ProviderContract
 from backend.core.scope.msp_boundary import require_platform_operator, active_msp_ids, is_platform_operator
 from backend.core.tenant.context import _set_postgres_tenant
@@ -12,6 +13,10 @@ def lock_condo(db, tenant):
     row=db.query(Condominio).filter_by(condominio_id=tenant).populate_existing().with_for_update().one_or_none()
     if row is None:
         raise HTTPException(404, 'Condominio no encontrado')
+    # Este servicio es residencial: GLOBAL tampoco debe modificar empresas
+    # mediante rutas heredadas de contratos, procedencia o baja MSP.
+    if row.modalidad != 'residencial':
+        raise SecurityDenial(403, 'Operacion no disponible para esta modalidad', reason='TENANT_MODE_DENIED')
     _set_postgres_tenant(db, tenant)
     return row
 
