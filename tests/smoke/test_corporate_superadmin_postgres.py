@@ -42,7 +42,10 @@ def test_corporate_provisioner_least_privilege_postgres():
                 created_at timestamp,next_attempt_at timestamp,attempts integer)"""))
             c.execute(text(f"CREATE TABLE {schema}.visitas(visita_id varchar PRIMARY KEY)"))
         sql = Path("migrations/20261023_corporate_superadmin_c2.sql").read_text()
-        sql = sql.replace("public.", schema + ".").replace("%I", "%%I").replace("%s", "%%s")
+        sql = (sql.replace("public.", schema + ".")
+               .replace("GRANT USAGE ON SCHEMA public TO",
+                        f"GRANT USAGE ON SCHEMA {schema} TO")
+               .replace("%I", "%%I").replace("%s", "%%s"))
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as c:
             c.exec_driver_sql(sql)
             c.exec_driver_sql(sql)
