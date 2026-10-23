@@ -28,6 +28,8 @@ export default function MSPClient() {
   const [tab, setTab] = useState<Tab>("condominios");
   const [condominios, setCondominios] = useState<Condominio[]>([]);
   const [msps, setMsps] = useState<MSP[]>([]);
+  // La autoridad GLOBAL se comprueba en GOV desde el backend, no desde el rol MSP.
+  const [corporativoDisponible, setCorporativoDisponible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -49,7 +51,13 @@ export default function MSPClient() {
       if (mspsResult.status === "fulfilled") {
         setMsps(mspsResult.value);
       }
-      // MSPs fallback silencioso si 403 (no MSP_ADMIN) — los condominios aún se muestran
+      // Este enlace solo aparece tras una validación positiva de autoridad GLOBAL.
+      // 403/404 (MSP sin GLOBAL o modalidad apagada) nunca activan la navegación.
+      try {
+        const access = await api.get<{ autorizado: boolean }>("/plataforma/corporativo/estado", token);
+        setCorporativoDisponible(access.autorizado === true);
+      } catch { setCorporativoDisponible(false); }
+      // MSPs fallback silencioso si 403 — los condominios aún se muestran.
       setLoading(false);
     }).catch((e: unknown) => {
       setError(e instanceof Error ? e.message : "Error de red");
@@ -74,6 +82,7 @@ export default function MSPClient() {
           <div>
             <h1 className="text-lg font-bold">Dashboard MSP</h1>
             <a href="/dashboard/proveedores" className="text-xs text-blue-300">Contratos · operador de plataforma</a>
+            {corporativoDisponible && <a href="/dashboard/corporativo/plataforma" className="ml-3 text-xs text-blue-300 underline">AXS Corporativo · Superadmin</a>}
             <p className="text-xs text-gray-500">{msps[0]?.nombre ?? ""}</p>
           </div>
         </div>
