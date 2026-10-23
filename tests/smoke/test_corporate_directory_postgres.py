@@ -34,6 +34,9 @@ def test_corporate_directory_migration_and_cross_tenant_fks():
 
         sql = Path("migrations/20261023_corporate_directory_c1.sql").read_text()
         sql = sql.replace("public.", schema + ".").replace("TO axs_core_app", "TO axs_rls_ci")
+        # psycopg interpreta el %I de format() dentro del DO como placeholder.
+        # exec_driver_sql requiere escapar %, aunque psql usa el SQL original.
+        sql = sql.replace("%I", "%%I")
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as c:
             c.exec_driver_sql(sql)
             c.exec_driver_sql(sql)
