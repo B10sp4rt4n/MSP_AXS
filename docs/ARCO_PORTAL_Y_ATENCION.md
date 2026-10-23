@@ -37,6 +37,8 @@ Un cambio de estado del expediente conserva la trazabilidad y no debe duplicar l
 
 ## Conservación y límites de la implementación
 
+La [matriz de conservación y atención ARCO](ARCO_MATRIZ_CONSERVACION_V1.md) distingue plazos autorizados y propuestos, responsables, brechas y ensayo sintético pendiente de ejecución. No activa borrados ni modifica datos reales.
+
 La trazabilidad no justifica almacenar datos personales indefinidamente. Los datos de identidad y las fotografías deben poder tratarse separadamente del hecho auditable. Un hash o una referencia que permita reidentificar a alguien sigue requiriendo protección.
 
 Una retención excepcional requiere fundamento, alcance, responsable y término o revisión. Los datos bloqueados se excluyen de la operación ordinaria. Para suprimir se deben considerar almacenamiento activo, miniaturas, cachés, índices y proveedores; los respaldos requieren caducidad definida y reaplicación de decisiones ARCO antes de restaurar el servicio. Las copias descargadas fuera de AXS requieren identificar a su custodio y el tratamiento correspondiente; la plataforma no controla su borrado directamente.

@@ -1,0 +1,437 @@
+{
+  "exercise": "ARCO-SIM-001",
+  "executed_at_utc": "2026-10-23T03:46:57.886793+00:00",
+  "scope": "Local tests; SQLite in-memory fixtures; fake storage; synthetic JPEGs; test authentication. No live provider or production operations.",
+  "result": "PARTIAL_VALIDATION",
+  "counts": {
+    "passed": 82,
+    "failed": 0,
+    "skipped": 0
+  },
+  "command": "python -m pytest -o addopts='' tests/test_identificacion_conservacion.py tests/test_identificaciones.py tests/test_identificacion_retencion.py tests/test_identificacion_borrado_prueba.py -q",
+  "source_sha256": {
+    "tests/test_identificacion_borrado_prueba.py": "cef2344f24e5616c7f67ae4c9e9e3b083fd426604d7904d31c32be6b580a17b1",
+    "tests/test_identificacion_conservacion.py": "1b63ee5f33f0255208a6752b02e4bd690f70c2ee3c578fd6b7883130cfe87c93",
+    "tests/test_identificacion_retencion.py": "b7dc17a35949db9d4ae22adb73d035e9ece98b9468cc2916d01897583cfff7cc",
+    "tests/test_identificaciones.py": "45a1b33d5e3e9712001fff8b0cd5f7043d833d99516b3b6ff19029721d0a323d"
+  },
+  "cases": [
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_boundary_and_stop_never_restore_access",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_hold_caducity_and_release",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_hold_requires_finite_explicit_details[change0]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_hold_requires_finite_explicit_details[change1]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_hold_requires_finite_explicit_details[change2]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_hold_requires_finite_explicit_details[change3]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_hold_requires_finite_explicit_details[change4]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_hold_access_denied[guard-GUARDIA-a1]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_hold_access_denied[admin-ADMIN_CONDOMINIO-b1]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_hold_access_denied[resident-RESIDENTE-a1]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_complete_pair_no_duplicate_claim_or_audit",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_partial_failure_retry_same_operation",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_claim_loss_and_tamper_never_delete",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_completion_event_failure_retries_without_resurrection",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_late_exit_cannot_extend_and_early_exit_is_audited",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_release_and_anonymous_denial",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_expiry_rechecked_after_download",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_intent_failure_never_calls_storage",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_exit_updates_retention_in_exit_transaction",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_worker_gate_never_deletes[APP_ENV-production]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_worker_gate_never_deletes[NEON_DEV_ENDPOINT-wrong]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_worker_gate_never_deletes[AXS_ID_RETENTION_PILOT_ENABLED-false]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_expired_capture_retry_does_not_return_transcribed_name",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_provider_uncertain_read_is_not_absence[304]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_provider_uncertain_read_is_not_absence[429]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_provider_uncertain_read_is_not_absence[500]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_conservacion",
+      "case": "test_provider_uncertain_read_is_not_absence[503]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_pair_retry_and_private_read",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_denials_before_storage[vb-b1-guard-GUARDIA]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_denials_before_storage[vb-a1-guard-GUARDIA]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_denials_before_storage[va-b1-guard-GUARDIA]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_denials_before_storage[va-a1-resident-RESIDENTE]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_invalid_images[not-an-image]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_invalid_images[too-small]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_invalid_images[over-8mb]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_missing_side",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_partial_upload_rolls_back",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_audit_failure_rolls_back",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_store_disabled_by_default",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_adapter_uses_private_blob",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_missing_blob_token",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_rejects_public_blob_response",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_remote_photo_read_releases_database_transaction",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_scope_revocation_during_download_prevents_delivery",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificaciones",
+      "case": "test_evidence_removed_during_download_prevents_delivery",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_read_only_no_storage_no_identity_details",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_capture_based_cutoff[2026-11-10-vigente]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_capture_based_cutoff[2026-11-11-venceria]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_capture_based_cutoff[2026-10-01-posterior_al_corte]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_exit_is_base_instead_of_capture",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_mexico_cutoff_does_not_include_next_midnight",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_inconsistent_pairs_require_review[missing_side]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_inconsistent_pairs_require_review[wrong_tenant]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_inconsistent_pairs_require_review[wrong_capture]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_inconsistent_pairs_require_review[public_storage]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_inconsistent_pairs_require_review[missing_exit]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_inconsistent_pairs_require_review[capture_after_exit]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_report_denies_roles_and_foreign_tenant[guard-GUARDIA-a1]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_report_denies_roles_and_foreign_tenant[resident-RESIDENTE-a1]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_report_denies_roles_and_foreign_tenant[admin-ADMIN_CONDOMINIO-b1]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_report_denies_roles_and_foreign_tenant[msp-MSP_ADMIN-b1]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_anonymous_denied_and_authorized_msp_allowed",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_invalid_date_and_size_limit_fail_without_partial_report",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_retencion",
+      "case": "test_empty_report",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_pair_deleted_and_audited_without_reupload_or_duplicate_event",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_disabled_or_production_never_deletes[APP_ENV-production]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_disabled_or_production_never_deletes[NEON_DEV_ENDPOINT-wrong]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_disabled_or_production_never_deletes[AXS_ID_PHOTOS_TEST_PURGE_ENABLED-false]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_non_fixture_or_tampered_content_never_deleted[name]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_non_fixture_or_tampered_content_never_deleted[actor]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_non_fixture_or_tampered_content_never_deleted[capture]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_non_fixture_or_tampered_content_never_deleted[key]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_non_fixture_or_tampered_content_never_deleted[metadata_hash]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_non_fixture_or_tampered_content_never_deleted[content]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_non_fixture_or_tampered_content_never_deleted[active_visit]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_foreign_or_nonadmin_denied[guard-GUARDIA-a1]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_foreign_or_nonadmin_denied[resident-RESIDENTE-a1]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_foreign_or_nonadmin_denied[admin-ADMIN_CONDOMINIO-b1]",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_partial_provider_failure_remains_pending_and_retry_completes",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_intent_audit_failure_prevents_physical_deletion",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_completion_audit_failure_preserves_retryable_intent",
+      "result": "passed"
+    },
+    {
+      "suite": "tests.test_identificacion_borrado_prueba",
+      "case": "test_sdk_missing_object_normalized_to_404",
+      "result": "passed"
+    }
+  ],
+  "not_executed": [
+    "Full ARCO case management and response delivery",
+    "General profile rectification or opposition workflow",
+    "Real provider object deletion",
+    "Backup expiration and ARCO-aware restore",
+    "PostgreSQL RLS/concurrency in this local run"
+  ]
+}

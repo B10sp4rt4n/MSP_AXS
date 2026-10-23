@@ -13,6 +13,8 @@ Sistema MSP_AXS implementado siguiendo paradigma AUP:
 
 ### Privacidad y derechos ARCO
 
+[Matriz de conservación y atención ARCO](ARCO_MATRIZ_CONSERVACION_V1.md): categorías, plazos propuestos, responsables, brechas y protocolo de ensayo sintético.
+
 📄 [ARCO_PORTAL_Y_ATENCION.md](ARCO_PORTAL_Y_ATENCION.md) — Página pública, canal de recepción, procedimiento asistido y límites de implementación. Disponible en el portal en `/privacidad/arco`.
 
 ### **1. Resumen Ejecutivo Completo**
