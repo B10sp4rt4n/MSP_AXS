@@ -233,7 +233,13 @@ function Console() {
             </label>
             <button className={primary + " sm:col-span-2"} type="button" onClick={prepareCreate}>Revisar alta de empresa</button>
           </fieldset>
-          {requestId && <p className="break-all text-xs text-gray-400">Referencia reutilizable del alta: {requestId}</p>}
+          {requestId && <div className="space-y-2">
+            <p className="break-all text-xs text-gray-400">Referencia reutilizable del alta: {requestId}</p>
+            {!company && <button type="button" className="min-h-11 rounded border border-blue-600 px-4 py-2 text-blue-200 disabled:opacity-40"
+              disabled={busy || !!pending || !ready.credencial_configurada} onClick={prepareCreate}>
+              Revisar nuevamente el mismo alta
+            </button>}
+          </div>}
           <button type="button" className="min-h-11 rounded border border-gray-600 px-4" disabled={busy || !!pending} onClick={resetCompany}>Nueva empresa</button>
         </section>
 
