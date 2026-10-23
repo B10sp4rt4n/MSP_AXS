@@ -140,3 +140,17 @@ def test_privileged_connection_is_fail_closed_without_url(monkeypatch):
     with pytest.raises(HTTPException) as error:
         next(get_provisioning_db())
     assert error.value.status_code == 503
+
+
+def test_global_access_probe_does_not_depend_on_msp_role(company_setup, monkeypatch):
+    """La consola solo se muestra con autoridad GLOBAL vigente, no por rol."""
+    client, core, gov, body, auth = company_setup
+    monkeypatch.setenv("AXS_CORPORATE_PROVISIONING_ENABLED", "true")
+    monkeypatch.setenv("AXS_CORPORATE_API_ENABLED", "true")
+    route = "/plataforma/corporativo/acceso"
+    assert client.get(route, headers=auth("provider")).status_code == 403
+    granted = client.get(route, headers=auth("super"))
+    assert granted.status_code == 200
+    assert granted.json() == {"authorized": True, "provisioning_enabled": True}
+    monkeypatch.setenv("AXS_CORPORATE_PROVISIONING_ENABLED", "false")
+    assert client.get(route, headers=auth("super")).status_code == 404
