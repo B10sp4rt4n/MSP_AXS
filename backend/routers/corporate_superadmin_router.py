@@ -5,7 +5,7 @@ con rol MSP_ADMIN pero sin autoridad GLOBAL no puede aprovisionar empresas.
 """
 import uuid
 from datetime import datetime
-from typing import Literal
+import hashlib
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -63,6 +63,11 @@ class CreateCompany(Input):
 
 class ActivateDirectory(Input):
     confirmacion: StrictBool
+
+
+class DirectoryLimits(Input):
+    max_sedes: int = Field(ge=1, le=1000)
+    max_destinos_por_sede: int = Field(ge=1, le=2000)
 
 
 def require_global(gov: Session, actor: Usuario):
@@ -205,3 +210,81 @@ def activate_directory(
             provisioner.rollback()
             raise
     return view(tenant, org, owner.user_id)
+
+
+def policy_key(tenant_id: str, action: str) -> str:
+    # La clave estable permite reintentos sin políticas duplicadas.
+    return "cpg_" + hashlib.sha256(f"{tenant_id}:{action}".encode()).hexdigest()[:32]
+
+
+@router.put("/empresas/{tenant_id}/capacidades")
+def configure_directory_limits(
+    tenant_id: str, body: DirectoryLimits, request: Request,
+    gov: Session = Depends(get_gov_db),
+    provisioner: Session = Depends(get_provisioning_db),
+    actor: Usuario = Depends(get_current_user),
+):
+    """Dos cuotas de catálogo, no tarifas ni autorización de ingreso de visitas.
+
+    CORE y GOV viven en bases independientes: se registra primero la solicitud
+    en la outbox CORE. Si GOV falla, no se declara una actualización completada.
+    """
+    require_global(gov, actor)
+    require_provisioner_role(provisioner)
+    require_company(provisioner, tenant_id)
+    specifications = (
+        ("crear_sede_corporativa", body.max_sedes),
+        ("crear_destino_corporativo", body.max_destinos_por_sede),
+    )
+    # Permisos explícitos desde Superadmin: no copiar una política GLOBAL
+    # de otro cliente y no cambiar reglas de un condominio residencial.
+    keys = [policy_key(tenant_id, name) for name, _ in specifications]
+    rows = gov.query(Policy).filter(Policy.policy_id.in_(keys)).with_for_update().all()
+    mapped = {p.policy_id: p for p in rows}
+    for name, limit in specifications:
+        key = policy_key(tenant_id, name)
+        found = mapped.get(key)
+        if found and (found.target_tenant_id != tenant_id
+                      or found.accion_objetivo != name
+                      or found.ambito != PolicyScope.TENANT):
+            raise HTTPException(409, "Identificador de política ocupado")
+    if all(
+        mapped.get(policy_key(tenant_id, name)) is not None
+        and mapped[policy_key(tenant_id, name)].estado == GovStatus.ACTIVO
+        and mapped[policy_key(tenant_id, name)].limites == {"max_count": limit}
+        for name, limit in specifications
+    ):
+        return {"tenant_id": tenant_id, "max_sedes": body.max_sedes,
+                "max_destinos_por_sede": body.max_destinos_por_sede}
+    try:
+        audit(provisioner, tenant_id, actor, request, "solicitar_capacidades_directorio")
+        provisioner.commit()
+        for name, limit in specifications:
+            key = policy_key(tenant_id, name)
+            existing = mapped.get(key)
+            if existing:
+                existing.limites = {"max_count": limit}
+                existing.estado = GovStatus.ACTIVO
+                existing.valida_desde = datetime.utcnow()
+                existing.valida_hasta = None
+            else:
+                gov.add(Policy(
+                    policy_id=key, nombre="Cupo " + name,
+                    ambito=PolicyScope.TENANT, target_tenant_id=tenant_id,
+                    accion_objetivo=name, limites={"max_count": limit},
+                    estado=GovStatus.ACTIVO,
+                ))
+        gov.commit()
+        _set_postgres_tenant(provisioner, tenant_id)
+        audit(provisioner, tenant_id, actor, request, "confirmar_capacidades_directorio")
+        provisioner.commit()
+    except IntegrityError as exc:
+        gov.rollback()
+        provisioner.rollback()
+        raise HTTPException(409, "Conflicto de configuración; vuelve a consultar") from exc
+    except Exception:
+        gov.rollback()
+        provisioner.rollback()
+        raise
+    return {"tenant_id": tenant_id, "max_sedes": body.max_sedes,
+            "max_destinos_por_sede": body.max_destinos_por_sede}
