@@ -18,6 +18,7 @@ Depende de [C0 PR #96](https://github.com/B10sp4rt4n/MSP_AXS/pull/96) y del [con
 1. **Global:** `AXS_CORPORATE_API_ENABLED` debe estar exactamente en `true`. Ausente/falso responde 404.
 2. **Por tenant:** la raíz debe estar marcada corporativa y `corporativo_habilitado=true`. Sin esa habilitación, responde 403 para un miembro autenticado.
 3. **Por persona y sede:** membresía corporativa vigente, función suficiente y, para host/recepción, asignación activa en la sede. Ser superadmin/MSP o residente no crea automáticamente membresía empresarial.
+4. **Gobierno de altas:** las acciones de creación necesitan política AUP_GOV de tenant y cupos suficientes; sin política o al exceder el máximo, se deniega y audita.
 
 Por ahora **no existe endpoint de alta empresarial, activación comercial ni asignación de owner**. Esas operaciones deben llegar en un PR específico autorizado únicamente para superadmin, con trazabilidad y reglas GOV.
 
@@ -31,7 +32,7 @@ La migración está **versionada, no ejecutada en CORE productivo**. Los tests c
 
 ## Pendientes antes de un piloto corporativo
 
-- Flujo de superadmin para empresa, owner, habilitación y GOV por plan/tenant. La API de sedes no implementa todavía cupos ni evaluación específica AUP_GOV: no debe ofrecerse como función comercial habilitada.
+- Flujo superadmin para empresa, asignación de owner, habilitación y creación/revocación de políticas GOV por plan/tenant. **Ya se evalúan** las acciones `crear_sede_corporativa` y `crear_destino_corporativo` contra políticas GOV del tenant y su cuota `max_count`, serializando altas por empresa/sede; en ausencia de política se rechazan. La API no crea ni habilita por sí misma esas políticas, por lo que sigue sin estar lista para habilitar comercialmente.
 - Revisión total de rutas residenciales que no usan guards canónicos.
 - Portal separado para owner, anfitrión y recepción, con mensajes propios.
 - Invitación, decisión remota, entrada/salida, QR por sede, hora local y evidencia configurable.
