@@ -1,0 +1,29 @@
+{
+  "pr": 92,
+  "commit": "f6959fd006ecac21939dc5e99517a4d5d1f49baa",
+  "ci": {
+    "tests": 39906218545,
+    "postgres": 39906218461,
+    "result": "success"
+  },
+  "backend": {
+    "deployment": "775f4407-f69e-4808-9a7a-077ac71f724b",
+    "status": "SUCCESS"
+  },
+  "frontend": {
+    "deployment": "dpl_HVqUPFP62zfvF8E8dexbuGeXkif9",
+    "status": "READY"
+  },
+  "production_verification": {
+    "tenant": "Residencial San Luis",
+    "before": "Entered visitor remained visible although exit was recorded",
+    "after": "No hay solicitudes para mostrar.",
+    "writes": 0
+  },
+  "local": {
+    "tests_passed": 25,
+    "tests_skipped": 1,
+    "typescript": "pass",
+    "eslint": "pass"
+  }
+}
