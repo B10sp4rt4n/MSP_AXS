@@ -1,0 +1,25 @@
+{
+  "status": "prepared_not_activated",
+  "local_backend": {
+    "passed": 565,
+    "skipped": 26,
+    "coverage_percent": 80
+  },
+  "rehearsal": {
+    "project": "patient-tree-68362559",
+    "branch": "br-summer-queen-b536tft0",
+    "parent": "br-empty-firefly-b5ob1gsg",
+    "parent_lsn": "0/4664650",
+    "rls_enabled": true,
+    "rls_forced": true,
+    "app_bypass": false,
+    "app_delete": false,
+    "app_scoped_read": true
+  },
+  "production_changes": false,
+  "blockers": [
+    "CI backend job in_progress at last observation",
+    "Vercel team authorization 403",
+    "Railway CORE endpoint not yet confirmed because connector redacts values"
+  ]
+}
