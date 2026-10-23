@@ -98,6 +98,18 @@ def test_http_corporate_directory_enforces_membership_and_site(
     from backend.core.auth.jwt import create_access_token
     from backend.services import security_outbox
 
+    from backend.db.gov import Policy, PolicyScope, GovStatus
+    db_gov_session.add_all([
+        Policy(policy_id="corp_site_limit", nombre="Sedes corporativas",
+               ambito=PolicyScope.TENANT, target_tenant_id="ca",
+               accion_objetivo="crear_sede_corporativa", limites={"max_count": 3},
+               estado=GovStatus.ACTIVO),
+        Policy(policy_id="corp_destination_limit", nombre="Destinos corporativos",
+               ambito=PolicyScope.TENANT, target_tenant_id="ca",
+               accion_objetivo="crear_destino_corporativo", limites={"max_count": 5},
+               estado=GovStatus.ACTIVO),
+    ])
+    db_gov_session.commit()
     monkeypatch.setenv("AXS_CORPORATE_API_ENABLED", "true")
     monkeypatch.setattr(security_outbox, "SessionFactory", sessionmaker(bind=db_core_session.bind))
     previous = app.dependency_overrides.copy()
@@ -134,11 +146,16 @@ def test_http_corporate_directory_enforces_membership_and_site(
                                json={"nombre": "Sala de juntas"})
             assert area.status_code == 201, area.text
             assert area.json()["site_id"] == site
+            # No se rebasan los límites comerciales: 2 sedes iniciales + 1 nueva.
+            over_limit = client.post(root + "/sedes", headers=auth("owner_a"),
+                                     json={"nombre": "Sede adicional"})
+            assert over_limit.status_code == 403
+            assert len(db_core_session.query(CorporateSite).filter_by(tenant_id="ca").all()) == 3
             assert len(db_core_session.query(EventOutbox).all()) == 2
             assert all(r.condominio_id == "ca" for r in db_core_session.query(EventOutbox).all())
             # Las denegaciones se auditan fuera de la transacción operativa.
             reasons = {r.payload["motivo"] for r in db_core_session.query(SecurityOutbox).all()}
-            assert {"SCOPE_DENIED", "ROLE_DENIED"} <= reasons
+            assert {"SCOPE_DENIED", "ROLE_DENIED", "CORPORATE_DISABLED"} <= reasons
             assert db_core_session.query(CorporateDestination).filter_by(tenant_id="cb").count() == 1
     finally:
         app.dependency_overrides.clear()
