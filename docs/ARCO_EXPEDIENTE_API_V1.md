@@ -29,3 +29,11 @@ Pruebas locales: ciclo completo sintético, idempotencia, rechazo por roles/tena
 Antes de habilitar para datos reales: validar migración/RLS/concurrencia en PostgreSQL, incorporar pantalla administrativa y probarla con actores designados, acordar custodia de referencias/expedientes externos, verificar identidad por canal seguro, calendario de plazos y notificaciones operativas, ampliar acciones por categoría y verificar conservación del propio expediente. `pending_actions` es una declaración asistida del operador, no una comprobación automática del proveedor. Registrar cero no demuestra por sí mismo eliminación de datos.
 
 No envía correos, no adjunta IDs, no borra datos, no conecta proveedores, no modifica respaldos ni ofrece una bandeja pública. Las capacidades previas del portal permanecen disponibles con esta función deshabilitada.
+
+## Pantalla administrativa preparada
+
+Ruta autenticada `/dashboard/arco`, con selección de cliente, registro de recepción y vencimiento, listado paginado, historial y confirmación del siguiente estado. Los formularios solo aparecen tras una consulta ARCO autorizada; al cambiar de cliente se retiran los datos anteriores. Se exige referencia de evidencia y, al resolver/cerrar, constancia de comunicación. Las fechas de captura usan la zona del dispositivo; la presentación histórica usa Ciudad de México.
+
+El enlace desde Configuración requiere `NEXT_PUBLIC_ARCO_CASES_UI_ENABLED=true`; permanece oculto por defecto. La autorización real sigue en backend, sin depender de ese enlace. Una respuesta incierta provoca recarga del expediente antes de otro avance; el UUID se conserva para reintentos de una recepción idéntica.
+
+Validación local: build de producción, TypeScript y ESLint aprobados; 8 pruebas de API aprobadas. Se añadieron `tests/arco-cases.browser.cjs` al job de navegador y `tests/smoke/test_arco_postgres.py` al job PostgreSQL: este último verifica migración repetible, rol sin bypass, RLS por tenant y bloqueo concurrente. Sus resultados remotos deben confirmarse antes de declarar esas validaciones aprobadas. La instalación local de PostgreSQL fue impedida por el entorno y la descarga local de Chromium no produjo un archivo válido.
