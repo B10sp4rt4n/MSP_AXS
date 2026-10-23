@@ -6,6 +6,8 @@ con rol MSP_ADMIN pero sin autoridad GLOBAL no puede aprovisionar empresas.
 import uuid
 from datetime import datetime
 import hashlib
+import os
+import re
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -294,3 +296,66 @@ def configure_directory_limits(
         raise
     return {"tenant_id": tenant_id, "max_sedes": body.max_sedes,
             "max_destinos_por_sede": body.max_destinos_por_sede}
+
+
+def validated_company_id(tenant_id: str) -> str:
+    if not re.fullmatch(r"corp_[0-9a-f]{32}", tenant_id):
+        raise HTTPException(404, "Empresa no encontrada")
+    return tenant_id
+
+
+@router.get("/estado")
+def provisioning_status(
+    gov: Session = Depends(get_gov_db),
+    actor: Usuario = Depends(get_current_user),
+):
+    """Autorización de UI calculada en GOV, nunca desde Usuario.rol."""
+    require_global(gov, actor)
+    return {"autorizado": True,
+            "credencial_configurada": bool(os.getenv("DATABASE_CORPORATE_PROVISIONING_URL", "").strip()),
+            "alcance": "directorio_sin_visitas"}
+
+
+@router.get("/usuarios/{user_id}")
+def owner_preview(
+    user_id: str, core: Session = Depends(get_core_db),
+    gov: Session = Depends(get_gov_db),
+    actor: Usuario = Depends(get_current_user),
+):
+    require_global(gov, actor)
+    person = core.query(Usuario).filter(Usuario.usuario_id == user_id).first()
+    if not person:
+        raise HTTPException(404, "Usuario no encontrado")
+    return {"usuario_id": person.usuario_id, "nombre": person.nombre or "",
+            "email": person.email or ""}
+
+
+@router.get("/empresas/{tenant_id}")
+def company_status(
+    tenant_id: str, gov: Session = Depends(get_gov_db),
+    provisioner: Session = Depends(get_provisioning_db),
+    actor: Usuario = Depends(get_current_user),
+):
+    """Consultar una empresa conocida, sin listado global que omita RLS."""
+    require_global(gov, actor)
+    require_provisioner_role(provisioner)
+    tenant_id = validated_company_id(tenant_id)
+    tenant, org = require_company(provisioner, tenant_id)
+    owner = provisioner.query(CorporateMembership).filter_by(
+        tenant_id=tenant_id, rol="owner", estado="activo").first()
+    if not owner:
+        raise HTTPException(409, "Empresa sin owner activo")
+    details = view(tenant, org, owner.user_id)
+    details["privacy_notice_url"] = org.privacy_notice_url
+    details["capacidades"] = {}
+    for action, name in (("crear_sede_corporativa", "max_sedes"),
+                         ("crear_destino_corporativo", "max_destinos_por_sede")):
+        key = policy_key(tenant_id, action)
+        policy = gov.query(Policy).filter(
+            Policy.policy_id == key, Policy.ambito == PolicyScope.TENANT,
+            Policy.target_tenant_id == tenant_id, Policy.accion_objetivo == action,
+            Policy.estado == GovStatus.ACTIVO,
+        ).first()
+        value = policy.limites.get("max_count") if policy and isinstance(policy.limites, dict) else None
+        details["capacidades"][name] = value if type(value) is int and value > 0 else None
+    return details
