@@ -79,21 +79,25 @@ def get_metadata(which: str):
     return Base_EVENT.metadata
 
 
-def install_schema(conn, which: str) -> int:
+def install_schema(conn, which: str, *, schema: str = "public") -> int:
+    if not schema or not schema.replace("_", "").isalnum() or not schema[0].isalpha():
+        raise RuntimeError("Bootstrap: identificador de esquema inválido")
     meta = get_metadata(which)
-    # create_all does not populate business objects, identities or events.
-    meta.create_all(conn, checkfirst=False)
+    # Mapping is only used by PostgreSQL disposable CI smoke tests.
+    # Real bootstrap always uses schema=public.
+    target = conn.execution_options(schema_translate_map={None: schema})
+    meta.create_all(target, checkfirst=False)
     for name in sorted(meta.tables):
         if name != meta.tables[name].name or not name.replace("_", "").isalnum():
             raise RuntimeError("Bootstrap: identificador SQL inesperado")
-        conn.execute(text(f'ALTER TABLE public."{name}" ENABLE ROW LEVEL SECURITY'))
-        conn.execute(text(f'ALTER TABLE public."{name}" FORCE ROW LEVEL SECURITY'))
+        conn.execute(text(f'ALTER TABLE "{schema}"."{name}" ENABLE ROW LEVEL SECURITY'))
+        conn.execute(text(f'ALTER TABLE "{schema}"."{name}" FORCE ROW LEVEL SECURITY'))
     if which == "CORE":
         for name in ("corporate_organizations", "corporate_sites",
                      "corporate_destinations", "corporate_memberships",
                      "corporate_site_assignments"):
             conn.execute(text(
-                f'CREATE POLICY "{name}_tenant" ON public."{name}" '
+                f'CREATE POLICY "{name}_tenant" ON "{schema}"."{name}" '
                 "USING (tenant_id=current_setting('app.tenant_id',true)) "
                 "WITH CHECK (tenant_id=current_setting('app.tenant_id',true))"
             ))
