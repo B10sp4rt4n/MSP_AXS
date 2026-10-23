@@ -43,14 +43,14 @@ GRANT SELECT, INSERT ON public.corporate_memberships TO axs_corporate_provisione
 GRANT INSERT ON public.event_outbox TO axs_corporate_provisioner;
 -- SQLAlchemy inserta el ID autonumérico del tenant legacy con secuencia.
 -- Conceder únicamente USAGE de esa secuencia, nunca USAGE de todas.
-DO $
+DO $$
 DECLARE sequence_name text;
 BEGIN
  sequence_name := pg_get_serial_sequence('public.condominios_exo','id');
  IF sequence_name IS NOT NULL THEN
   EXECUTE format('GRANT USAGE ON SEQUENCE %s TO axs_corporate_provisioner',sequence_name);
  END IF;
-END $;
+END $$;
 
 -- IMPORTANTE: no modificar GRANT del rol de aplicación axs_core_app.
 -- Los privilegios del provisioner solo son efectivos con app.tenant_id
