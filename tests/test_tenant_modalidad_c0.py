@@ -70,7 +70,13 @@ def test_disabled_corporate_is_not_operable_even_for_global(
         db_core_session, db_gov_session, modes["global"], "corp",
         AccessLevel.ADMIN_CONDOMINIO, expected_mode="corporativo",
     ))
-    # Una autorización transversal NO omite validación de identidad / scope.
+    # La modalidad no debe revelarse a quien no tiene scope.
+    with pytest.raises(HTTPException) as denied_exc:
+        require_condominio(db_core_session, db_gov_session, modes["outsider"],
+                           "corp", AccessLevel.GUARDIA)
+    assert denied_exc.value.status_code == 403
+    assert denied_exc.value.detail == "Sin acceso al condominio"
+    # Una autorización transversal tampoco omite identidad / scope.
     expect_denied(lambda: require_condominio(
         db_core_session, db_gov_session, modes["outsider"], "corp",
         AccessLevel.GUARDIA, expected_mode=None,
