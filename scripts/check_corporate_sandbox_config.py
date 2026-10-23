@@ -13,10 +13,10 @@ HOSTS = {
     f"{ENDPOINT}-pooler.c-7.us-east-2.aws.neon.tech",
 }
 DATABASES = {
-    "DATABASE_CORE_URL": ("axs_corp_core_sbx", "axs_core_app"),
-    "DATABASE_URL": ("axs_corp_core_sbx", "axs_core_app"),
-    "DATABASE_GOV_URL": ("axs_corp_gov_sbx", "axs_corp_sandbox_gov"),
-    "DATABASE_EVENT_URL": ("axs_corp_event_sbx", "axs_corp_sandbox_event"),
+    "DATABASE_CORE_URL": ("neondb", "axs_core_app"),
+    "DATABASE_URL": ("neondb", "axs_core_app"),
+    "DATABASE_GOV_URL": ("aup_gov", "axs_corp_sandbox_gov"),
+    "DATABASE_EVENT_URL": ("aup_event", "axs_corp_sandbox_event"),
 }
 SCHEMES = {"postgresql", "postgres", "postgresql+psycopg", "postgresql+psycopg2"}
 
