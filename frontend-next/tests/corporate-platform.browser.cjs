@@ -48,12 +48,16 @@ function bundle(name,parent=path.join(process.cwd(),"entry.js")){
   const react=bundle("react"),reactDom=bundle("react-dom/client");
   const comp=bundle(path.join(process.cwd(),"src/components/CorporatePlatformClient.tsx"));
   const js=`const modules=[${modules.join(",")}],cache={};function require(id){if(!cache[id]){let m={exports:{}};cache[id]=m;modules[id](require,m,m.exports)}return cache[id].exports}require(${reactDom}).createRoot(document.getElementById('root')).render(require(${react}).createElement(require(${comp}).default));`;
+  const css=(await require("postcss")([require("@tailwindcss/postcss")()]).process(
+    fs.readFileSync("src/app/globals.css","utf8"),{from:path.resolve("src/app/globals.css")}
+  )).css;
   const browser=await chromium.launch({headless:true});
   try{
     const page=await browser.newPage({viewport:{width:360,height:760}});
     await page.route("**/*",route=>route.request().url()==="http://127.0.0.1:48917/"?route.fulfill({contentType:"text/html",body:'<div id="root"></div>'}):route.abort());
     await page.goto("http://127.0.0.1:48917/");
     await page.evaluate(()=>{window.calls=[];window.company=null;window.limits=null;window.uncertainOnce=true;window.denied=false});
+    await page.addStyleTag({content:css});
     await page.addScriptTag({content:js});
     const click=name=>page.getByRole("button",{name,exact:true}).click();
     await page.getByLabel("Nombre de empresa").fill("Prueba Corporativa");
