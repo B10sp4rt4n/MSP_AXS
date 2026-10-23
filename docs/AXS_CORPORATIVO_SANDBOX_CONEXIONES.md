@@ -50,3 +50,15 @@ No se ha ejecutado `accept-deploy`, no se ha cambiado ningún servicio residenci
 - No se cambiaron los roles NOLOGIN GOV/EVENT ni la cuenta de aprovisionamiento. No hay servicio Railway ejecutándose, ni entorno corporativo habilitado, ni rutas públicas nuevas. Las bases vacías recién creadas requieren estructura/RLS, grants limitados y pruebas antes de poder usarse.
 
 **Bloqueantes siguientes:** completar GOV vacío mediante una operación autorizada, inicializar y asegurar los esquemas vacíos; después migrar el pin de bases y probar su gate; solo entonces preparar credenciales sintéticas de inicio de sesión y pedir autorización de costo para desplegar Railway. No utilizar `DELETE/TRUNCATE` en las bases clonadas ni exponer los 38 usuarios heredados.
+
+
+## Cierre del catálogo de bases vacías — 23-oct-2026
+
+- Neon rama `br-soft-leaf-b59xcclw`: tres bases limpias `axs_corp_core_sbx`, `axs_corp_gov_sbx`, `axs_corp_event_sbx`. Consultas read-only confirmaron **0 tablas de aplicación en cada base**. La creación de GOV se completó en el segundo intento.
+- Las bases clonadas originales `neondb`, `aup_gov`, `aup_event` y su contenido heredado **permanecen intactas**. El catálogo corporativo de ensayo usa nombres diferentes en el validador GitHub (config y gate de datos), con pruebas actualizadas.
+- Se incorporó `scripts/bootstrap_corporate_sandbox_schemas.py`: bootstrap **manual**, doble confirmación, URL PostgreSQL exclusiva del endpoint y tres nombres de base concretos; rol `neondb_owner` utilizado solo para crear el esquema, exige cero tablas antes y justo antes de cada fase. Usa los modelos ORM actuales, fuerza RLS y no asigna grants a roles de aplicación. No es invocado por el arranque de Railway.
+- Se añadieron `tests/test_corporate_schema_bootstrap.py` y `tests/smoke/test_corporate_schemas_fresh_postgres.py`: validación offline de destinos/autorización y construcción de los tres esquemas con RLS en PostgreSQL efímero de CI. **No equivale a inicialización real de Neon**.
+- Importante: las tres bases Neon nuevas **todavía no tienen esquema de aplicación**. Las cuentas GOV/EVENT permanecen `NOLOGIN`, sin contraseñas en Railway. No activar un deploy, aunque las comprobaciones de configuración estén listas.
+- El servicio Railway sigue preparado (staged) y el intento anterior de añadir el gate de datos a su predeploy fue bloqueado. Debe verificarse el comando staged antes de ejecutar cualquier deploy. No reutilizar claves de producción.
+
+**Secuencia pendiente:** CI verde del bootstrap → aplicar esquema *con credencial de propietario únicamente en las tres bases vacías* → políticas/grants por dominio revisados → verificación con credenciales nuevas de prueba → revisar costos y autorización explícita para desplegar. No abrir API hasta completar privacidad y datos sintéticos.
