@@ -131,3 +131,30 @@ def test_dependency_rejects_mode_before_setting_rls(
         "corp", db_core_session, db_gov_session, modes["global"],
     ))
     assert calls == []
+
+
+def test_http_residential_api_rejects_corporate(
+    modes, db_core_session, db_gov_session, db_event_session,
+):
+    """Prueba de API con sesión real de test; no constituye prueba RLS PostgreSQL."""
+    from fastapi.testclient import TestClient
+    from backend.main import app
+    from backend.db.core import get_core_db
+    from backend.db.gov import get_gov_db
+    from backend.db.event import get_event_db
+    from backend.core.auth.jwt import create_access_token
+
+    app.dependency_overrides[get_core_db] = lambda: db_core_session
+    app.dependency_overrides[get_gov_db] = lambda: db_gov_session
+    app.dependency_overrides[get_event_db] = lambda: db_event_session
+    headers = {"Authorization": f"Bearer {create_access_token('global', 'MSP_ADMIN')}"}
+    try:
+        with TestClient(app) as client:
+            response = client.get("/visitas/condominio/corp", headers=headers)
+            assert response.status_code == 403
+            assert response.json()["detail"] == "Operacion no disponible para esta modalidad"
+            visible = client.get("/condominios/", headers=headers)
+            assert visible.status_code == 200, visible.text
+            assert {row["condominio_id"] for row in visible.json()} == {"res"}
+    finally:
+        app.dependency_overrides.clear()
