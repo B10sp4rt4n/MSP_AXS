@@ -1,6 +1,6 @@
 # Expediente ARCO asistido: primera implementación
 
-Estado: backend preparado y probado localmente; no desplegado ni activado. Complementa la matriz del PR #89. No reemplaza el procedimiento público ni acredita cumplimiento ARCO integral.
+Estado: backend y pantalla desplegados y ensayados en AXS Development; activación de prueba cerrada. No desplegados ni activados en producción comercial. Complementa la matriz del PR #89. No reemplaza el procedimiento público ni acredita cumplimiento ARCO integral.
 
 ## Alcance
 
@@ -37,3 +37,7 @@ Ruta autenticada `/dashboard/arco`, con selección de cliente, registro de recep
 El enlace desde Configuración requiere `NEXT_PUBLIC_ARCO_CASES_UI_ENABLED=true`; permanece oculto por defecto. La autorización real sigue en backend, sin depender de ese enlace. Una respuesta incierta provoca recarga del expediente antes de otro avance; el UUID se conserva para reintentos de una recepción idéntica.
 
 Validación local: build de producción, TypeScript y ESLint aprobados; 8 pruebas de API aprobadas. Se añadieron `tests/arco-cases.browser.cjs` al job de navegador y `tests/smoke/test_arco_postgres.py` al job PostgreSQL: este último verifica migración repetible, rol sin bypass, RLS por tenant y bloqueo concurrente. Sus resultados remotos deben confirmarse antes de declarar esas validaciones aprobadas. La instalación local de PostgreSQL fue impedida por el entorno y la descarga local de Chromium no produjo un archivo válido.
+
+## Validación desplegada completada
+
+Ver [ensayo Development](ARCO_DEVELOPMENT_ENSAYO.md): 32 comprobaciones HTTP del ciclo completo con identidades locales ficticias, dos folios cerrados y diez eventos de auditoría entregados; dos comprobaciones autenticadas adicionales verifican la desactivación. La configuración del ejecutor fue restaurada. La validación no equivale a sesión real Clerk ni a cumplimiento integral de una solicitud ARCO.
