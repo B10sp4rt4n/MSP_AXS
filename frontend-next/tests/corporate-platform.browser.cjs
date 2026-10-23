@@ -3,7 +3,7 @@ const fs=require("fs"),path=require("path"),ts=require("typescript"),assert=requ
 const {chromium}=require("playwright");
 const modules=[],ids=new Map();
 const mocks={
-  "@clerk/nextjs":`exports.useAuth=()=>({userId:'superadmin-synthetic',getToken:async()=> 'synthetic-token'});`,
+  "@clerk/nextjs":`const getToken=async()=> 'synthetic-token';exports.useAuth=()=>({userId:'superadmin-synthetic',getToken});`,
   "@/lib/api":`exports.api={
     get:async(path)=>{
       if(path.endsWith('/estado')){if(window.denied)throw Error('not authorized');return {autorizado:true,credencial_configurada:true,alcance:'directorio_sin_visitas'}}
