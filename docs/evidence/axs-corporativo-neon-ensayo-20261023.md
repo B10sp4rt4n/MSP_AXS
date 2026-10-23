@@ -52,3 +52,21 @@ La rama de ensayo se conserva para verificación posterior, **no** para uso por 
 - **NO se ha ejecutado accept-deploy.** El servicio no tiene instancias productivas ni dominio público. No se copiarán las credenciales ni variables del backend compartido de Railway.
 - Pendiente preparar conexión aislada a rama Neon `br-soft-leaf-b59xcclw`, orígenes GOV/EVENT de prueba, credencial de provisioner (actualmente `NOLOGIN`), autenticación Clerk de prueba y revisión de costos antes de activar un servicio. No duplicar secretos al repositorio o al frontend.
 - Si no se autoriza gasto computacional adicional, conservar staged sin deploy; la validación automatizada CI PostgreSQL ya aprobada continúa siendo la evidencia funcional disponible.
+
+
+## Preparación de conexiones GOV / EVENT y predeploy (23-oct-2026)
+
+**Sin despliegue ni uso de datos reales.** La rama de ensayo conserva datos heredados del desarrollo: NO es una base anonimizada ni se debe exponer por una API pública.
+
+- Se verificó que `neondb`, `aup_gov` y `aup_event` existen en `br-soft-leaf-b59xcclw`. Contienen, respectivamente, 23, 4 y 1 tablas públicas.
+- El mecanismo `create_postgres_role` de Neon **otorgó inesperadamente membresía `neon_superuser` y privilegios amplios** a dos roles recién creados. Intento de `REVOKE neon_superuser` fue denegado al propietario disponible. **Ambos roles se eliminaron de la rama aislada inmediatamente**; no se usaron y no se conectaron a Railway.
+- Reemplazo con SQL explícito `CREATE ROLE ... NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`, sin membresías: `axs_corp_sandbox_gov` y `axs_corp_sandbox_event`. Verificada la ausencia de `neon_superuser` y todas las capacidades elevadas.
+- GOV: rol `axs_corp_sandbox_gov` sólo SELECT de `authorities_gov` y SELECT/INSERT/UPDATE de `policies_gov`; sin DELETE ni modificación de autoridades o delegaciones.
+- EVENT: rol `axs_corp_sandbox_event` sólo SELECT/INSERT de `events_aup` y USAGE de su secuencia; sin UPDATE, DELETE ni CREATE.
+- Aislamiento cruzado comprobado: ninguna de estas cuentas puede leer `usuarios`, `visitas` ni `corporate_memberships` en CORE; el rol GOV no puede acceder a EVENT y el rol EVENT no tiene permisos sobre GOV.
+- Ambas cuentas están `NOLOGIN`, por lo que **no existe todavía conexión funcional o contraseña que pueda llevarse a Railway**. No se modificó la cuenta `axs_corporate_provisioner`, que sigue `NOLOGIN`.
+- En Railway sandbox se prepararon, sin aplicar: `APP_ENV=development`, `ENV=development`, `ENVIRONMENT=production` (para bloquear `/debug/db`), `NEON_DEV_ENDPOINT=ep-bitter-snow-b5sgxc4h`, flags corporativos apagados, orígenes restringidos a localhost, no fotos/ARCO/Cloudinary y no SQL echo.
+- Se añadió `scripts/check_corporate_sandbox_config.py` con tests sintéticos: fail-closed ante URL de otra rama, roles owner, SSL ausente, Clerk live, secretos de sesión ausentes o funcionalidades activadas. El predeploy de Railway staged usa este control antes de `scripts/check_core_rls.py`.
+- Pendientes: roles LOGIN creados con un método que NO asigne privilegios extra; secretos nuevos entregados por mecanismo seguro, **sin copiar contraseñas de desarrollo/productivo**; credenciales Clerk de prueba, nueva clave de sesión, validación de datos heredados y autorización de costo antes de accept-deploy.
+
+Esta revisión es de **estructura y grants, no prueba de acceso como roles**: `NOLOGIN` y el propietario no autorizado para `SET ROLE` impiden probar conexiones reales a esta rama. El ensayo HTTP integrado continúa acreditado únicamente en PostgreSQL desechable de CI.
