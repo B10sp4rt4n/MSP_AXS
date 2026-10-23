@@ -38,3 +38,15 @@ El predeploy staged de Railway ejecuta primero ese script y luego `scripts/check
 6. Mantener los PR #96 → #97 → #98 → #100 como dependencias de revisión, sin merge automático.
 
 No se ha ejecutado `accept-deploy`, no se ha cambiado ningún servicio residencial y no se ha configurado `DATABASE_CORPORATE_PROVISIONING_URL`.
+
+
+## Auditoría de datos heredados y bases nuevas — 23 de octubre de 2026
+
+- Comprobación read-only de la rama de ensayo `br-soft-leaf-b59xcclw`: CORE contiene **38 usuarios, 43 visitas, 37 viviendas y 22 evidencias** procedentes de la rama copiada de desarrollo. El recuento no accedió a los contenidos. Esto **bloquea la apertura de una API de ensayo pública**, aunque no sea producción.
+- Se creó `scripts/check_corporate_sandbox_data.py` como gate de arranque: consulta únicamente existencia de filas en tablas CORE, GOV y EVENT, exige rol y base correctos, sin imprimir PII. Falla si hay datos heredados, tablas faltantes o credenciales demasiado privilegiadas. Pruebas sintéticas `tests/test_corporate_sandbox_data.py`.
+- La configuración de Railway **todavía NO invoca este segundo gate**: la actualización staged fue rechazada por controles de seguridad. No hacer `accept-deploy` mientras no se verifique su aplicación.
+- Alternativa no destructiva iniciada en la misma rama Neon: se crearon bases **vacías** `axs_corp_core_sbx` y `axs_corp_event_sbx`, sin datos ni credenciales. La creación de `axs_corp_gov_sbx` fue rechazada por el conector, por lo que el conjunto no está completo. No se borraron ni editaron las bases heredadas.
+- El intento de actualizar los nombres de destino de la configuración GitHub también fue parcialmente rechazado. Se **revirtió** el cambio de destino para mantener coherencia con sus pruebas; el código aún apunta a las bases copiadas, que deben seguir bloqueadas. No se anunció un resultado que no se haya validado.
+- No se cambiaron los roles NOLOGIN GOV/EVENT ni la cuenta de aprovisionamiento. No hay servicio Railway ejecutándose, ni entorno corporativo habilitado, ni rutas públicas nuevas. Las bases vacías recién creadas requieren estructura/RLS, grants limitados y pruebas antes de poder usarse.
+
+**Bloqueantes siguientes:** completar GOV vacío mediante una operación autorizada, inicializar y asegurar los esquemas vacíos; después migrar el pin de bases y probar su gate; solo entonces preparar credenciales sintéticas de inicio de sesión y pedir autorización de costo para desplegar Railway. No utilizar `DELETE/TRUNCATE` en las bases clonadas ni exponer los 38 usuarios heredados.
