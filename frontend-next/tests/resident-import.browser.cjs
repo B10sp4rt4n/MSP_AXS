@@ -22,7 +22,10 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
  await page.getByRole('button',{name:'Confirmar 1 altas'}).click();await page.getByText('1 residentes creados. 0 existentes. 0 filas con errores.',{exact:true}).waitFor();
  assert.equal(await page.evaluate(()=>window.calls[1].b.revision),'rev1');
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar resultado CSV'}).click();assert.equal((await download).suggestedFilename(),'AXS_resultado_importacion.csv');
- await page.evaluate(()=>window.renderTenant('b'));await page.getByLabel('Archivo de residentes').waitFor();assert.equal(await page.getByRole('button',{name:'Descargar resultado CSV'}).count(),0);
+ await page.evaluate(()=>window.renderTenant('b'));
+ await page.waitForFunction(() => ![...document.querySelectorAll('button')].some(b => b.textContent?.trim() === 'Descargar resultado CSV'));
+ await page.getByLabel('Archivo de residentes').waitFor();
+ assert.equal(await page.getByRole('button',{name:'Descargar resultado CSV'}).count(),0);
  await page.evaluate(()=>window.invalid=true);await page.getByLabel('Archivo de residentes').setInputFiles(file);await page.getByRole('button',{name:'Validar archivo',exact:true}).click();await page.getByText('Correo inválido',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Confirmar 1 altas'}).count(),0);
  await page.evaluate(()=>{window.invalid=false;window.fail=true});await page.getByRole('button',{name:'Validar archivo',exact:true}).click();await page.getByRole('alert').waitFor();assert.equal(await page.getByRole('button',{name:'Confirmar 1 altas'}).count(),0);
  console.log('PASS: preview, confirmation, parent refresh, CSV, tenant change, invalid rows, server error. Synthetic transport.');
