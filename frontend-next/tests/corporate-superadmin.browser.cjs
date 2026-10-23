@@ -13,7 +13,13 @@ exports.api={
     window.__reads.push(p);
     if(window.__deny)throw new ApiError('No autorizado',403);
     if(window.__disabled)throw new ApiError('Off',404);
-    if(p==='/plataforma/corporativo/acceso')return {authorized:true};
+    if(p==='/plataforma/corporativo/acceso')return {authorized:true,provisioning_enabled:true,credencial_configurada:true};
+    if(p.startsWith('/plataforma/corporativo/usuarios/'))return {usuario_id:p.split('/').pop()};
+    if(p.startsWith('/plataforma/corporativo/empresas/')){
+      const company=Object.values(window.__companies).find(v=>v.tenant_id===p.split('/').pop());
+      if(!company)throw new ApiError('Empresa ausente',404);
+      return {...structuredClone(company),capacidades:window.__capabilities||{max_sedes:null,max_destinos_por_sede:null}};
+    }
     throw Error('Unexpected GET '+p);
   },
   post:async(p,b)=>{
@@ -87,6 +93,8 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
   await page.getByLabel('Correo del responsable de privacidad').fill('privacidad@example.test');
   await page.getByLabel('URL HTTPS del aviso de privacidad').fill('https://example.test/aviso');
   await page.getByLabel('Versión del aviso').fill('2026-10');
+  await click('Verificar owner existente');
+  await page.getByText('Owner verificado: owner_synthetic').waitFor();
   await page.evaluate(()=>window.__failOnce=true);
   await click('Crear empresa deshabilitada');
   await page.getByRole('alert').getByText('ACK incierto tras commit').waitFor();
@@ -113,10 +121,16 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,
       'Horizontal overflow at '+width);
   }
+  const companyId=await page.evaluate(()=>Object.values(window.__companies)[0].tenant_id);
   await click('Comenzar otra alta');
   await page.getByRole('button',{name:'Crear empresa deshabilitada'}).waitFor();
+  await page.getByLabel('Identificador corporativo').fill(companyId);
+  await click('Consultar estado de empresa');
+  await page.getByRole('button',{name:'Directorio habilitado'}).waitFor();
+  assert.equal(await page.evaluate(()=>window.__calls.length),4,'No mutation during recovery');
+  await click('Comenzar otra alta');
   assert.equal(await page.getByLabel('Nombre de empresa').inputValue(),'');
   assert.equal(await page.evaluate(()=>Object.keys(window.__companies).length),1);
-  console.log('PASS: synthetic GLOBAL denial, staged flow, idempotent UUID after ambiguous ACK, explicit activation, reset and 320/360/1280px widths. No real network.');
+  console.log('PASS: synthetic GLOBAL denial, owner verification, UUID replay, verified GOV quotas, recovery, explicit activation, mobile widths; no real network.');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
