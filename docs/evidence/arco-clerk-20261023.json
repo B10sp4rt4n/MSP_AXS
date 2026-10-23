@@ -1,0 +1,34 @@
+{
+  "test": "ARCO_SIM_003_CLERK",
+  "environment": "AXS Development",
+  "date": "2026-10-23",
+  "application_commit": "74d0762d3acb9937c25b1bad3973049cb47084e7",
+  "frontend_commit": "a421ef4640b9937c5e4eb22472c22a5778dfc716",
+  "backend_deployment": "c35e3280-fcef-4371-8c83-afbba1cbc8a9",
+  "session": "Real Clerk session, manually authenticated by account owner",
+  "tenant": "axs_demo_condo_a",
+  "case_id": "618d485d-06a1-4d52-a278-b169afaf5102",
+  "checks": {
+    "undesignated_tenant": "Rejected: Requiere designación de privacidad para este cliente",
+    "create": "Passed through deployed UI",
+    "progression": [
+      "verificada",
+      "resuelta",
+      "ejecutando",
+      "cerrada"
+    ],
+    "pending_close": "Rejected visibly; state remained ejecutando with one pending action",
+    "sql": {
+      "state": "cerrada",
+      "version": 5,
+      "pending_actions": 0,
+      "transitions": 4
+    }
+  },
+  "limits": [
+    "Synthetic request only",
+    "No identity verification, response delivery or deletion performed",
+    "Production commercial unchanged"
+  ],
+  "visual_issue": "Light page background made gray-100 text unreadable. Explicit gray-950 background added after flow test."
+}

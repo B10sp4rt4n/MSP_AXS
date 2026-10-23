@@ -89,7 +89,7 @@ export default function ArcoClient() {
     } finally { setBusy(false); }
   }
 
-  return <main className="mx-auto min-h-screen max-w-4xl space-y-6 p-6 text-gray-100">
+  return <main className="mx-auto min-h-screen max-w-4xl space-y-6 bg-gray-950 p-6 text-gray-100">
     <Link href="/dashboard/configuracion" className="underline">Volver a Configuración</Link>
     <h1 className="text-2xl font-semibold">Solicitudes ARCO</h1>
     <p>Registro privado para el personal de privacidad designado. Usa referencias del expediente seguro; no captures nombres, fotografías, contraseñas ni documentos aquí.</p>
