@@ -43,13 +43,23 @@ def require_msp_admin(db: Session, db_gov: Session, usuario: Usuario, msp_id: st
 
 def require_condominio(
     db: Session, db_gov: Session, usuario: Usuario, condominio_id: str,
-    level: AccessLevel,
+    level: AccessLevel, *, expected_mode: str | None = "residencial",
 ) -> Condominio:
+    # La comprobacion de modalidad precede incluso a autoridad GLOBAL/MSP.
+    # None se reserva a operaciones transversales explicitamente autorizadas
+    # (p. ej., ARCO), nunca a un endpoint de accesos residencial.
     condo = db.query(Condominio).filter(
         Condominio.condominio_id == condominio_id,
     ).populate_existing().with_for_update().first()
     if not condo:
         raise HTTPException(404, "Condominio no encontrado")
+    if expected_mode is not None:
+        if expected_mode not in ("residencial", "corporativo"):
+            raise ValueError("Modalidad de tenant no reconocida")
+        if condo.modalidad != expected_mode:
+            raise SecurityDenial(403, "Operacion no disponible para esta modalidad", reason="TENANT_MODE_DENIED")
+        if expected_mode == "corporativo" and not condo.corporativo_habilitado:
+            raise SecurityDenial(403, "AXS Corporativo no esta habilitado", reason="CORPORATE_DISABLED")
     if is_platform_operator(db_gov, usuario):
         return condo
     if condo.msp_id in active_msp_ids(db, usuario):
@@ -64,8 +74,8 @@ def require_condominio(
     return condo
 
 
-def authorized_tenant_context(level: AccessLevel):
-    """Una autoridad efectiva (GLOBAL, membresía MSP o scope) fija el tenant."""
+def authorized_tenant_context(level: AccessLevel, *, expected_mode: str | None = "residencial"):
+    """Autoriza nivel y modalidad antes de fijar RLS del tenant."""
     from backend.db.core import get_core_db
     from backend.db.gov import get_gov_db
     from backend.core.auth.dependencies import get_current_user
@@ -79,7 +89,7 @@ def authorized_tenant_context(level: AccessLevel):
         tenant_id = condominio_id.strip()
         if not tenant_id:
             raise HTTPException(400, "condominio_id requerido")
-        require_condominio(db, db_gov, usuario, tenant_id, level)
+        require_condominio(db, db_gov, usuario, tenant_id, level, expected_mode=expected_mode)
         from backend.core.tenant.context import _set_postgres_tenant
         _set_postgres_tenant(db, tenant_id)
         return tenant_id
