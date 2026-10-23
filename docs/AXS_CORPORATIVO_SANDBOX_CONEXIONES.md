@@ -62,3 +62,12 @@ No se ha ejecutado `accept-deploy`, no se ha cambiado ningún servicio residenci
 - El servicio Railway sigue preparado (staged) y el intento anterior de añadir el gate de datos a su predeploy fue bloqueado. Debe verificarse el comando staged antes de ejecutar cualquier deploy. No reutilizar claves de producción.
 
 **Secuencia pendiente:** CI verde del bootstrap → aplicar esquema *con credencial de propietario únicamente en las tres bases vacías* → políticas/grants por dominio revisados → verificación con credenciales nuevas de prueba → revisar costos y autorización explícita para desplegar. No abrir API hasta completar privacidad y datos sintéticos.
+
+
+## Refuerzo previo a importación del backend
+
+- `backend/main.py` ejecuta `check_corporate_sandbox_data.check_data(os.environ)` **antes de importar motores CORE/GOV/EVENT** cuando `AXS_CORPORATE_SANDBOX_ONLY=true`. El guard se ejecuta también si se omite el predeploy de Railway. En modo residencial la ruta de inicialización existente no cambia.
+- El gate de Railway (sin aplicar) ahora contiene tres etapas: `check_corporate_sandbox_config.py` → `check_corporate_sandbox_data.py` → `check_core_rls.py`. No se autoriza despliegue hasta obtener credenciales y permisos válidos.
+- Las tres bases `axs_corp_core_sbx`, `axs_corp_gov_sbx` y `axs_corp_event_sbx` fueron consultadas y tenían **cero tablas de aplicación**; su esquema no se ha instalado en Neon.
+- El bootstrap **solo manual** `scripts/bootstrap_corporate_sandbox_schemas.py` crea las tablas reales con RLS forzado, tras doble confirmación y preflight de tres bases vacías. No concede privilegios de runtime, ni incluye migración automática en despliegue.
+- La primera prueba del bootstrap contra PostgreSQL efímero de CI resultó en **91 pruebas PG aprobadas** (run `40007292828`). No trasladar esos resultados a una afirmación de Neon listo para servicio.
