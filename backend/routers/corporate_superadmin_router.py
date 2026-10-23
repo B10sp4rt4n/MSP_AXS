@@ -95,6 +95,16 @@ def audit(db, tenant_id: str, actor: Usuario, request: Request, accion: str):
         metadata={"accion": accion})
 
 
+@router.get("/acceso")
+def access_status(
+    gov: Session = Depends(get_gov_db),
+    actor: Usuario = Depends(get_current_user),
+):
+    # La navegación no confía en el rol MSP_ADMIN. Se controla AUP_GOV GLOBAL.
+    require_global(gov, actor)
+    return {"authorized": True, "provisioning_enabled": True}
+
+
 @router.post("/empresas", status_code=201)
 def create_company(
     body: CreateCompany, request: Request,
