@@ -13,6 +13,22 @@ from backend.db.gov import Authority, AuthorityType, GovStatus
 from backend.routers.condominios_router import list_condominios
 
 
+
+def test_legacy_cloudinary_router_without_tenant_guard_is_not_mounted():
+    """La versión legacy no aplica require_visita: debe permanecer fuera de la API."""
+    from fastapi.routing import APIRoute
+    from backend.main import app
+
+    # Inspecciona rutas EFECTIVAMENTE publicadas, no solo imports del repositorio.
+    risky = [
+        (sorted(route.methods or []), route.path)
+        for route in app.routes
+        if isinstance(route, APIRoute)
+        and route.endpoint.__module__ == "backend.routers.evidencias_router_cloudinary"
+    ]
+    assert risky == [], "No montar Cloudinary legacy sin guard residencial y pruebas RLS"
+
+
 @pytest.fixture
 def modes(db_core_session, db_gov_session):
     db = db_core_session
