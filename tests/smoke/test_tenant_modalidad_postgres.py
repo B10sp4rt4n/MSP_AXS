@@ -60,7 +60,7 @@ def test_tenant_mode_migration_is_idempotent_and_preserves_rls():
                                   "WHERE condominio_id='other'")).rowcount == 0
 
         # El CHECK protege incluso si una escritura evita la API.
-        with engine.begin() as c:
+        with engine.connect() as c:
             c.execute(text("SELECT set_config('app.tenant_id','res',true)"))
             with pytest.raises(DBAPIError):
                 c.execute(text(f"UPDATE {schema}.condominios_exo "
