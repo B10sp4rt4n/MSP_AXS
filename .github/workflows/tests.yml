@@ -56,6 +56,7 @@ jobs:
         cache-dependency-path: frontend-next/package-lock.json
     - run: npm ci
     - run: npm run test:roles
+    - run: node --test tests/corporate-superadmin-gate.test.cjs
     - run: npx next typegen && npx tsc --noEmit
 
   test:
