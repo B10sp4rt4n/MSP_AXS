@@ -173,5 +173,22 @@ def test_http_residential_api_rejects_corporate(
             visible = client.get("/condominios/", headers=headers)
             assert visible.status_code == 200, visible.text
             assert {row["condominio_id"] for row in visible.json()} == {"res"}
+            # Contratos y baja de proveedor son rutas residenciales heredadas.
+            # Ni siquiera GLOBAL puede afectar la relación MSP de una empresa.
+            protected = (
+                "/condominios/corp/proveedor/contratos",
+                "/condominios/corp/permisos/procedencia",
+            )
+            for route in protected:
+                denied = client.get(route, headers=headers)
+                assert denied.status_code == 403, (route, denied.text)
+                assert denied.json()["detail"] == "Operacion no disponible para esta modalidad"
+            denied_exit = client.post(
+                "/condominios/corp/proveedor/baja", headers=headers,
+                json={"msp_id": "provider", "reason": "prueba sintetica"},
+            )
+            assert denied_exit.status_code == 403, denied_exit.text
+            assert db_core_session.query(Condominio).filter_by(
+                condominio_id="corp").one().msp_id == "provider"
     finally:
         app.dependency_overrides.clear()
