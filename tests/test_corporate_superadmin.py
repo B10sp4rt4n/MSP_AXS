@@ -86,11 +86,25 @@ def test_global_only_idempotent_bootstrap_and_staged_activation(company_setup, m
     assert self_grant.status_code == 400
     assert core.query(Condominio).count() == 0
 
+    assert client.get("/plataforma/corporativo/usuarios/owner", headers=auth("provider")).status_code == 403
+    verified_owner = client.get("/plataforma/corporativo/usuarios/owner", headers=auth("super"))
+    assert verified_owner.status_code == 200
+    assert verified_owner.headers["cache-control"] == "private, no-store"
+    assert verified_owner.json()["usuario_id"] == "owner"
+    assert client.get("/plataforma/corporativo/usuarios/missing", headers=auth("super")).status_code == 404
+
     first = client.post(path, headers=auth("super"), json=body)
     assert first.status_code == 201, first.text
     company = first.json()
     tenant = company["tenant_id"]
     assert tenant.startswith("corp_")
+    assert client.get(path + "/" + tenant, headers=auth("provider")).status_code == 403
+    assert client.get(path + "/corp_invalid", headers=auth("super")).status_code == 404
+    initial = client.get(path + "/" + tenant, headers=auth("super"))
+    assert initial.status_code == 200
+    assert initial.headers["cache-control"] == "private, no-store"
+    assert initial.json()["capacidades"] == {"max_sedes": None, "max_destinos_por_sede": None}
+    assert client.get(path + "/" + tenant, headers=auth("super")).json()["owner_user_id"] == "owner"
     assert company["directorio_habilitado"] is False
     assert company["owner_user_id"] == "owner"
     assert core.query(Casa).count() == 0
@@ -120,6 +134,9 @@ def test_global_only_idempotent_bootstrap_and_staged_activation(company_setup, m
     assert config.json()["max_sedes"] == 2
     assert client.put(limits_path, headers=auth("super"), json=limits).status_code == 200
     assert gov.query(Policy).filter_by(target_tenant_id=tenant).count() == 2
+    refreshed = client.get(path + "/" + tenant, headers=auth("super"))
+    assert refreshed.status_code == 200
+    assert refreshed.json()["capacidades"] == limits
     active = client.post(activate_path, headers=auth("super"), json={"confirmacion": True})
     assert active.status_code == 200, active.text
     assert active.json()["directorio_habilitado"] is True
@@ -151,6 +168,9 @@ def test_global_access_probe_does_not_depend_on_msp_role(company_setup, monkeypa
     assert client.get(route, headers=auth("provider")).status_code == 403
     granted = client.get(route, headers=auth("super"))
     assert granted.status_code == 200
-    assert granted.json() == {"authorized": True, "provisioning_enabled": True}
+    assert granted.json()["authorized"] is True
+    assert granted.json()["provisioning_enabled"] is True
+    assert granted.json()["credencial_configurada"] is False
+    assert granted.headers["cache-control"] == "private, no-store"
     monkeypatch.setenv("AXS_CORPORATE_PROVISIONING_ENABLED", "false")
     assert client.get(route, headers=auth("super")).status_code == 404
