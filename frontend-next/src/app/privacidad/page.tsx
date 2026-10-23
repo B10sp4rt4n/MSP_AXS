@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import AxsBrand from "@/components/AxsBrand";
+import Link from "next/link";
+import { ARCO_PATH, PRIVACIDAD_CONTACTO } from "@/lib/privacidad";
 
 export const metadata: Metadata = {
   title: "Privacidad de AXS Condominios y Alexa",
@@ -10,14 +12,14 @@ export const metadata: Metadata = {
 
 const responsable = "Sinapsis Aplicaciones y Sistemas";
 const domicilio = "Sierra Nevada 755, Col. Lomas de Chapultepec I Sección, Miguel Hidalgo, C.P. 11000, Ciudad de México, México";
-const contacto = "sruiz@synappssys.com";
+const contacto = PRIVACIDAD_CONTACTO;
 
 export default function PrivacidadPage() {
   return <div className="min-h-screen bg-gray-950 text-gray-100">
     <header className="border-b border-gray-800 px-6 py-5"><AxsBrand /></header>
     <main className="mx-auto max-w-3xl space-y-7 px-6 py-10 leading-relaxed">
       <h1 className="text-3xl font-semibold">Aviso de privacidad: AXS Condominios y Alexa</h1>
-      <p className="text-sm text-gray-400">Última actualización: 18 de octubre de 2026.</p>
+      <p className="text-sm text-gray-400">Última actualización: 22 de octubre de 2026.</p>
       <p>Este aviso describe la integración opcional de AXS Condominios con Amazon Alexa. El control de acceso del condominio y las fotografías de identificación requieren su propio aviso y condiciones; este documento no los sustituye.</p>
       <section className="space-y-3"><h2 className="text-xl font-semibold">Responsable y contacto</h2>
         <p>Responsable de la integración: {responsable}, bajo la marca SynAppsSys. Domicilio: {domicilio}.</p>
@@ -39,6 +41,7 @@ export default function PrivacidadPage() {
         <p>Los datos del vínculo se utilizan mientras la función esté activa; después de la baja puede conservarse la información necesaria para acreditar preferencias, atender solicitudes y determinar responsabilidades. Cuando los datos dejen de ser necesarios, corresponde su bloqueo y supresión conforme a las obligaciones aplicables.</p>
       </section>
       <section className="space-y-3"><h2 className="text-xl font-semibold">Derechos y solicitudes</h2>
+        <p><Link href={ARCO_PATH} className="text-purple-300 underline">Consulta el procedimiento de derechos ARCO</Link> para conocer tus derechos, el canal de atención, los pasos y los plazos de respuesta. Está disponible sin iniciar sesión.</p>
         <p>Para solicitar acceso, rectificación, cancelación u oposición, revocar tu consentimiento o limitar el uso de tus datos, escribe al contacto de privacidad indicando el derecho que deseas ejercer, los datos afectados y un medio de respuesta. Se verificará tu identidad mediante un canal adecuado antes de atender la solicitud; no envíes contraseñas ni códigos de acceso.</p>
         <p>Las solicitudes sobre los registros del condominio se canalizarán también con su administración cuando corresponda.</p>
       </section>
