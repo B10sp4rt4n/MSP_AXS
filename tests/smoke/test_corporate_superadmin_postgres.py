@@ -91,6 +91,8 @@ def test_corporate_provisioner_least_privilege_postgres():
     finally:
         with engine.begin() as c:
             c.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
-            c.execute(text("REVOKE CONNECT ON DATABASE axs_rls_ci FROM axs_corporate_provisioner"))
-            c.execute(text("DROP ROLE IF EXISTS axs_corporate_provisioner"))
+            exists = c.execute(text("SELECT 1 FROM pg_roles WHERE rolname='axs_corporate_provisioner'")).first()
+            if exists:
+                c.execute(text("REVOKE CONNECT ON DATABASE axs_rls_ci FROM axs_corporate_provisioner"))
+                c.execute(text("DROP ROLE axs_corporate_provisioner"))
         engine.dispose()
