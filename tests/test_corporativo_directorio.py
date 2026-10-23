@@ -202,3 +202,16 @@ def test_legacy_tenant_dependencies_do_not_operate_on_company(corp, db_core_sess
         context.require_tenant_context(AccessLevel.RESIDENTE)("ca", db, corp["host_a"])
     assert b.value.status_code == 403
     assert calls == []
+
+
+def test_platform_global_does_not_grant_implicit_corporate_membership(
+    corp, db_core_session, db_gov_session,
+):
+    from backend.db.gov import Authority, AuthorityType, GovStatus
+    db_gov_session.add(Authority(
+        authority_id="global_without_corporate_grant", identity_id="outsider",
+        tipo=AuthorityType.GLOBAL, estado=GovStatus.ACTIVO,
+    ))
+    db_gov_session.commit()
+    denied(lambda: require_corporate_member(db_core_session, corp["outsider"], "ca"))
+    denied(lambda: require_corporate_member(db_core_session, corp["outsider"], "cb"))
