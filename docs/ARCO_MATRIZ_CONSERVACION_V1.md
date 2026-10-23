@@ -38,6 +38,8 @@ Conforme a artículos 2 y 31 de la LFPDPPP, comunicar determinación hasta en 20
 
 ## Ensayo con datos ficticios: preparado, no ejecutado
 
+Actualización: se ejecutaron los controles locales de fotografías; [resultado ARCO-SIM-001](ARCO_ENSAYO_SINTETICO_001.md), 82 pruebas aprobadas con almacenamiento simulado. El protocolo integral que sigue permanece pendiente y no debe presentarse como completado.
+
 Usar un tenant aislado de desarrollo y una persona sintética con visita cerrada y fotos generadas para prueba. No enviar correo real ni usar fotografías de personas o documentos reales.
 
 1. Crear solicitud sintética de acceso y cancelación con folio `ARCO-SIM-001`; registrar recepción, identidad simulada y responsable ficticio.
