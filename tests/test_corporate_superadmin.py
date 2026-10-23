@@ -73,6 +73,14 @@ def test_global_only_idempotent_bootstrap_and_staged_activation(company_setup, m
     monkeypatch.setenv("AXS_CORPORATE_PROVISIONING_ENABLED", "true")
     monkeypatch.setenv("AXS_CORPORATE_API_ENABLED", "true")
     path = "/plataforma/corporativo/empresas"
+    assert client.get("/plataforma/corporativo/estado", headers=auth("provider")).status_code == 403
+    status = client.get("/plataforma/corporativo/estado", headers=auth("super"))
+    assert status.status_code == 200 and status.json()["autorizado"] is True
+    assert status.json()["credencial_configurada"] is False
+    assert client.get("/plataforma/corporativo/usuarios/owner", headers=auth("provider")).status_code == 403
+    checked = client.get("/plataforma/corporativo/usuarios/owner", headers=auth("super"))
+    assert checked.status_code == 200 and checked.json()["usuario_id"] == "owner"
+    assert client.get("/plataforma/corporativo/usuarios/nonexistent", headers=auth("super")).status_code == 404
 
     denied = client.post(path, headers=auth("provider"), json=body)
     assert denied.status_code == 403
@@ -93,6 +101,12 @@ def test_global_only_idempotent_bootstrap_and_staged_activation(company_setup, m
     assert tenant.startswith("corp_")
     assert company["directorio_habilitado"] is False
     assert company["owner_user_id"] == "owner"
+    own = client.get(path + "/" + tenant, headers=auth("super"))
+    assert own.status_code == 200, own.text
+    assert own.json()["directorio_habilitado"] is False
+    assert own.json()["capacidades"] == {"max_sedes": None, "max_destinos_por_sede": None}
+    assert client.get(path + "/" + tenant, headers=auth("provider")).status_code == 403
+    assert client.get(path + "/corp_invalid", headers=auth("super")).status_code == 404
     assert core.query(Casa).count() == 0
     assert core.query(CorporateMembership).filter_by(tenant_id=tenant, rol="owner").count() == 1
     replay = client.post(path, headers=auth("super"), json=body)
@@ -120,6 +134,9 @@ def test_global_only_idempotent_bootstrap_and_staged_activation(company_setup, m
     assert config.json()["max_sedes"] == 2
     assert client.put(limits_path, headers=auth("super"), json=limits).status_code == 200
     assert gov.query(Policy).filter_by(target_tenant_id=tenant).count() == 2
+    fresh = client.get(path + "/" + tenant, headers=auth("super"))
+    assert fresh.status_code == 200
+    assert fresh.json()["capacidades"] == limits
     active = client.post(activate_path, headers=auth("super"), json={"confirmacion": True})
     assert active.status_code == 200, active.text
     assert active.json()["directorio_habilitado"] is True
