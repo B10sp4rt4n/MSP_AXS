@@ -407,3 +407,25 @@ class ExternalIdentity(Base_CORE):
                         "(revoked_at IS NOT NULL AND reference IS NULL AND verified_at IS NULL)",
                         name="external_revocation"),
     )
+
+
+class ArcoCase(Base_CORE):
+    """Private assisted dossier; only opaque evidence references, never ID images."""
+    __tablename__ = "arco_cases"
+    __table_args__ = (
+        CheckConstraint("state IN ('recibida','verificada','resuelta','ejecutando','cerrada')", name="arco_state"),
+        CheckConstraint("version > 0 AND pending_actions >= 0", name="arco_version"),
+    )
+    case_id = Column(String(36), primary_key=True)
+    condominio_id = Column(String, ForeignKey("condominios_exo.condominio_id"), nullable=False, index=True)
+    received_at = Column(DateTime, nullable=False)
+    determination_due = Column(DateTime, nullable=False)
+    execution_due = Column(DateTime)
+    right = Column(String(20), nullable=False)
+    subject_ref = Column(String(100), nullable=False)
+    owner_id = Column(String(100), nullable=False)
+    state = Column(String(20), nullable=False)
+    outcome = Column(String(20))
+    version = Column(Integer, nullable=False)
+    pending_actions = Column(Integer, nullable=False)
+    history = Column(JSON, nullable=False)
