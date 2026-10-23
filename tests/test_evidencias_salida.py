@@ -83,7 +83,7 @@ def test_failure_does_not_undo_exit(client, setup, monkeypatch):
     assert db.query(Visita).filter_by(visita_id="va").one().salida_registrada_en == datetime(2026, 10, 17, 11)
 
 
-@pytest.mark.parametrize("data,status", [(b"invalid", 422), (b"x" * (8 * 1024 * 1024 + 1), 413)])
+@pytest.mark.parametrize("data,status", [(b"invalid", 422), (b"x" * (8 * 1024 * 1024 + 1), 413)], ids=["invalid-format", "over-8mb-limit"])
 def test_invalid_image(client, setup, data, status):
     exit_visit(setup[0])
     assert send(client, data=data).status_code == status

@@ -1,0 +1,44 @@
+{
+  "status": "PASS",
+  "synthetic_only": true,
+  "checks": 32,
+  "proof": [
+    {
+      "tenant": "axs_demo_condo_a",
+      "case_id": "ac000001-0000-4000-8000-000000000001",
+      "state": "cerrada",
+      "history_count": 4
+    },
+    {
+      "tenant": "axs_demo_condo_b",
+      "case_id": "ac000001-0000-4000-8000-000000000002",
+      "state": "cerrada",
+      "history_count": 4
+    }
+  ],
+  "identity": "existing local test actors; not real Clerk sessions",
+  "execution": "tracking only; no deletion or outbound mail",
+  "observed_at_utc": "2026-10-23T04:21:40.070741987Z",
+  "deployment": "501beb0d-ec45-46e8-af04-299429dfc2ed",
+  "source_commit": "a421ef4640b9937c5e4eb22472c22a5778dfc716",
+  "backend_deployment": "54263503-fcc5-4da6-a077-885f0d1bc0d3",
+  "frontend_deployment": "c14601e8-c874-4ec9-b1d7-3edcda6e982e",
+  "audit": {
+    "events": 10,
+    "delivered": 10,
+    "private_reference_leaks": 0
+  },
+  "shutdown": {
+    "status": "PASS",
+    "phase": "closed",
+    "checks": 2,
+    "synthetic_only": true,
+    "authenticated_api_disabled": true,
+    "verified": true,
+    "observed_at_utc": "2026-10-23T04:26:15.306359647Z",
+    "deployment": "3a54e772-e608-45df-a204-a83b0447dafb",
+    "runner_config_restored": true,
+    "backend_close_deployment": "e33be840-adef-4f81-85bf-a83c7ea72001",
+    "frontend_close_deployment": "8bb10f52-92f5-460f-a644-559c5b80469d"
+  }
+}

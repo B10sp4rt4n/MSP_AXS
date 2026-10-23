@@ -27,6 +27,7 @@ export default async function ConfiguracionPage() {
           <Link href={ARCO_PATH} className="mt-3 inline-flex min-h-11 items-center text-purple-300 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-purple-400">
             Consultar mis derechos y el canal de atención
           </Link>
+          {process.env.NEXT_PUBLIC_ARCO_CASES_UI_ENABLED === "true" && <p className="mt-4"><Link href="/dashboard/arco" className="text-purple-300 underline">Gestionar solicitudes ARCO (personal designado)</Link></p>}
         </section>
       </main>
     </div>
