@@ -110,21 +110,23 @@ def test_global_only_idempotent_bootstrap_and_staged_activation(company_setup, m
     assert denied_activation.status_code == 403
     assert client.post(activate_path, headers=auth("super"), json={"confirmacion": False}).status_code == 422
 
-    gov.add_all([
-        Policy(policy_id="policy_sites", nombre="Sedes", ambito=PolicyScope.TENANT,
-               target_tenant_id=tenant, accion_objetivo="crear_sede_corporativa",
-               limites={"max_count": 2}, estado=GovStatus.ACTIVO),
-        Policy(policy_id="policy_areas", nombre="Áreas", ambito=PolicyScope.TENANT,
-               target_tenant_id=tenant, accion_objetivo="crear_destino_corporativo",
-               limites={"max_count": 10}, estado=GovStatus.ACTIVO),
-    ])
-    gov.commit()
+    limits_path = f"{path}/{tenant}/capacidades"
+    limits = {"max_sedes": 2, "max_destinos_por_sede": 10}
+    assert client.put(limits_path, headers=auth("provider"), json=limits).status_code == 403
+    assert client.put(limits_path, headers=auth("super"),
+                      json={"max_sedes": 0, "max_destinos_por_sede": 10}).status_code == 422
+    config = client.put(limits_path, headers=auth("super"), json=limits)
+    assert config.status_code == 200, config.text
+    assert config.json()["max_sedes"] == 2
+    assert client.put(limits_path, headers=auth("super"), json=limits).status_code == 200
+    assert gov.query(Policy).filter_by(target_tenant_id=tenant).count() == 2
     active = client.post(activate_path, headers=auth("super"), json={"confirmacion": True})
     assert active.status_code == 200, active.text
     assert active.json()["directorio_habilitado"] is True
     same = client.post(activate_path, headers=auth("super"), json={"confirmacion": True})
     assert same.status_code == 200
-    assert core.query(EventOutbox).count() == 2
+    # 1 alta, 2 eventos de capacidades (solicitud/confirmación), 1 activación.
+    assert core.query(EventOutbox).count() == 4
     # AXS residencial sigue separado, sin falsificar viviendas.
     assert client.get("/condominios/", headers=auth("super")).json() == []
 
