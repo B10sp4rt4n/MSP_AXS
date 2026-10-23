@@ -67,29 +67,29 @@ class FakeRoleConnection:
 
 
 @pytest.mark.parametrize("database,name,role", [
-    ("neondb", "DATABASE_CORE_URL", "axs_core_app"),
-    ("aup_gov", "DATABASE_GOV_URL", "axs_corp_sandbox_gov"),
-    ("aup_event", "DATABASE_EVENT_URL", "axs_corp_sandbox_event"),
+    ("axs_corp_core_sbx", "DATABASE_CORE_URL", "axs_core_app"),
+    ("axs_corp_gov_sbx", "DATABASE_GOV_URL", "axs_corp_sandbox_gov"),
+    ("axs_corp_event_sbx", "DATABASE_EVENT_URL", "axs_corp_sandbox_event"),
 ])
 def test_role_matches_exact_database(database, name, role):
     verify_role(FakeRoleConnection(database, role), name=name)
 
 
 @pytest.mark.parametrize("db,role,flag", [
-    ("neondb", "neondb_owner", None),
-    ("neondb", "axs_core_app", "rolbypassrls"),
-    ("neondb", "axs_core_app", "rolcreatedb"),
-    ("neondb", "axs_core_app", "rolsuper"),
-    ("aup_gov", "axs_core_app", None),
-    ("aup_event", "axs_corp_sandbox_event", "rolcreaterole"),
+    ("axs_corp_core_sbx", "neondb_owner", None),
+    ("axs_corp_core_sbx", "axs_core_app", "rolbypassrls"),
+    ("axs_corp_core_sbx", "axs_core_app", "rolcreatedb"),
+    ("axs_corp_core_sbx", "axs_core_app", "rolsuper"),
+    ("axs_corp_gov_sbx", "axs_core_app", None),
+    ("axs_corp_event_sbx", "axs_corp_sandbox_event", "rolcreaterole"),
 ])
 def test_role_rejects_privileged_or_cross_database_accounts(db, role, flag):
     flags = {flag: True} if flag else {}
     with pytest.raises(RuntimeError):
         verify_role(FakeRoleConnection(db, role, **flags), name={
-            "neondb":"DATABASE_CORE_URL",
-            "aup_gov":"DATABASE_GOV_URL",
-            "aup_event":"DATABASE_EVENT_URL",
+            "axs_corp_core_sbx":"DATABASE_CORE_URL",
+            "axs_corp_gov_sbx":"DATABASE_GOV_URL",
+            "axs_corp_event_sbx":"DATABASE_EVENT_URL",
         }[db])
 
 
