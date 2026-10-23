@@ -29,6 +29,7 @@ export default function MSPClient() {
   const [condominios, setCondominios] = useState<Condominio[]>([]);
   const [msps, setMsps] = useState<MSP[]>([]);
   const [loading, setLoading] = useState(true);
+  const [corporateAllowed, setCorporateAllowed] = useState(false);
   const [error, setError] = useState("");
 
   const cargar = () => {
@@ -58,6 +59,15 @@ export default function MSPClient() {
   };
 
   useEffect(() => { cargar(); }, [getToken]);
+  useEffect(() => {
+    let active = true;
+    getToken().then(async token => {
+      if (!token) return;
+      const result = await api.get<{authorized:boolean}>("/plataforma/corporativo/acceso", token);
+      if (active) setCorporateAllowed(result.authorized === true);
+    }).catch(() => { if (active) setCorporateAllowed(false); });
+    return () => { active = false; };
+  }, [getToken]);
 
   // No sustituir un total ausente por viviendas ocupadas ni por cero.
   const totalResidentes = condominios.every(c => typeof c.total_residentes === "number")
@@ -74,6 +84,7 @@ export default function MSPClient() {
           <div>
             <h1 className="text-lg font-bold">Dashboard MSP</h1>
             <a href="/dashboard/proveedores" className="text-xs text-blue-300">Contratos · operador de plataforma</a>
+            {corporateAllowed && <a href="/dashboard/corporativo-superadmin" className="block text-xs text-blue-300">AXS Corporativo · Superadmin →</a>}
             <p className="text-xs text-gray-500">{msps[0]?.nombre ?? ""}</p>
           </div>
         </div>
