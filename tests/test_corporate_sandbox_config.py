@@ -21,10 +21,10 @@ def safe_config():
     }
     host = f"{ENDPOINT}.c-7.us-east-2.aws.neon.tech"
     urls = {
-        "DATABASE_CORE_URL": ("neondb", "axs_core_app"),
-        "DATABASE_URL": ("neondb", "axs_core_app"),
-        "DATABASE_GOV_URL": ("aup_gov", "axs_corp_sandbox_gov"),
-        "DATABASE_EVENT_URL": ("aup_event", "axs_corp_sandbox_event"),
+        "DATABASE_CORE_URL": ("axs_corp_core_sbx", "axs_core_app"),
+        "DATABASE_URL": ("axs_corp_core_sbx", "axs_core_app"),
+        "DATABASE_GOV_URL": ("axs_corp_gov_sbx", "axs_corp_sandbox_gov"),
+        "DATABASE_EVENT_URL": ("axs_corp_event_sbx", "axs_corp_sandbox_event"),
     }
     for k, (db, user) in urls.items():
         base[k] = f"postgresql://{user}:synthetic-password@{host}/{db}?sslmode=require"
@@ -101,7 +101,7 @@ def test_sandbox_rejects_privileged_owner_connection(key):
 @pytest.mark.parametrize("mutation", [
     lambda s: s.replace("?sslmode=require", "?sslmode=disable"),
     lambda s: s.replace("@", "@attacker.example/redirect@"),
-    lambda s: s.replace("/aup_gov?", "/neondb?"),
+    lambda s: s.replace("/axs_corp_gov_sbx?", "/axs_corp_core_sbx?"),
     lambda s: s.replace("postgresql://", "sqlite://"),
 ])
 def test_sandbox_rejects_unsafe_url_variants(mutation):
