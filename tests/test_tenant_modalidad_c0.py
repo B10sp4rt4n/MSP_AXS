@@ -188,6 +188,21 @@ def test_http_residential_api_rejects_corporate(
                 json={"msp_id": "provider", "reason": "prueba sintetica"},
             )
             assert denied_exit.status_code == 403, denied_exit.text
+            # Cobertura de TODOS los endpoints de contratos y procedencia
+            # que utilizan lock_condo, incluidas las escrituras con ID de alcance.
+            mutations = (
+                ("PUT", "/condominios/corp/permisos/1/procedencia",
+                 {"kind": "condominio", "evidence_ref": "registro-sintetico"}),
+                ("POST", "/condominios/corp/proveedor/contratos",
+                 {"contract_id": "00000000-0000-4000-8000-000000000001",
+                  "msp_id": "provider", "evidence_ref": "contrato-sintetico"}),
+                ("POST", "/condominios/corp/proveedor/contratos/00000000-0000-4000-8000-000000000001/personal/worker",
+                 {"evidence_ref": "personal-sintetico"}),
+            )
+            for method, route, payload in mutations:
+                denied = client.request(method, route, headers=headers, json=payload)
+                assert denied.status_code == 403, (method, route, denied.text)
+                assert denied.json()["detail"] == "Operacion no disponible para esta modalidad"
             assert db_core_session.query(Condominio).filter_by(
                 condominio_id="corp").one().msp_id == "provider"
     finally:
