@@ -32,14 +32,14 @@ test("sin sesión redirige sin consultar GOV",async()=>{
 test("GLOBAL denegado no monta interfaz",async()=>{
   const x=await renderGate({authorize:false});
   assert.ok(!x.html.includes("Crear empresa privada"));
-  assert.match(x.html,/No se puede habilitar la consola/);
+  assert.match(x.html,/Consola no disponible/);
   assert.deepEqual(x.requests,[["/plataforma/corporativo/acceso","synthetic"]]);
 });
 test("sin backend o sin token falla cerrado",async()=>{
   for(const settings of [{authorize:true,apiDown:true},{authorize:true,token:null}]){
     const x=await renderGate(settings);
     assert.ok(!x.html.includes("Crear empresa privada"));
-    assert.match(x.html,/No se puede habilitar la consola/);
+    assert.match(x.html,/Consola no disponible/);
   }
 });
 test("solo autoridad GLOBAL confirmada monta formulario",async()=>{
