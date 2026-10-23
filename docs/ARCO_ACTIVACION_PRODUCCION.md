@@ -29,3 +29,13 @@ Deshabilitar AXS_ARCO_CASES_ENABLED y vaciar AXS_ARCO_OPERATORS; ocultar la entr
 
 ## Operación
 El registro solo conserva seguimiento asistido. La revisión de identidad, los plazos/calendario, la evidencia privada, la respuesta al titular y la ejecución real de acciones corresponden al responsable. No envía correos ni ejecuta eliminación de datos. Los plazos propuestos de PR #89 no se adoptan por esta liberación.
+
+## Actualización posterior de verificación
+
+El acceso Vercel quedó confirmado al consultar directamente el proyecto autorizado sin teamId: devolvió su identidad y app.axs-mx.com. El 403 con teamId no se resolvió ampliando permisos y la conexión no fue desconectada. Por tanto, la observación inicial de bloqueo Vercel anterior ya no es un pendiente.
+
+La consola web Railway mostró un aviso de incidencia de plataforma y no abrió la configuración de este servicio (pantalla 404 sin sesión). Esto no prueba una caída del backend; el conector había reportado el servicio con estado SUCCESS. La conexión CORE sigue sin verificarse. La revisión automática rechazó crear una función auxiliar productiva para leer metadatos de conexión; no se creó ni se intentó ejecutar por otra vía. Se acudió a la alternativa de lectura de consola.
+
+Se detectó un identificador pytest de más de 8 MB generado a partir del caso de archivo demasiado grande de test_evidencias_salida.py. Se sustituyeron los identificadores automáticos por nombres cortos sin cambiar datos ni aserciones. Sus nueve pruebas pasaron localmente. Es una corrección de diagnóstico de logs; no se afirma que explique por sí sola el job CI todavía pendiente.
+
+La activación, la migración productiva y la fusión permanecen pendientes. No se ejecutó ninguna de esas tres acciones durante esta verificación.
