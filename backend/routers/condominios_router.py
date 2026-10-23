@@ -111,7 +111,8 @@ def list_condominios(
     usuario: Usuario = Depends(get_current_user)
 ):
     """Lista condominios accesibles para el usuario autenticado."""
-    query = db.query(Condominio)
+    # El directorio residencial nunca revela tenants corporativos.
+    query = db.query(Condominio).filter(Condominio.modalidad == "residencial")
     if msp_id:
         query = query.filter(Condominio.msp_id == msp_id)
     if not is_platform_operator(db_gov, usuario):
