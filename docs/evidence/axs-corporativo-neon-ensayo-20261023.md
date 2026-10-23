@@ -34,3 +34,11 @@ Se aplicaron en ese orden mediante sentencias dentro de transacciones. La API Ne
 - C0→C1→C2→C3 en GitHub se mantienen en PR draft escalonados, no fusionados ni desplegados. No activar flags ni configurar un provisioner con LOGIN productivo.
 
 La rama de ensayo se conserva para verificación posterior, **no** para uso por el piloto residencial ni por empresas reales.
+
+
+## Ampliación — verificación de credencial y entorno (23-oct-2026)
+- Railway `AXS Development`: el backend actual pertenece a un entorno denominado `production` y su fuente es `feat/arco-expediente-asistido`. No se cambió la rama de origen, servicio, variables ni despliegue.
+- La rama Neon del ensayo sí conserva el rol `axs_corporate_provisioner`, creado `NOLOGIN`. El intento de `SET LOCAL ROLE` con el propietario disponible devolvió *permission denied to set role*: no se forzó la asignación de membresía ni se elevó la cuenta propietaria para el ensayo.
+- Inspección de privilegios con `has_table_privilege`: `corporate_memberships` SELECT/INSERT=true y DELETE=false; `visitas` SELECT=false; `event_outbox` INSERT=true y SELECT=false. El rol tiene `rolsuper=false`, `rolbypassrls=false`, `rolinherit=false`, `rolcanlogin=false`.
+- Por ese motivo **no se certifica ejecución HTTP desplegada sobre esa rama Neon**, únicamente migraciones estructurales/privilegios observados, además de pruebas HTTP con PostgreSQL descartable en GitHub Actions.
+- Condición para ensayo HTTP integral: backend desechable apuntando exclusivamente a la rama Neon de prueba, credencial de provisioner autorizada para ensayo bajo control del administrador de DB, fuentes GOV/Event de prueba, flags solo de ensayo y sin datos personales. No activar credenciales productivas para salvar este requisito.
