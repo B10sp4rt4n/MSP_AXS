@@ -27,9 +27,14 @@ from backend.services.corporate_provisioner_db import (
     get_provisioning_db, provisioning_enabled, require_provisioner_role,
 )
 
+def private_response(response: Response):
+    # Contactos, identidades y configuraciones de empresas nunca se cachean.
+    response.headers["Cache-Control"] = "private, no-store"
+
+
 router = APIRouter(
     prefix="/plataforma/corporativo", tags=["Superadmin Corporativo"],
-    dependencies=[Depends(provisioning_enabled)],
+    dependencies=[Depends(provisioning_enabled), Depends(private_response)],
 )
 
 
