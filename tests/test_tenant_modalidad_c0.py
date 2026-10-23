@@ -164,6 +164,12 @@ def test_http_residential_api_rejects_corporate(
             response = client.get("/visitas/condominio/corp", headers=headers)
             assert response.status_code == 403
             assert response.json()["detail"] == "Operacion no disponible para esta modalidad"
+            from backend.db.core import SecurityOutbox
+            events = db_core_session.query(SecurityOutbox).all()
+            assert len(events) == 1
+            assert events[0].payload["motivo"] == "TENANT_MODE_DENIED"
+            assert events[0].payload["metadata_json"]["route"] == "/visitas/condominio/{condominio_id}"
+            assert "corp" not in str(events[0].payload)
             visible = client.get("/condominios/", headers=headers)
             assert visible.status_code == 200, visible.text
             assert {row["condominio_id"] for row in visible.json()} == {"res"}
