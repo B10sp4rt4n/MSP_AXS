@@ -211,7 +211,7 @@ def crear_condominio(
     # Contar tenants actuales
     # La política actual crear_tenant es global; el cupo por MSP requiere
     # una política de proveedor explícita en una migración posterior.
-    tenants_count = db.query(Condominio).count()
+    tenants_count = db.query(Condominio).filter(Condominio.modalidad == "residencial").count()
     
     permitido, motivo = puede_ejecutar_accion(
         db=db,
