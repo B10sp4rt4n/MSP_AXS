@@ -186,9 +186,26 @@ def require_company(provisioner: Session, tenant_id: str):
     return tenant, org
 
 
+def current_directory_limit(policy: Policy | None, action: str, now: datetime) -> int | None:
+    """One definition of a usable quota for GET, PUT replay, and activation."""
+    maximum = {"crear_sede_corporativa": 1000, "crear_destino_corporativo": 2000}.get(action)
+    if (not policy or maximum is None or policy.estado != GovStatus.ACTIVO
+            or not isinstance(policy.limites, dict)):
+        return None
+    value = policy.limites.get("max_count")
+    if type(value) is not int or not 1 <= value <= maximum:
+        return None
+    if not isinstance(policy.valida_desde, datetime) or policy.valida_desde > now:
+        return None
+    if policy.valida_hasta is not None and (
+            not isinstance(policy.valida_hasta, datetime) or policy.valida_hasta < now):
+        return None
+    return value
+
+
 def has_tenant_policy(gov: Session, tenant_id: str, action: str) -> bool:
     now = datetime.utcnow()
-    rows = gov.query(Policy.limites).filter(
+    rows = gov.query(Policy).filter(
         Policy.ambito == PolicyScope.TENANT,
         Policy.target_tenant_id == tenant_id,
         Policy.accion_objetivo == action,
@@ -196,12 +213,8 @@ def has_tenant_policy(gov: Session, tenant_id: str, action: str) -> bool:
         Policy.valida_desde <= now,
         (Policy.valida_hasta.is_(None) | (Policy.valida_hasta >= now)),
     ).all()
-    return bool(rows) and all(
-        isinstance(limits.get("max_count"), int)
-        and not isinstance(limits.get("max_count"), bool)
-        and 1 <= limits["max_count"] <= 2000
-        for (limits,) in rows
-    )
+    return bool(rows) and all(current_directory_limit(policy, action, now) is not None
+                              for policy in rows)
 
 
 @router.post("/empresas/{tenant_id}/habilitar-directorio")
@@ -272,9 +285,9 @@ def configure_directory_limits(
                       or found.accion_objetivo != name
                       or found.ambito != PolicyScope.TENANT):
             raise HTTPException(409, "Identificador de política ocupado")
+    now = datetime.utcnow()
     if all(
-        mapped.get(policy_key(tenant_id, name)) is not None
-        and mapped[policy_key(tenant_id, name)].estado == GovStatus.ACTIVO
+        current_directory_limit(mapped.get(policy_key(tenant_id, name)), name, now) == limit
         and mapped[policy_key(tenant_id, name)].limites == {"max_count": limit}
         for name, limit in specifications
     ):
@@ -353,6 +366,7 @@ def company_status(
     details = view(tenant, org, owner.user_id)
     details["privacy_notice_url"] = org.privacy_notice_url
     details["capacidades"] = {}
+    now = datetime.utcnow()
     for action, name in (("crear_sede_corporativa", "max_sedes"),
                          ("crear_destino_corporativo", "max_destinos_por_sede")):
         key = policy_key(tenant_id, action)
@@ -361,6 +375,5 @@ def company_status(
             Policy.target_tenant_id == tenant_id, Policy.accion_objetivo == action,
             Policy.estado == GovStatus.ACTIVO,
         ).first()
-        value = policy.limites.get("max_count") if policy and isinstance(policy.limites, dict) else None
-        details["capacidades"][name] = value if type(value) is int and value > 0 else None
+        details["capacidades"][name] = current_directory_limit(policy, action, now)
     return details

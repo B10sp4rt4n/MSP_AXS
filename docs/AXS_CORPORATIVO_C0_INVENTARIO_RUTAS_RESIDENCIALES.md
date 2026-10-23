@@ -28,7 +28,8 @@
 | `/condominios/{id}/proveedor/*` y `/permisos/*` | `require_platform_operator` + `lock_condo`; se incorporó bloqueo de modalidad residencial en `lock_condo` | **Cierre C0 efectuado**: antes no se verificaba modalidad |
 | `/arco/{id}` | Excepción transversal `expected_mode=None` + rol, scope y designación ARCO | Preservar derechos; cumplimiento ARCO corporativo completo pendiente |
 | `/auth`, `/auth/me/identity`, `/webhooks/clerk` | Identidad/autenticación individual y validación webhook, sin grant de tenant | No interpretarlos como permiso de operación corporativa |
-| `/canario`, `/meta` | Salud/metadatos, sin recursos privados por tenant | Revisar al añadir nuevos datos |
+| POST `/qr/generar_gobernado` | Conserva `validar_scope` y exige `require_condominio(..., expected_mode="residencial")` antes de GOV/EVENT | Es un demostrador con respuesta QR y EVENT que contiene visitante/token, no solo metadatos; no persiste un QR operativo y debe rechazar tenants corporativos |
+| GET `/qr/canario/health`; `/meta` | Salud de políticas / dominio metaoperativo separado | No conceden membresía ni permiso corporativo; no confundir con el POST del canario |
 
 ## Módulo inactivo de especial atención
 

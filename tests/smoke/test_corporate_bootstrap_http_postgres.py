@@ -4,6 +4,7 @@ Nunca usar contra Neon ni datos productivos; limita host, DB y superuser a CI lo
 Clerk/GOV/Event se simulan exclusivamente con fixtures, CORE provisioner y RLS son reales.
 """
 import os
+from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -136,6 +137,23 @@ def test_corporate_http_bootstrap_with_restricted_postgres_and_rls(
             stored = client.put(caps_url, headers=auth("super"), json=quota)
             assert stored.status_code == 200,stored.text
             assert db_gov_session.query(Policy).filter_by(target_tenant_id=tenant).count() == 2
+            # Real restricted CORE session/RLS, synthetic GOV: an identical PUT
+            # must repair an ineffective time window, not silently succeed.
+            for invalid_window in ("expired", "future"):
+                now = datetime.utcnow()
+                for policy in db_gov_session.query(Policy).filter_by(target_tenant_id=tenant).all():
+                    if invalid_window == "expired":
+                        policy.valida_hasta = now - timedelta(days=1)
+                    else:
+                        policy.valida_desde = now + timedelta(days=1)
+                db_gov_session.commit()
+                status = client.get(base + "/empresas/" + tenant, headers=auth("super"))
+                assert status.status_code == 200, status.text
+                assert status.json()["capacidades"] == {"max_sedes": None, "max_destinos_por_sede": None}
+                assert client.post(on_url, headers=auth("super"), json={"confirmacion": True}).status_code == 409
+                repaired = client.put(caps_url, headers=auth("super"), json=quota)
+                assert repaired.status_code == 200, repaired.text
+                assert client.get(base + "/empresas/" + tenant, headers=auth("super")).json()["capacidades"] == quota
             active = client.post(on_url, headers=auth("super"), json={"confirmacion":True})
             assert active.status_code == 200,active.text
             assert active.json()["directorio_habilitado"]
@@ -146,7 +164,8 @@ def test_corporate_http_bootstrap_with_restricted_postgres_and_rls(
             assert verify.query(CorporateMembership).filter_by(tenant_id=tenant, rol="owner").count()==1
             assert verify.query(Casa).count()==0
             assert verify.query(CorporateSite).count()==0
-            assert verify.query(EventOutbox).filter_by(condominio_id=tenant).count()==4
+            # Creation + initial quota pair + two repairs (two events each) + activation.
+            assert verify.query(EventOutbox).filter_by(condominio_id=tenant).count()==8
 
         with factory() as isolated:
             # No tenant context: must not expose private corporate membership/outbox.

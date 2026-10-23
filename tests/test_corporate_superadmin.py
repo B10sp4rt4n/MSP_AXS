@@ -174,3 +174,56 @@ def test_global_access_probe_does_not_depend_on_msp_role(company_setup, monkeypa
     assert granted.headers["cache-control"] == "private, no-store"
     monkeypatch.setenv("AXS_CORPORATE_PROVISIONING_ENABLED", "false")
     assert client.get(route, headers=auth("super")).status_code == 404
+
+def _audit_corporate_quota_setup(company_setup, monkeypatch):
+    client, core, gov, body, auth = company_setup
+    monkeypatch.setenv("AXS_CORPORATE_PROVISIONING_ENABLED", "true")
+    monkeypatch.setenv("AXS_CORPORATE_API_ENABLED", "true")
+    created = client.post("/plataforma/corporativo/empresas", headers=auth("super"), json=body)
+    assert created.status_code == 201, created.text
+    tenant = created.json()["tenant_id"]
+    base = "/plataforma/corporativo/empresas/" + tenant
+    limits = {"max_sedes": 2, "max_destinos_por_sede": 10}
+    return client, core, gov, auth, tenant, base, limits
+
+
+@pytest.mark.parametrize("invalid_window", ["expired", "future"])
+def test_quota_same_values_repair_invalid_validity_window(company_setup, monkeypatch, invalid_window):
+    from datetime import datetime, timedelta
+
+    client, core, gov, auth, tenant, base, limits = _audit_corporate_quota_setup(company_setup, monkeypatch)
+    assert client.put(base + "/capacidades", headers=auth("super"), json=limits).status_code == 200
+    now = datetime.utcnow()
+    for policy in gov.query(Policy).filter_by(target_tenant_id=tenant).all():
+        if invalid_window == "expired":
+            policy.valida_hasta = now - timedelta(days=1)
+        else:
+            policy.valida_desde = now + timedelta(days=1)
+    gov.commit()
+
+    result = client.put(base + "/capacidades", headers=auth("super"), json=limits)
+    assert result.status_code == 200, result.text
+    for policy in gov.query(Policy).filter_by(target_tenant_id=tenant).all():
+        assert policy.valida_desde <= datetime.utcnow()
+        assert policy.valida_hasta is None or policy.valida_hasta >= datetime.utcnow()
+    enabled = client.post(base + "/habilitar-directorio", headers=auth("super"), json={"confirmacion": True})
+    assert enabled.status_code == 200, enabled.text
+
+
+@pytest.mark.parametrize("invalid_window", ["expired", "future"])
+def test_quota_status_does_not_present_ineffective_policy_as_current(company_setup, monkeypatch, invalid_window):
+    from datetime import datetime, timedelta
+
+    client, core, gov, auth, tenant, base, limits = _audit_corporate_quota_setup(company_setup, monkeypatch)
+    assert client.put(base + "/capacidades", headers=auth("super"), json=limits).status_code == 200
+    now = datetime.utcnow()
+    for policy in gov.query(Policy).filter_by(target_tenant_id=tenant).all():
+        if invalid_window == "expired":
+            policy.valida_hasta = now - timedelta(days=1)
+        else:
+            policy.valida_desde = now + timedelta(days=1)
+    gov.commit()
+
+    status = client.get(base, headers=auth("super"))
+    assert status.status_code == 200, status.text
+    assert status.json()["capacidades"] == {"max_sedes": None, "max_destinos_por_sede": None}
