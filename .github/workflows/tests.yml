@@ -32,6 +32,7 @@ jobs:
     - run: node tests/solicitudes-acceso.browser.cjs
     - run: node tests/identity-profile.browser.cjs
     - run: node tests/arco-cases.browser.cjs
+    - run: node tests/corporate-platform.browser.cjs
     - run: node tests/provider-console.browser.cjs
       env:
         AXS_SCREENSHOT_DIR: screenshots/provider-console
