@@ -96,6 +96,7 @@ def test_corporate_provisioner_least_privilege_postgres():
             c.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
             exists = c.execute(text("SELECT 1 FROM pg_roles WHERE rolname='axs_corporate_provisioner'")).first()
             if exists:
-                c.execute(text("REVOKE CONNECT ON DATABASE axs_rls_ci FROM axs_corporate_provisioner"))
+                # Solo la BD local descartable: revoca grants que impiden DROP ROLE.
+                c.execute(text("DROP OWNED BY axs_corporate_provisioner"))
                 c.execute(text("DROP ROLE axs_corporate_provisioner"))
         engine.dispose()
