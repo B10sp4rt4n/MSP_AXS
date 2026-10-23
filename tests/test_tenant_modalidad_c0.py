@@ -134,9 +134,11 @@ def test_dependency_rejects_mode_before_setting_rls(
 
 
 def test_http_residential_api_rejects_corporate(
-    modes, db_core_session, db_gov_session, db_event_session,
+    modes, db_core_session, db_gov_session, db_event_session, monkeypatch,
 ):
-    """Prueba de API con sesión real de test; no constituye prueba RLS PostgreSQL."""
+    """Prueba HTTP sintética, con auditoría durable aislada; no es RLS PostgreSQL."""
+    from sqlalchemy.orm import sessionmaker
+    from backend.services import security_outbox
     from fastapi.testclient import TestClient
     from backend.main import app
     from backend.db.core import get_core_db
@@ -144,6 +146,9 @@ def test_http_residential_api_rejects_corporate(
     from backend.db.event import get_event_db
     from backend.core.auth.jwt import create_access_token
 
+    # El middleware escribe denegaciones en una sesión independiente.
+    # Redirigirla explícitamente a SQLite sintético evita usar el fallback local.
+    monkeypatch.setattr(security_outbox, "SessionFactory", sessionmaker(bind=db_core_session.bind))
     app.dependency_overrides[get_core_db] = lambda: db_core_session
     app.dependency_overrides[get_gov_db] = lambda: db_gov_session
     app.dependency_overrides[get_event_db] = lambda: db_event_session
