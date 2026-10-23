@@ -166,3 +166,22 @@ def test_feature_flag_default_off(corp, db_core_session, db_gov_session, db_even
     finally:
         app.dependency_overrides.clear()
         app.dependency_overrides.update(previous)
+
+
+def test_legacy_tenant_dependencies_do_not_operate_on_company(corp, db_core_session, monkeypatch):
+    """Incluso con scope residencial accidental, no configura RLS hacia empresa."""
+    from backend.db.core import UserTenantScope, AccessLevel, ScopeStatus
+    from backend.core.tenant import context
+    db = db_core_session
+    db.add(UserTenantScope(usuario_id="host_a", tenant_id="ca",
+                           access_level=AccessLevel.GUARDIA, estado=ScopeStatus.ACTIVO))
+    db.commit()
+    calls = []
+    monkeypatch.setattr(context, "_set_postgres_tenant", lambda *args: calls.append(args))
+    with pytest.raises(HTTPException) as a:
+        context.set_tenant_context("ca", db, corp["host_a"])
+    assert a.value.status_code == 403
+    with pytest.raises(HTTPException) as b:
+        context.require_tenant_context(AccessLevel.RESIDENTE)("ca", db, corp["host_a"])
+    assert b.value.status_code == 403
+    assert calls == []
