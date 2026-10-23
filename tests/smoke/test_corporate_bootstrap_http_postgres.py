@@ -70,16 +70,19 @@ def test_corporate_http_bootstrap_with_restricted_postgres_and_rls(
         statements = [
             "migrations/20261023_corporate_directory_c1.sql",
             "migrations/20261023_corporate_superadmin_c2.sql",
+            "migrations/20261023_corporate_reconciliation_c4.sql",
         ]
         for file in statements:
             sql = Path(file).read_text()
             sql = (sql.replace("public.", schema + ".")
                    .replace("GRANT USAGE ON SCHEMA public TO", f"GRANT USAGE ON SCHEMA {schema} TO")
                    .replace("TO axs_core_app", "TO axs_rls_ci")
+                   .replace("schemaname='public'", "schemaname='" + schema + "'")
                    .replace("%I", "%%I").replace("%s", "%%s"))
             with root.connect().execution_options(isolation_level="AUTOCOMMIT") as c:
                 c.exec_driver_sql(sql)
-                c.exec_driver_sql(sql)
+                if "reconciliation_c4" not in file:
+                    c.exec_driver_sql(sql)
         provisioner_created = True
         with root.begin() as c:
             c.execute(text(f"ALTER TABLE {schema}.event_outbox ENABLE ROW LEVEL SECURITY"))
@@ -132,7 +135,8 @@ def test_corporate_http_bootstrap_with_restricted_postgres_and_rls(
             caps_url = base + "/empresas/" + tenant + "/capacidades"
             on_url = base + "/empresas/" + tenant + "/habilitar-directorio"
             assert client.post(on_url, headers=auth("super"), json={"confirmacion":True}).status_code == 409
-            quota = {"max_sedes":2, "max_destinos_por_sede":4}
+            quota = {"max_sedes":2, "max_destinos_por_sede":4,
+                     "request_id":str(uuid4()), "expected_revision":0}
             assert client.put(caps_url, headers=auth("unprivileged"), json=quota).status_code == 403
             stored = client.put(caps_url, headers=auth("super"), json=quota)
             assert stored.status_code == 200,stored.text
@@ -151,9 +155,10 @@ def test_corporate_http_bootstrap_with_restricted_postgres_and_rls(
                 assert status.status_code == 200, status.text
                 assert status.json()["capacidades"] == {"max_sedes": None, "max_destinos_por_sede": None}
                 assert client.post(on_url, headers=auth("super"), json={"confirmacion": True}).status_code == 409
+                quota = {**quota, "request_id":str(uuid4()), "expected_revision":quota["expected_revision"] + 1}
                 repaired = client.put(caps_url, headers=auth("super"), json=quota)
                 assert repaired.status_code == 200, repaired.text
-                assert client.get(base + "/empresas/" + tenant, headers=auth("super")).json()["capacidades"] == quota
+                assert client.get(base + "/empresas/" + tenant, headers=auth("super")).json()["capacidades"] == {k:quota[k] for k in ("max_sedes", "max_destinos_por_sede")}
             active = client.post(on_url, headers=auth("super"), json={"confirmacion":True})
             assert active.status_code == 200,active.text
             assert active.json()["directorio_habilitado"]

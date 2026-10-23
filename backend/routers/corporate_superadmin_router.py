@@ -6,13 +6,15 @@ con rol MSP_ADMIN pero sin autoridad GLOBAL no puede aprovisionar empresas.
 import uuid
 from datetime import datetime
 import hashlib
+import json
+from copy import deepcopy
 import os
 import re
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from backend.core.auth.dependencies import get_current_user
@@ -21,6 +23,7 @@ from backend.core.tenant.context import _set_postgres_tenant
 from backend.db.core import (
     Condominio, CorporateMembership, CorporateOrganization, MSP, Usuario, get_core_db,
 )
+from backend.db.core.corporate_operations import CorporateProvisioningOperation
 from backend.db.gov import Policy, PolicyScope, GovStatus, get_gov_db
 from backend.services.event_outbox import contexto_evento, encolar_evento
 from backend.services.corporate_provisioner_db import (
@@ -73,8 +76,10 @@ class ActivateDirectory(Input):
 
 
 class DirectoryLimits(Input):
-    max_sedes: int = Field(ge=1, le=1000)
-    max_destinos_por_sede: int = Field(ge=1, le=2000)
+    request_id: uuid.UUID
+    expected_revision: int = Field(ge=0, strict=True)
+    max_sedes: int = Field(ge=1, le=1000, strict=True)
+    max_destinos_por_sede: int = Field(ge=1, le=2000, strict=True)
 
 
 def require_global(gov: Session, actor: Usuario):
@@ -94,12 +99,12 @@ def view(tenant: Condominio, org: CorporateOrganization, owner_id: str) -> dict:
     }
 
 
-def audit(db, tenant_id: str, actor: Usuario, request: Request, accion: str):
+def audit(db, tenant_id: str, actor: Usuario, request: Request, accion: str, *, metadata=None):
     token = request.headers.get("Authorization", "").removeprefix("Bearer ")
-    encolar_evento(db, tenant_id, tenant_id, contexto_evento(
+    return encolar_evento(db, tenant_id, tenant_id, contexto_evento(
         actor, token, entidad="empresa_corporativa", accion=accion,
         motivo="Cambio de aprovisionamiento autorizado"),
-        metadata={"accion": accion})
+        metadata={"accion": accion, **(metadata or {})})
 
 
 @router.get("/acceso")
@@ -238,6 +243,9 @@ def activate_directory(
     for action in ("crear_sede_corporativa", "crear_destino_corporativo"):
         if not has_tenant_policy(gov, tenant_id, action):
             raise HTTPException(409, "Faltan políticas GOV específicas para directorio corporativo")
+    operation, confirmed = quota_operation_status(provisioner, tenant_id, quota_rows(gov, tenant_id))
+    if not confirmed:
+        raise HTTPException(409, "Las capacidades requieren conciliación confirmada CORE/GOV")
     if not tenant.corporativo_habilitado:
         try:
             tenant.corporativo_habilitado = True
@@ -254,6 +262,91 @@ def policy_key(tenant_id: str, action: str) -> str:
     return "cpg_" + hashlib.sha256(f"{tenant_id}:{action}".encode()).hexdigest()[:32]
 
 
+def quota_rows(gov: Session, tenant_id: str, *, lock=False, validate=True):
+    keys = [policy_key(tenant_id, action) for action in (
+        "crear_sede_corporativa", "crear_destino_corporativo")]
+    query = gov.query(Policy).filter(Policy.policy_id.in_(keys)).order_by(Policy.policy_id)
+    if lock:
+        query = query.with_for_update().populate_existing()
+    rows = {row.policy_id: row for row in query.all()}
+    for action in ("crear_sede_corporativa", "crear_destino_corporativo") if validate else ():
+        row = rows.get(policy_key(tenant_id, action))
+        if row and row.metadata_json is not None and not isinstance(row.metadata_json, dict):
+            raise HTTPException(409, "Metadata GOV incompatible; requiere revisión")
+        if row and (row.target_tenant_id != tenant_id or row.accion_objetivo != action
+                    or row.ambito != PolicyScope.TENANT):
+            raise HTTPException(409, "Identificador de política ocupado")
+    return rows
+
+
+def quota_snapshot(rows):
+    """Compare the complete managed policy state, not just its quota."""
+    snapshots = {key: {
+        "policy_id": row.policy_id, "nombre": row.nombre, "descripcion": row.descripcion,
+        "ambito": row.ambito.value, "target_tenant_id": row.target_tenant_id,
+        "accion_objetivo": row.accion_objetivo, "limites": deepcopy(row.limites),
+        "estado": row.estado.value,
+        "valida_desde": row.valida_desde.isoformat() if row.valida_desde else None,
+        "valida_hasta": row.valida_hasta.isoformat() if row.valida_hasta else None,
+        "metadata_json": deepcopy(row.metadata_json),
+    } for key, row in rows.items()}
+    # Do not copy arbitrary GOV descriptions/metadata into CORE's journal.
+    return {key: hashlib.sha256(json.dumps(value, sort_keys=True,
+            separators=(",", ":")).encode()).hexdigest() for key, value in snapshots.items()}
+
+
+def operation_marker(operation):
+    return {"request_id": operation.request_id, "payload_hash": operation.payload_hash,
+            "revision": operation.revision}
+
+
+def operation_matches_gov(operation, rows):
+    now = datetime.utcnow()
+    for action, field in (("crear_sede_corporativa", "max_sedes"),
+                          ("crear_destino_corporativo", "max_destinos_por_sede")):
+        row = rows.get(policy_key(operation.tenant_id, action))
+        if (not row or row.target_tenant_id != operation.tenant_id
+                or row.accion_objetivo != action or row.ambito != PolicyScope.TENANT
+                or current_directory_limit(row, action, now) != operation.payload[field]
+                or row.limites != {"max_count": operation.payload[field]}
+                or not isinstance(row.metadata_json, dict)
+                or row.metadata_json.get("axs_corporate_operation") != operation_marker(operation)):
+            return False
+    return True
+
+
+def quota_operation_status(provisioner, tenant_id, rows):
+    try:
+        operation = provisioner.query(CorporateProvisioningOperation).filter_by(
+            tenant_id=tenant_id).order_by(CorporateProvisioningOperation.revision.desc()).first()
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, "Registro de conciliación no disponible; operación bloqueada") from exc
+    confirmed = bool(operation and operation.estado == "confirmed"
+                     and operation_matches_gov(operation, rows))
+    return operation, confirmed
+
+
+def operation_view(operation):
+    if not operation:
+        return None
+    return {"request_id": operation.request_id, "estado": operation.estado,
+            "revision": operation.revision, "expected_revision": operation.revision - 1,
+            **operation.payload}
+
+
+def operation_response(operation):
+    return {"tenant_id": operation.tenant_id, **operation_view(operation),
+            "cuotas": dict(operation.payload)}
+
+
+def rollback_quietly(*sessions):
+    for session in sessions:
+        try:
+            session.rollback()
+        except Exception:
+            pass  # A broken connection cannot establish whether its commit happened.
+
+
 @router.put("/empresas/{tenant_id}/capacidades")
 def configure_directory_limits(
     tenant_id: str, body: DirectoryLimits, request: Request,
@@ -261,70 +354,122 @@ def configure_directory_limits(
     provisioner: Session = Depends(get_provisioning_db),
     actor: Usuario = Depends(get_current_user),
 ):
-    """Dos cuotas de catálogo, no tarifas ni autorización de ingreso de visitas.
+    """Durable CORE intent -> atomic GOV pair -> atomic CORE confirmation.
 
-    CORE y GOV viven en bases independientes: se registra primero la solicitud
-    en la outbox CORE. Si GOV falla, no se declara una actualización completada.
+    Locks always follow CORE(company, operation) -> GOV(ordered policy keys).
+    A retry never infers success from coincidentally equal numeric quotas.
     """
     require_global(gov, actor)
     require_provisioner_role(provisioner)
-    require_company(provisioner, tenant_id)
-    specifications = (
-        ("crear_sede_corporativa", body.max_sedes),
-        ("crear_destino_corporativo", body.max_destinos_por_sede),
-    )
-    # Permisos explícitos desde Superadmin: no copiar una política GLOBAL
-    # de otro cliente y no cambiar reglas de un condominio residencial.
-    keys = [policy_key(tenant_id, name) for name, _ in specifications]
-    rows = gov.query(Policy).filter(Policy.policy_id.in_(keys)).with_for_update().all()
-    mapped = {p.policy_id: p for p in rows}
-    for name, limit in specifications:
-        key = policy_key(tenant_id, name)
-        found = mapped.get(key)
-        if found and (found.target_tenant_id != tenant_id
-                      or found.accion_objetivo != name
-                      or found.ambito != PolicyScope.TENANT):
-            raise HTTPException(409, "Identificador de política ocupado")
-    now = datetime.utcnow()
-    if all(
-        current_directory_limit(mapped.get(policy_key(tenant_id, name)), name, now) == limit
-        and mapped[policy_key(tenant_id, name)].limites == {"max_count": limit}
-        for name, limit in specifications
-    ):
-        return {"tenant_id": tenant_id, "max_sedes": body.max_sedes,
-                "max_destinos_por_sede": body.max_destinos_por_sede}
+    tenant_id = validated_company_id(tenant_id)
+    request_id = str(body.request_id)
+    payload = {"max_sedes": body.max_sedes, "max_destinos_por_sede": body.max_destinos_por_sede}
+    payload_hash = hashlib.sha256(json.dumps({"contract": "corporate-quota-v1",
+        "tenant_id": tenant_id, "expected_revision": body.expected_revision,
+        "payload": payload}, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     try:
-        audit(provisioner, tenant_id, actor, request, "solicitar_capacidades_directorio")
+        require_company(provisioner, tenant_id)
+        operation = provisioner.query(CorporateProvisioningOperation).filter_by(
+            tenant_id=tenant_id, request_id=request_id).with_for_update().first()
+        latest = provisioner.query(CorporateProvisioningOperation).filter_by(
+            tenant_id=tenant_id).order_by(CorporateProvisioningOperation.revision.desc()).first()
+        if operation and (operation.payload_hash != payload_hash or operation.payload != payload):
+            raise HTTPException(409, "Referencia de capacidades reutilizada con información distinta")
+        if latest and latest.request_id != request_id and latest.estado != "confirmed":
+            raise HTTPException(409, "Hay una conciliación pendiente; consulta la empresa")
+        if operation and operation.estado == "needs_review":
+            raise HTTPException(409, "La conciliación requiere revisión de deriva GOV")
+        if operation and latest.request_id != request_id:
+            raise HTTPException(409, "Operación sustituida; consulta la revisión vigente")
+        if not operation:
+            revision = latest.revision if latest else 0
+            if body.expected_revision != revision:
+                raise HTTPException(409, "Revisión obsoleta; consulta la empresa antes de cambiar cuotas")
+            expected_gov = quota_snapshot(quota_rows(gov, tenant_id))
+            # Never carry a preliminary GOV transaction into a new CORE lock.
+            gov.rollback()
+            operation = CorporateProvisioningOperation(
+                tenant_id=tenant_id, request_id=request_id, revision=revision + 1,
+                payload=payload, payload_hash=payload_hash, requested_by=actor.usuario_id,
+                expected_gov=expected_gov, estado="pending")
+            operation.request_event_uid = audit(provisioner, tenant_id, actor, request,
+                "solicitar_capacidades_directorio", metadata=operation_marker(operation))
+            provisioner.add(operation)
+            provisioner.commit()
+            # Reacquire after durable preparation. Pending excludes other intentions.
+            require_company(provisioner, tenant_id)
+            operation = provisioner.query(CorporateProvisioningOperation).filter_by(
+                tenant_id=tenant_id, request_id=request_id).populate_existing().with_for_update().one()
+        # Another retry can finish or flag the operation during the prepare gap.
+        latest = provisioner.query(CorporateProvisioningOperation).filter_by(
+            tenant_id=tenant_id).order_by(CorporateProvisioningOperation.revision.desc()).populate_existing().first()
+        if operation.estado == "needs_review":
+            raise HTTPException(409, "La conciliación requiere revisión de deriva GOV")
+        if latest.request_id != request_id:
+            raise HTTPException(409, "Operación sustituida; consulta la revisión vigente")
+        def locked_rows_or_review():
+            try:
+                return quota_rows(gov, tenant_id, lock=True)
+            except HTTPException:
+                if operation.estado == "pending":
+                    operation.estado = "needs_review"
+                    audit(provisioner, tenant_id, actor, request,
+                          "conflicto_capacidades_directorio", metadata=operation_marker(operation))
+                    provisioner.commit()
+                raise
+        rows = locked_rows_or_review()
+        if operation.estado == "confirmed":
+            if not operation_matches_gov(operation, rows):
+                raise HTTPException(409, "La operación confirmada ya no representa GOV; consulta y crea otra")
+            return operation_response(operation)
+        if not operation_matches_gov(operation, rows):
+            # An unchanged snapshot permits first apply, never a stale overwrite.
+            if quota_snapshot(rows) != operation.expected_gov:
+                operation.estado = "needs_review"
+                audit(provisioner, tenant_id, actor, request,
+                      "conflicto_capacidades_directorio", metadata=operation_marker(operation))
+                provisioner.commit()
+                raise HTTPException(409, "GOV cambió durante la conciliación; requiere revisión")
+            for action, field in (("crear_sede_corporativa", "max_sedes"),
+                                  ("crear_destino_corporativo", "max_destinos_por_sede")):
+                key = policy_key(tenant_id, action)
+                row = rows.get(key)
+                if row is None:
+                    row = Policy(policy_id=key, nombre="Cupo " + action,
+                        ambito=PolicyScope.TENANT, target_tenant_id=tenant_id, accion_objetivo=action)
+                    gov.add(row)
+                row.limites = {"max_count": payload[field]}
+                row.estado = GovStatus.ACTIVO
+                row.valida_desde = datetime.utcnow()
+                row.valida_hasta = None
+                row.metadata_json = {**(row.metadata_json or {}),
+                                     "axs_corporate_operation": operation_marker(operation)}
+            gov.commit()
+            # Check committed data under lock, not the expired ORM identity map.
+            rows = locked_rows_or_review()
+            if not operation_matches_gov(operation, rows):
+                operation.estado = "needs_review"
+                audit(provisioner, tenant_id, actor, request,
+                      "conflicto_capacidades_directorio", metadata=operation_marker(operation))
+                provisioner.commit()
+                raise HTTPException(409, "GOV no conserva la operación aplicada; requiere revisión")
+        operation.confirmation_event_uid = audit(provisioner, tenant_id, actor, request,
+            "confirmar_capacidades_directorio", metadata={**operation_marker(operation),
+                                                       "requested_by": operation.requested_by})
+        operation.estado = "confirmed"
+        operation.confirmed_at = datetime.utcnow()
+        # Immutable response captured before commit can never trigger a late lazy SELECT.
+        response = operation_response(operation)
         provisioner.commit()
-        for name, limit in specifications:
-            key = policy_key(tenant_id, name)
-            existing = mapped.get(key)
-            if existing:
-                existing.limites = {"max_count": limit}
-                existing.estado = GovStatus.ACTIVO
-                existing.valida_desde = datetime.utcnow()
-                existing.valida_hasta = None
-            else:
-                gov.add(Policy(
-                    policy_id=key, nombre="Cupo " + name,
-                    ambito=PolicyScope.TENANT, target_tenant_id=tenant_id,
-                    accion_objetivo=name, limites={"max_count": limit},
-                    estado=GovStatus.ACTIVO,
-                ))
-        gov.commit()
-        _set_postgres_tenant(provisioner, tenant_id)
-        audit(provisioner, tenant_id, actor, request, "confirmar_capacidades_directorio")
-        provisioner.commit()
-    except IntegrityError as exc:
         gov.rollback()
-        provisioner.rollback()
-        raise HTTPException(409, "Conflicto de configuración; vuelve a consultar") from exc
-    except Exception:
-        gov.rollback()
-        provisioner.rollback()
+        return response
+    except HTTPException:
+        rollback_quietly(gov, provisioner)
         raise
-    return {"tenant_id": tenant_id, "max_sedes": body.max_sedes,
-            "max_destinos_por_sede": body.max_destinos_por_sede}
+    except Exception as exc:
+        rollback_quietly(gov, provisioner)
+        raise HTTPException(503, detail={"code": "CORPORATE_OPERATION_UNCERTAIN",
+            "request_id": request_id, "message": "Resultado incierto; reintenta la misma referencia y datos"}) from exc
 
 
 # Consulta y reanudación de operaciones existentes, importadas de C3 #99.
@@ -376,4 +521,9 @@ def company_status(
             Policy.estado == GovStatus.ACTIVO,
         ).first()
         details["capacidades"][name] = current_directory_limit(policy, action, now)
+    operation, confirmed = quota_operation_status(
+        provisioner, tenant_id, quota_rows(gov, tenant_id, validate=False))
+    details["capacidades_operacion"] = operation_view(operation)
+    details["capacidades_revision"] = operation.revision if operation else 0
+    details["capacidades_confirmadas"] = confirmed
     return details

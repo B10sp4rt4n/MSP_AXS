@@ -57,6 +57,8 @@ jobs:
     - run: npm ci
     - run: npm run test:roles
     - run: node --test tests/corporate-superadmin-gate.test.cjs
+    - run: npm install --no-save --package-lock=false jsdom@26.1.0
+    - run: node --test tests/corporate-reconciliation-dom.test.cjs
     - run: npx next typegen && npx tsc --noEmit
 
   test:

@@ -15,6 +15,7 @@ from backend.db.core import (
     Casa, Condominio, CorporateMembership, CorporateOrganization,
     EventOutbox, MSP, Usuario, get_core_db,
 )
+from backend.db.core.corporate_operations import CorporateOperationBase
 from backend.db.gov import Authority, AuthorityType, GovStatus, Policy, PolicyScope, get_gov_db
 from backend.db.event import get_event_db
 from backend.services import security_outbox
@@ -24,6 +25,7 @@ from backend.services.corporate_provisioner_db import get_provisioning_db
 @pytest.fixture
 def company_setup(db_core_session, db_gov_session, db_event_session, monkeypatch):
     core, gov = db_core_session, db_gov_session
+    CorporateOperationBase.metadata.create_all(core.bind)
     core.add(MSP(msp_id="msp_synthetic", nombre="Proveedor sintético"))
     core.add_all([
         Usuario(usuario_id="super", email="super@example.test", rol="MSP_ADMIN"),
@@ -126,13 +128,14 @@ def test_global_only_idempotent_bootstrap_and_staged_activation(company_setup, m
 
     limits_path = f"{path}/{tenant}/capacidades"
     limits = {"max_sedes": 2, "max_destinos_por_sede": 10}
-    assert client.put(limits_path, headers=auth("provider"), json=limits).status_code == 403
+    command = {**limits, "request_id": str(uuid.uuid4()), "expected_revision": 0}
+    assert client.put(limits_path, headers=auth("provider"), json=command).status_code == 403
     assert client.put(limits_path, headers=auth("super"),
                       json={"max_sedes": 0, "max_destinos_por_sede": 10}).status_code == 422
-    config = client.put(limits_path, headers=auth("super"), json=limits)
+    config = client.put(limits_path, headers=auth("super"), json=command)
     assert config.status_code == 200, config.text
     assert config.json()["max_sedes"] == 2
-    assert client.put(limits_path, headers=auth("super"), json=limits).status_code == 200
+    assert client.put(limits_path, headers=auth("super"), json=command).status_code == 200
     assert gov.query(Policy).filter_by(target_tenant_id=tenant).count() == 2
     refreshed = client.get(path + "/" + tenant, headers=auth("super"))
     assert refreshed.status_code == 200
@@ -183,7 +186,8 @@ def _audit_corporate_quota_setup(company_setup, monkeypatch):
     assert created.status_code == 201, created.text
     tenant = created.json()["tenant_id"]
     base = "/plataforma/corporativo/empresas/" + tenant
-    limits = {"max_sedes": 2, "max_destinos_por_sede": 10}
+    limits = {"max_sedes": 2, "max_destinos_por_sede": 10,
+              "request_id": str(uuid.uuid4()), "expected_revision": 0}
     return client, core, gov, auth, tenant, base, limits
 
 
@@ -201,6 +205,7 @@ def test_quota_same_values_repair_invalid_validity_window(company_setup, monkeyp
             policy.valida_desde = now + timedelta(days=1)
     gov.commit()
 
+    limits = {**limits, "request_id": str(uuid.uuid4()), "expected_revision": 1}
     result = client.put(base + "/capacidades", headers=auth("super"), json=limits)
     assert result.status_code == 200, result.text
     for policy in gov.query(Policy).filter_by(target_tenant_id=tenant).all():
