@@ -13,12 +13,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.core.auth.dependencies import get_current_user
+from backend.core.gov.policy import evaluar_politica
+from backend.core.security_denial import SecurityDenial
 from backend.core.scope.corporate_boundary import (
     ADMIN_ROLES, SITE_ROLES, require_corporate_member,
 )
 from backend.db.core import (
-    CorporateDestination, CorporateSite, CorporateSiteAssignment, Usuario, get_core_db,
+    Condominio, CorporateDestination, CorporateSite, CorporateSiteAssignment, Usuario, get_core_db,
 )
+from backend.db.gov import get_gov_db
 from backend.services.event_outbox import contexto_evento, encolar_evento
 
 
@@ -69,6 +72,14 @@ def destination_view(d: CorporateDestination) -> dict:
             "site_id": d.site_id, "nombre": d.nombre, "activa": d.activa}
 
 
+def require_policy(db: Session, gov: Session, tenant_id: str, accion: str, count: int):
+    """Sin política GOV de la empresa no hay alta; el rechazo es auditado por middleware."""
+    allowed, _ = evaluar_politica(gov, accion, tenant_id=tenant_id, valor_actual=count)
+    if not allowed:
+        raise SecurityDenial(403, "Capacidad corporativa restringida por gobierno",
+                             reason="CORPORATE_DISABLED")
+
+
 def audit(db, tenant_id, row_id, user, request, entity):
     # No duplicar información del visitante/identificaciones en EVENT.
     token = request.headers.get("Authorization", "").removeprefix("Bearer ")
@@ -98,9 +109,14 @@ def sites(
 @router.post("/sedes", status_code=201)
 def create_site(
     tenant_id: str, body: NewSite, request: Request,
-    db: Session = Depends(get_core_db), actor: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_core_db), gov: Session = Depends(get_gov_db),
+    actor: Usuario = Depends(get_current_user),
 ):
     require_corporate_member(db, actor, tenant_id, allowed_roles=ADMIN_ROLES)
+    # Serializa el cupo de sedes por empresa antes de insertar.
+    db.query(Condominio).filter_by(condominio_id=tenant_id).with_for_update().one()
+    count = db.query(CorporateSite).filter_by(tenant_id=tenant_id, activa=True).count()
+    require_policy(db, gov, tenant_id, "crear_sede_corporativa", count)
     row = CorporateSite(site_id="site_" + uuid.uuid4().hex[:24],
                         tenant_id=tenant_id, nombre=body.nombre,
                         zona_horaria=body.zona_horaria)
@@ -145,10 +161,18 @@ def destinations(
 @router.post("/sedes/{site_id}/destinos", status_code=201)
 def create_destination(
     tenant_id: str, site_id: str, body: NewDestination, request: Request,
-    db: Session = Depends(get_core_db), actor: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_core_db), gov: Session = Depends(get_gov_db),
+    actor: Usuario = Depends(get_current_user),
 ):
     require_corporate_member(db, actor, tenant_id, allowed_roles=ADMIN_ROLES, site_id=site_id)
-    require_site(db, tenant_id, site_id)
+    # La sede bloqueada serializa altas al mismo catalogo.
+    site = db.query(CorporateSite).filter_by(tenant_id=tenant_id, site_id=site_id,
+                                             activa=True).with_for_update().first()
+    if not site:
+        raise HTTPException(404, "Sede no encontrada")
+    count = db.query(CorporateDestination).filter_by(tenant_id=tenant_id,
+                                                      site_id=site_id, activa=True).count()
+    require_policy(db, gov, tenant_id, "crear_destino_corporativo", count)
     row = CorporateDestination(destination_id="area_" + uuid.uuid4().hex[:24],
                                tenant_id=tenant_id, site_id=site_id, nombre=body.nombre)
     try:
