@@ -70,7 +70,8 @@ def vista(db, row):
         "destino_id": row.destino_id, "casa_unidad": visita.casa_unidad,
         "nombre_visitante": visita.nombre_visitante, "proposito": visita.proposito,
         "estado": row.estado, "expira_en": row.expira_en.replace(tzinfo=timezone.utc).isoformat(),
-        "entrada_registrada": visita.entrada_registrada_en is not None}
+        "entrada_registrada": visita.entrada_registrada_en is not None,
+        "salida_registrada": visita.salida_registrada_en is not None}
 
 
 def crear(db, tenant, data, usuario, contexto):
