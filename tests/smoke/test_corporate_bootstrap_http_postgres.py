@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.exc import DBAPIError
 
 from backend.main import app
 from backend.core.auth.jwt import create_access_token
@@ -151,7 +152,10 @@ def test_corporate_http_bootstrap_with_restricted_postgres_and_rls(
             # No tenant context: must not expose private corporate membership/outbox.
             assert isolated.query(CorporateMembership).count()==0
             assert isolated.query(CorporateOrganization).count()==0
-            assert isolated.query(EventOutbox).count()==0
+            # Este rol sólo puede INSERTar en auditoría; SELECT está denegado.
+            with pytest.raises(DBAPIError):
+                isolated.query(EventOutbox).count()
+            isolated.rollback()
 
     finally:
         app.dependency_overrides.clear()
