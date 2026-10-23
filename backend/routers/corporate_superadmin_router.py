@@ -170,14 +170,20 @@ def require_company(provisioner: Session, tenant_id: str):
 
 def has_tenant_policy(gov: Session, tenant_id: str, action: str) -> bool:
     now = datetime.utcnow()
-    return gov.query(Policy.policy_id).filter(
+    rows = gov.query(Policy.limites).filter(
         Policy.ambito == PolicyScope.TENANT,
         Policy.target_tenant_id == tenant_id,
         Policy.accion_objetivo == action,
         Policy.estado == GovStatus.ACTIVO,
         Policy.valida_desde <= now,
         (Policy.valida_hasta.is_(None) | (Policy.valida_hasta >= now)),
-    ).first() is not None
+    ).all()
+    return bool(rows) and all(
+        isinstance(limits.get("max_count"), int)
+        and not isinstance(limits.get("max_count"), bool)
+        and 1 <= limits["max_count"] <= 2000
+        for (limits,) in rows
+    )
 
 
 @router.post("/empresas/{tenant_id}/habilitar-directorio")
