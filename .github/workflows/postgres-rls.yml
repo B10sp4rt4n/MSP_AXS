@@ -1,6 +1,8 @@
 name: PostgreSQL RLS gate
 
 on:
+  push:
+    branches: ['feat/axs-corporativo-c3-superadmin-portal-20261023']
   pull_request:
     branches: [main]
   workflow_dispatch:
