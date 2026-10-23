@@ -11,6 +11,10 @@ Sistema MSP_AXS implementado siguiendo paradigma AUP:
 
 ## 📖 DOCUMENTOS PRINCIPALES
 
+### Privacidad y derechos ARCO
+
+📄 [ARCO_PORTAL_Y_ATENCION.md](ARCO_PORTAL_Y_ATENCION.md) — Página pública, canal de recepción, procedimiento asistido y límites de implementación. Disponible en el portal en `/privacidad/arco`.
+
 ### **1. Resumen Ejecutivo Completo**
 📄 [AUP_COMPLETE_SUMMARY.md](AUP_COMPLETE_SUMMARY.md)
 

@@ -7,7 +7,7 @@ on:
 
 jobs:
   postgres-rls:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         # Official PostgreSQL image on Docker Hub; ECR Public hit its download quota.
