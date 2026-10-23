@@ -34,9 +34,9 @@ EXPECTED_ROLES = {
     "DATABASE_EVENT_URL": "axs_corp_sandbox_event",
 }
 EXPECTED_DB = {
-    "DATABASE_CORE_URL": "neondb",
-    "DATABASE_GOV_URL": "aup_gov",
-    "DATABASE_EVENT_URL": "aup_event",
+    "DATABASE_CORE_URL": "axs_corp_core_sbx",
+    "DATABASE_GOV_URL": "axs_corp_gov_sbx",
+    "DATABASE_EVENT_URL": "axs_corp_event_sbx",
 }
 
 
