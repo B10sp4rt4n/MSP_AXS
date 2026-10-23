@@ -246,3 +246,17 @@ def test_postgres_two_residents_cannot_overwrite_decision(setup):
     setup.expire_all()
     assert setup.query(Visita).one().entrada_registrada_en is None
     assert setup.query(EventOutbox).count() == 2
+
+
+def test_resident_inbox_reports_exit_without_erasing_authorization(client, setup):
+    row = create(client)
+    assert reply(client, row).status_code == 200
+    assert entry(client, row).status_code == 200
+    inbox = '/solicitudes-acceso/a'
+    before = client.get(inbox, headers=headers('resident', 'RESIDENTE')).json()[0]
+    assert before['entrada_registrada'] is True and before['salida_registrada'] is False
+    assert client.patch(f'/visitas/{row["visita_id"]}/salida', headers=headers('guard', 'GUARDIA')).status_code == 200
+    after = client.get(inbox, headers=headers('resident', 'RESIDENTE')).json()[0]
+    assert after['solicitud_id'] == row['solicitud_id']
+    assert after['salida_registrada'] is True and after['estado'] == 'consumida'
+    assert setup.query(SolicitudAcceso).count() == 1

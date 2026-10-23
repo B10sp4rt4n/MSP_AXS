@@ -93,9 +93,14 @@ function bundle(name, parent=path.join(process.cwd(),'entry.js')) {
    assert.equal(await page.evaluate(()=>window.rows.length),1);
    assert.equal(await page.evaluate(()=>window.posts.length),0);
   }
-  // The resident can still see the completed decision as context.
+  // A resident sees an entered visitor only until the exit is recorded.
   await open(true,'consumida');
   await page.getByText('Entrada registrada en caseta.',{exact:true}).waitFor();
+  await page.evaluate(()=>{window.rows[0].salida_registrada=true;});
+  await page.getByText('Entrada registrada en caseta.',{exact:true}).waitFor({state:'detached',timeout:10000});
+  await page.getByText('No hay solicitudes para mostrar.',{exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>window.rows.length),1);
+  assert.equal(await page.evaluate(()=>window.posts.length),0);
   assert.deepEqual(errors,[]);
   console.log('PASS remote app: lost create/reply, stable ID/destination, explicit consent, rejection, expiry, no automatic entry');
  } finally {await browser.close();}

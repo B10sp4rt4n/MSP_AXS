@@ -12,7 +12,7 @@ type Solicitud = {
   solicitud_id: string; visita_id: string; destino_id: string; casa_unidad: string;
   nombre_visitante: string; proposito: string; expira_en: string;
   estado: "pendiente" | "permitida" | "rechazada" | "expirada" | "consumida";
-  entrada_registrada: boolean;
+  entrada_registrada: boolean; salida_registrada?: boolean;
 };
 const mensajes = {
   pendiente: "Esperando la decisión del residente. Aún no permitas la entrada.",
@@ -114,13 +114,13 @@ export default function SolicitudesAcceso({ condominioId, destinoId, visita, res
     } finally { lock.current = false; if (alive.current) setBusy(false); }
   }
   // Caseta only needs requests that have not already resulted in an entry.
-  // Keep the durable request and visit intact for resident context and history.
+  // Completed visits leave the live inbox; durable requests remain in history.
   const visibles = rows.filter(r =>
-    (residente || (r.estado !== "consumida" && !r.entrada_registrada)) &&
+    !r.salida_registrada && (residente || (r.estado !== "consumida" && !r.entrada_registrada)) &&
     (!destinoId || r.destino_id === destinoId) && (!visita || r.visita_id === visita.visita_id));
   const vigente = (r: Solicitud) => fresh && now > 0 && new Date(r.expira_en).getTime() > now;
   return <section aria-label="Solicitudes de acceso" className="space-y-3 rounded-xl border border-purple-700 p-4">
-    <h2 className="text-lg font-semibold">{residente ? "Alguien te visita en caseta" : "Autorización del residente"}</h2>
+    <h2 className="text-lg font-semibold">{residente ? "Accesos de tus visitas" : "Autorización del residente"}</h2>
     <p className="text-sm text-gray-300">{residente ? "Permite o rechaza el acceso desde aquí. Al confirmar, AXS guardará tu decisión. La entrada la registra caseta." : "El residente decide con su app abierta. Si no responde, no hay autorización."}</p>
     {error && <p role="alert" className="text-amber-200">{error}</p>}
     <button className={button} disabled={busy} onClick={actualizar}>Actualizar solicitudes</button>
