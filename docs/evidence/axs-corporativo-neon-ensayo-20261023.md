@@ -42,3 +42,13 @@ La rama de ensayo se conserva para verificación posterior, **no** para uso por 
 - Inspección de privilegios con `has_table_privilege`: `corporate_memberships` SELECT/INSERT=true y DELETE=false; `visitas` SELECT=false; `event_outbox` INSERT=true y SELECT=false. El rol tiene `rolsuper=false`, `rolbypassrls=false`, `rolinherit=false`, `rolcanlogin=false`.
 - Por ese motivo **no se certifica ejecución HTTP desplegada sobre esa rama Neon**, únicamente migraciones estructurales/privilegios observados, además de pruebas HTTP con PostgreSQL descartable en GitHub Actions.
 - Condición para ensayo HTTP integral: backend desechable apuntando exclusivamente a la rama Neon de prueba, credencial de provisioner autorizada para ensayo bajo control del administrador de DB, fuentes GOV/Event de prueba, flags solo de ensayo y sin datos personales. No activar credenciales productivas para salvar este requisito.
+
+
+## Preparación del backend Railway separado (23-oct-2026)
+- Proyecto Railway independiente: `AXS Corporativo Sandbox`, id `cf44e5f4-1a41-4d25-a13e-a39211cda7b6`. Entorno `sandbox` id `cd1b2ff7-509e-4c6b-9ea0-c537295d4cd3`.
+- Servicio `axs-corporativo-api-sandbox`, id `e395d483-dd09-4f50-a1e8-415787be5b30`.
+- Se **prepararon cambios staged sin aplicar**: source `B10sp4rt4n/MSP_AXS` fijado al commit `1c182bdd4486dce6bed8cd1710c3d22c2493ee53`; builder Railpack, comando uvicorn, `/health` y checks previos de desarrollo/RLS.
+- Flags preparados `AXS_CORPORATE_API_ENABLED=false`, `AXS_CORPORATE_PROVISIONING_ENABLED=false`, `AXS_CORPORATE_SANDBOX_ONLY=true`, `ENVIRONMENT=sandbox`.
+- **NO se ha ejecutado accept-deploy.** El servicio no tiene instancias productivas ni dominio público. No se copiarán las credenciales ni variables del backend compartido de Railway.
+- Pendiente preparar conexión aislada a rama Neon `br-soft-leaf-b59xcclw`, orígenes GOV/EVENT de prueba, credencial de provisioner (actualmente `NOLOGIN`), autenticación Clerk de prueba y revisión de costos antes de activar un servicio. No duplicar secretos al repositorio o al frontend.
+- Si no se autoriza gasto computacional adicional, conservar staged sin deploy; la validación automatizada CI PostgreSQL ya aprobada continúa siendo la evidencia funcional disponible.
