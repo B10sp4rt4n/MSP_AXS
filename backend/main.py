@@ -42,6 +42,12 @@ logging.basicConfig(
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
 
+# Sandbox fail-closed BEFORE importing engines or running legacy create_all.
+# Normal residential runtime stays unchanged unless this explicit flag is set.
+if os.getenv("AXS_CORPORATE_SANDBOX_ONLY", "").lower() == "true":
+    from scripts.check_corporate_sandbox_data import check_data
+    check_data(os.environ)
+
 # ✅ AUP: Importar engines y bases separadas por dominio
 from .db.core import Base_CORE, engine_core
 from .db.event import Base_EVENT, engine_event
