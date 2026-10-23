@@ -48,4 +48,4 @@ jobs:
         if: success()
         env:
           AXS_EXPORT_SANDBOX_DDL: schema-only
-        run: python scripts/export_corporate_sandbox_ddl.py
+        run: python -m scripts.export_corporate_sandbox_ddl
