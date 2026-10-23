@@ -8,7 +8,7 @@ on:
 
 jobs:
   provider-console-browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend-next
@@ -41,7 +41,7 @@ jobs:
         path: frontend-next/screenshots/provider-console/
 
   frontend-roles:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend-next
@@ -57,7 +57,7 @@ jobs:
     - run: npx next typegen && npx tsc --noEmit
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     
     strategy:
       matrix:
