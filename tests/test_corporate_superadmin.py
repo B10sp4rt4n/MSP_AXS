@@ -1,0 +1,140 @@
+"""C2: operaciones reales de Superadmin con datos sintéticos aislados en SQLite.
+
+La identidad GLOBAL viene de AUP_GOV, no del texto Usuario.rol. El runtime
+de CI PostgreSQL se prueba por separado; no hay altas en Neon productivo.
+"""
+import uuid
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import sessionmaker
+
+from backend.main import app
+from backend.core.auth.jwt import create_access_token
+from backend.db.core import (
+    Casa, Condominio, CorporateMembership, CorporateOrganization,
+    EventOutbox, MSP, Usuario, get_core_db,
+)
+from backend.db.gov import Authority, AuthorityType, GovStatus, Policy, PolicyScope, get_gov_db
+from backend.db.event import get_event_db
+from backend.services import security_outbox
+from backend.services.corporate_provisioner_db import get_provisioning_db
+
+
+@pytest.fixture
+def company_setup(db_core_session, db_gov_session, db_event_session, monkeypatch):
+    core, gov = db_core_session, db_gov_session
+    core.add(MSP(msp_id="msp_synthetic", nombre="Proveedor sintético"))
+    core.add_all([
+        Usuario(usuario_id="super", email="super@example.test", rol="MSP_ADMIN"),
+        Usuario(usuario_id="provider", email="provider@example.test", rol="MSP_ADMIN"),
+        Usuario(usuario_id="owner", email="owner@example.test", rol="RESIDENTE"),
+    ])
+    core.commit()
+    gov.add(Authority(authority_id="authority_super", identity_id="super",
+                      tipo=AuthorityType.GLOBAL, estado=GovStatus.ACTIVO))
+    gov.commit()
+    prev = app.dependency_overrides.copy()
+    app.dependency_overrides[get_core_db] = lambda: core
+    app.dependency_overrides[get_gov_db] = lambda: gov
+    app.dependency_overrides[get_event_db] = lambda: db_event_session
+    app.dependency_overrides[get_provisioning_db] = lambda: core
+    monkeypatch.setattr(security_outbox, "SessionFactory", sessionmaker(bind=core.bind))
+    body = {
+        "request_id": str(uuid.uuid4()),
+        "nombre": "Empresa Sintética Uno",
+        "msp_id": "msp_synthetic",
+        "owner_user_id": "owner",
+        "privacy_contact": "privacidad@example.test",
+        "privacy_notice_url": "https://example.test/aviso",
+        "privacy_notice_version": "2026-10",
+    }
+    def auth(identity):
+        return {"Authorization": "Bearer " + create_access_token(identity, "MSP_ADMIN")}
+    try:
+        with TestClient(app) as client:
+            yield client, core, gov, body, auth
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(prev)
+
+
+def test_off_by_default_returns_404(company_setup, monkeypatch):
+    client, core, gov, body, auth = company_setup
+    monkeypatch.delenv("AXS_CORPORATE_PROVISIONING_ENABLED", raising=False)
+    monkeypatch.setenv("AXS_CORPORATE_API_ENABLED", "true")
+    resp = client.post("/plataforma/corporativo/empresas", headers=auth("super"), json=body)
+    assert resp.status_code == 404
+    assert core.query(CorporateOrganization).count() == 0
+
+
+def test_global_only_idempotent_bootstrap_and_staged_activation(company_setup, monkeypatch):
+    client, core, gov, body, auth = company_setup
+    monkeypatch.setenv("AXS_CORPORATE_PROVISIONING_ENABLED", "true")
+    monkeypatch.setenv("AXS_CORPORATE_API_ENABLED", "true")
+    path = "/plataforma/corporativo/empresas"
+
+    denied = client.post(path, headers=auth("provider"), json=body)
+    assert denied.status_code == 403
+    assert core.query(Condominio).count() == 0
+    bad_email = client.post(path, headers=auth("super"), json={**body, "privacy_contact": "not_an_email"})
+    assert bad_email.status_code == 422
+    bad_notice = client.post(path, headers=auth("super"),
+                             json={**body, "privacy_notice_url": "http://example.test/aviso"})
+    assert bad_notice.status_code == 422
+    self_grant = client.post(path, headers=auth("super"), json={**body, "owner_user_id": "super"})
+    assert self_grant.status_code == 400
+    assert core.query(Condominio).count() == 0
+
+    first = client.post(path, headers=auth("super"), json=body)
+    assert first.status_code == 201, first.text
+    company = first.json()
+    tenant = company["tenant_id"]
+    assert tenant.startswith("corp_")
+    assert company["directorio_habilitado"] is False
+    assert company["owner_user_id"] == "owner"
+    assert core.query(Casa).count() == 0
+    assert core.query(CorporateMembership).filter_by(tenant_id=tenant, rol="owner").count() == 1
+    replay = client.post(path, headers=auth("super"), json=body)
+    assert replay.status_code == 201, replay.text
+    assert replay.json()["tenant_id"] == tenant
+    assert core.query(EventOutbox).count() == 1
+    conflict = client.post(path, headers=auth("super"), json={**body, "nombre": "Otra empresa"})
+    assert conflict.status_code == 409
+
+    activate_path = f"{path}/{tenant}/habilitar-directorio"
+    premature = client.post(activate_path, headers=auth("super"), json={"confirmacion": True})
+    assert premature.status_code == 409
+    assert core.query(Condominio).filter_by(condominio_id=tenant).one().corporativo_habilitado is False
+    denied_activation = client.post(activate_path, headers=auth("provider"), json={"confirmacion": True})
+    assert denied_activation.status_code == 403
+    assert client.post(activate_path, headers=auth("super"), json={"confirmacion": False}).status_code == 422
+
+    gov.add_all([
+        Policy(policy_id="policy_sites", nombre="Sedes", ambito=PolicyScope.TENANT,
+               target_tenant_id=tenant, accion_objetivo="crear_sede_corporativa",
+               limites={"max_count": 2}, estado=GovStatus.ACTIVO),
+        Policy(policy_id="policy_areas", nombre="Áreas", ambito=PolicyScope.TENANT,
+               target_tenant_id=tenant, accion_objetivo="crear_destino_corporativo",
+               limites={"max_count": 10}, estado=GovStatus.ACTIVO),
+    ])
+    gov.commit()
+    active = client.post(activate_path, headers=auth("super"), json={"confirmacion": True})
+    assert active.status_code == 200, active.text
+    assert active.json()["directorio_habilitado"] is True
+    same = client.post(activate_path, headers=auth("super"), json={"confirmacion": True})
+    assert same.status_code == 200
+    assert core.query(EventOutbox).count() == 2
+    # AXS residencial sigue separado, sin falsificar viviendas.
+    assert client.get("/condominios/", headers=auth("super")).json() == []
+
+
+def test_privileged_connection_is_fail_closed_without_url(monkeypatch):
+    from backend.services.corporate_provisioner_db import get_provisioning_db
+    from fastapi import HTTPException
+    monkeypatch.setenv("AXS_CORPORATE_PROVISIONING_ENABLED", "true")
+    monkeypatch.setenv("AXS_CORPORATE_API_ENABLED", "true")
+    monkeypatch.delenv("DATABASE_CORPORATE_PROVISIONING_URL", raising=False)
+    with pytest.raises(HTTPException) as error:
+        next(get_provisioning_db())
+    assert error.value.status_code == 503
