@@ -76,6 +76,7 @@ def test_global_only_idempotent_bootstrap_and_staged_activation(company_setup, m
     assert client.get("/plataforma/corporativo/estado", headers=auth("provider")).status_code == 403
     status = client.get("/plataforma/corporativo/estado", headers=auth("super"))
     assert status.status_code == 200 and status.json()["autorizado"] is True
+    assert status.headers["cache-control"] == "private, no-store"
     assert status.json()["credencial_configurada"] is False
     assert client.get("/plataforma/corporativo/usuarios/owner", headers=auth("provider")).status_code == 403
     checked = client.get("/plataforma/corporativo/usuarios/owner", headers=auth("super"))
@@ -103,6 +104,7 @@ def test_global_only_idempotent_bootstrap_and_staged_activation(company_setup, m
     assert company["owner_user_id"] == "owner"
     own = client.get(path + "/" + tenant, headers=auth("super"))
     assert own.status_code == 200, own.text
+    assert own.headers["cache-control"] == "private, no-store"
     assert own.json()["directorio_habilitado"] is False
     assert own.json()["capacidades"] == {"max_sedes": None, "max_destinos_por_sede": None}
     assert client.get(path + "/" + tenant, headers=auth("provider")).status_code == 403
