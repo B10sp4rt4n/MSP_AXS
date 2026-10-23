@@ -45,14 +45,23 @@ def require_condominio(
     db: Session, db_gov: Session, usuario: Usuario, condominio_id: str,
     level: AccessLevel, *, expected_mode: str | None = "residencial",
 ) -> Condominio:
-    # La comprobacion de modalidad precede incluso a autoridad GLOBAL/MSP.
-    # None se reserva a operaciones transversales explicitamente autorizadas
-    # (p. ej., ARCO), nunca a un endpoint de accesos residencial.
+    # Autorizar primero para no revelar la modalidad a identidades ajenas.
+    # El modo se exige TAMBIEN a usuarios GLOBAL/MSP una vez autorizados.
+    # None se reserva a operaciones transversales (p. ej., ARCO).
     condo = db.query(Condominio).filter(
         Condominio.condominio_id == condominio_id,
     ).populate_existing().with_for_update().first()
     if not condo:
         raise HTTPException(404, "Condominio no encontrado")
+    privileged = is_platform_operator(db_gov, usuario) or condo.msp_id in active_msp_ids(db, usuario)
+    if not privileged:
+        scopes = db.query(UserTenantScope).filter(
+            UserTenantScope.usuario_id == usuario.usuario_id,
+            UserTenantScope.tenant_id == condominio_id,
+            UserTenantScope.estado == ScopeStatus.ACTIVO,
+        ).all()
+        if not any(nivel_suficiente(scope.access_level, level) and origin_is_current(db, scope, condo) for scope in scopes):
+            raise SecurityDenial(403, "Sin acceso al condominio", reason="SCOPE_DENIED")
     if expected_mode is not None:
         if expected_mode not in ("residencial", "corporativo"):
             raise ValueError("Modalidad de tenant no reconocida")
@@ -60,17 +69,6 @@ def require_condominio(
             raise SecurityDenial(403, "Operacion no disponible para esta modalidad", reason="TENANT_MODE_DENIED")
         if expected_mode == "corporativo" and not condo.corporativo_habilitado:
             raise SecurityDenial(403, "AXS Corporativo no esta habilitado", reason="CORPORATE_DISABLED")
-    if is_platform_operator(db_gov, usuario):
-        return condo
-    if condo.msp_id in active_msp_ids(db, usuario):
-        return condo
-    scopes = db.query(UserTenantScope).filter(
-        UserTenantScope.usuario_id == usuario.usuario_id,
-        UserTenantScope.tenant_id == condominio_id,
-        UserTenantScope.estado == ScopeStatus.ACTIVO,
-    ).all()
-    if not any(nivel_suficiente(scope.access_level, level) and origin_is_current(db, scope, condo) for scope in scopes):
-        raise SecurityDenial(403, "Sin acceso al condominio", reason="SCOPE_DENIED")
     return condo
 
 
