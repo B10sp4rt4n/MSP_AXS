@@ -9,3 +9,11 @@ El backend probado fue el despliegue `c35e3280-fcef-4371-8c83-afbba1cbc8a9` (SUC
 La revisión visual detectó texto claro sobre el fondo blanco heredado. Se añadió un fondo oscuro explícito al contenedor ARCO para mantener contraste con sus textos y controles; esta corrección no cambia permisos ni el flujo probado.
 
 Este ensayo valida sesión y seguimiento asistido con datos ficticios. No acredita verificación de identidad, eliminación de datos, comunicación efectiva al titular ni atención de una solicitud humana. No habilita el módulo en producción comercial. Evidencia estructurada: [resultado](evidence/arco-clerk-20261023.json).
+
+## Cierre y verificación visual
+
+Se retiró la designación temporal y se deshabilitó ARCO en Development. El redespliegue backend `52d542b3-2bb5-4398-901e-17ad6695d0e8` terminó en SUCCESS. Con la misma sesión real, el cliente A mostró el mensaje de registro no habilitado, sin formularios ni expedientes. El enlace de Configuración permaneció oculto durante el ensayo.
+
+Los cinco eventos del folio se entregaron; cero coincidencias con las referencias privadas revisadas en los payloads. La corrección visual pasó TypeScript y ESLint y se desplegó en frontend `fd738e6e-14c6-45c3-bf0c-1e22b8eb831b` (SUCCESS), commit `c7ff20a4001e05e395866e86ca61e60c676602c7`. La captura final confirma texto legible y acceso retirado. El recorrido funcional se completó antes del ajuste de fondo; no se repitieron escrituras después del ajuste cosmético.
+
+![Pantalla final del ensayo cerrado](evidence/arco-clerk-20261023-final.jpg)

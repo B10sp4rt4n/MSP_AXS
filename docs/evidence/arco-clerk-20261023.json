@@ -30,5 +30,25 @@
     "No identity verification, response delivery or deletion performed",
     "Production commercial unchanged"
   ],
-  "visual_issue": "Light page background made gray-100 text unreadable. Explicit gray-950 background added after flow test."
+  "visual_issue": "Light page background made gray-100 text unreadable. Explicit gray-950 background added after flow test.",
+  "audit": {
+    "events": 5,
+    "delivered": 5,
+    "private_reference_matches": 0
+  },
+  "shutdown": {
+    "backend_deployment": "52d542b3-2bb5-4398-901e-17ad6695d0e8",
+    "status": "SUCCESS",
+    "enabled": false,
+    "operators_removed": true,
+    "real_session_ui": "Module unavailable; no forms or cases shown"
+  },
+  "visual_fix": {
+    "commit": "c7ff20a4001e05e395866e86ca61e60c676602c7",
+    "frontend_deployment": "fd738e6e-14c6-45c3-bf0c-1e22b8eb831b",
+    "status": "SUCCESS",
+    "typescript": "PASS",
+    "eslint": "PASS",
+    "screenshot": "arco-clerk-20261023-final.jpg"
+  }
 }

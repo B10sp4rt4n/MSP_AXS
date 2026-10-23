@@ -25,3 +25,7 @@ Al terminar, restaurar la configuración anterior del operador y deshabilitar la
 Se deshabilitó ARCO y se retiraron las designaciones en Development, además de ocultar el enlace de Configuración. Ambos redespliegues confirmaron SUCCESS. Un segundo ensayo autenticado aprobó dos comprobaciones: la API devuelve 404 para cada operador ficticio. Sin sesión se mantiene 401 por el middleware general. Se confirmó también la entrega de diez eventos de auditoría, sin las referencias privadas revisadas en sus payloads. La configuración anterior del ejecutor se restauró sin iniciarlo otra vez; el proceso ARCO terminó y no tiene cron ni reinicio automático.
 
 Evidencia: [resultado estructurado](evidence/arco-development-20261022.json). La prueba valida el registro y seguimiento asistido contra la API desplegada y PostgreSQL; no una sesión real Clerk, una solicitud humana ni la eliminación de datos. Las pruebas de navegador previas usaron transporte simulado, no se presentan como una navegación autenticada en este despliegue.
+
+## Seguimiento posterior con sesión real
+
+La limitación de sesión real pendiente en este primer ensayo se atendió posteriormente con una solicitud ficticia, manteniendo separado el alcance original. Véase [ensayo Clerk](ARCO_CLERK_ENSAYO.md) para recorrido, controles, auditoría, corrección visual y retirada verificada de acceso temporal. No acredita atención humana real ni activa producción comercial.
