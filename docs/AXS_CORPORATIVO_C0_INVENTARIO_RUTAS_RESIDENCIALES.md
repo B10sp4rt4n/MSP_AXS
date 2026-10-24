@@ -28,8 +28,7 @@
 | `/condominios/{id}/proveedor/*` y `/permisos/*` | `require_platform_operator` + `lock_condo`; se incorporó bloqueo de modalidad residencial en `lock_condo` | **Cierre C0 efectuado**: antes no se verificaba modalidad |
 | `/arco/{id}` | Excepción transversal `expected_mode=None` + rol, scope y designación ARCO | Preservar derechos; cumplimiento ARCO corporativo completo pendiente |
 | `/auth`, `/auth/me/identity`, `/webhooks/clerk` | Identidad/autenticación individual y validación webhook, sin grant de tenant | No interpretarlos como permiso de operación corporativa |
-| POST `/qr/generar_gobernado` | Conserva `validar_scope` y exige `require_condominio(..., expected_mode="residencial")` antes de GOV/EVENT | Es un demostrador con respuesta QR y EVENT que contiene visitante/token, no solo metadatos; no persiste un QR operativo y debe rechazar tenants corporativos |
-| GET `/qr/canario/health`; `/meta` | Salud de políticas / dominio metaoperativo separado | No conceden membresía ni permiso corporativo; no confundir con el POST del canario |
+| `/canario`, `/meta` | Salud/metadatos, sin recursos privados por tenant | Revisar al añadir nuevos datos |
 
 ## Módulo inactivo de especial atención
 
@@ -50,3 +49,15 @@
 5. CI del último SHA y revisión humana de C0 antes de fusionar; C1, C2 y C3 siguen Draft, con flags corporativos apagados y sin migraciones ni despliegue productivo.
 
 **Decisión:** no declarar C0 terminado únicamente por este inventario.
+
+## Ampliación HTTP y corrección de avisos en cola
+
+`tests/test_tenant_modalidad_http.py` añade una matriz de **51 combinaciones ruta/método publicadas**, con **53 escenarios** (incluye JSON, XLSX y PDF). Cada escenario prueba cuatro identidades (GLOBAL, MSP, scope local y scope ajeno), con empresa habilitada y deshabilitada: **424 denegaciones HTTP**. Se comprueba ausencia de cambios en todas las tablas CORE salvo la bandeja de seguridad, un único evento de denegación saneado y ausencia de acceso a almacenamiento o transportes. Un test adicional detecta rutas nuevas sin cobertura dentro de los doce routers residenciales inventariados. No equivale a inventariar automáticamente todo módulo futuro de la aplicación.
+
+`tests/test_tenant_modalidad_privacy_alexa.py` usa solicitudes Alexa firmadas con una CA sintética para probar voz piloto/beta, rechazo de nuevas vinculaciones, estado no operativo y desvinculación tras revocar el scope. Comprueba también alta, consulta y avance de un expediente ARCO en ambas modalidades de habilitación, con scope y designación obligatorios. No acredita el procedimiento ARCO empresarial integral.
+
+Se reprodujo un defecto en dos pruebas: el aviso piloto ya encolado se enviaba si el tenant cambiaba a corporativo antes del envío. `enviar_aviso_piloto` ahora consulta la modalidad en una sesión nueva antes del transporte; tenant ausente, fallo de base o bloqueo de recuperación impiden el envío. Las pruebas existentes conservan notificaciones residenciales tras movimientos confirmados; la beta también prueba la reclasificación antes del envío.
+
+`tests/smoke/test_tenant_modalidad_http_postgres.py` replica los 424 rechazos sobre ORM real con sesiones por solicitud y RLS forzado en visitas, evidencias y outbox operativo. Comprueba ausencia de contexto, cruce entre dos empresas y conservación de datos. Acepta exclusivamente la base desechable local de CI y un rol sin SUPERUSER/BYPASSRLS. Incorporado al gate PostgreSQL; revisar resultado del último SHA antes de considerarlo aprobado.
+
+Las pruebas locales SQLite y los firmantes/transports sintéticos no conectan con Amazon, Clerk, Neon ni Railway. Persisten los requisitos de revisión humana, políticas/grants operativos reales, recuperación entre dominios y ARCO completo antes de producción.

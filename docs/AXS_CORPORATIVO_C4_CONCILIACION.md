@@ -1,6 +1,8 @@
 # C4: propuesta de conciliación CORE/GOV
 
-Estado: implementación local; no publicada ni aplicada en Neon/Railway. Base de
+Estado actualizado: implementación versionada en la rama C3 desde `2b397b4`;
+no fusionada a main ni aplicada en Neon/Railway. La descripción histórica de
+trabajo local se conserva más abajo como evidencia de su etapa anterior. Base de
 revisión: PR #100, `e9320128fff8b89c3aeaec30d7072b4e0c40678d`. No habilita
 visitas, QR, acceso físico ni cambios residenciales. ARCO continúa pendiente.
 
@@ -124,3 +126,11 @@ de migración y privilegios. Esta propuesta no autoriza merge ni despliegue.
   reproducido también sobre la base; no se presentó como una pasada de lint.
 - PostgreSQL temporal apagado al terminar. Sin cambios externos, publicación,
   ampliación de permisos persistentes, merge ni despliegue.
+
+## Revisión posterior de dependencias y privacidad
+
+La integración C0 → C1 → C2 → C3 conserva el protocolo y sus pruebas. La
+[revisión ARCO antes del ensayo](AXS_CORPORATIVO_ARCO_REVISION_PREENSAYO.md)
+distingue el journal versionado de su migración/permisos no aplicados y de la
+atención ARCO empresarial todavía incompleta. Validar CI del nuevo SHA; los
+resultados locales históricos no acreditan por sí solos la integración actual.
