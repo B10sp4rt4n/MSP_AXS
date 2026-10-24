@@ -7,11 +7,11 @@ SISTEMA DE AUTENTICACIÓN:
   - AUP_IDENTITY: Usuario en base de datos
   - AUP_CREDENTIAL: Password hash (bcrypt)
   - AUP_SESSION: JWT con identity_id + role
-  
+
 ENDPOINTS PÚBLICOS:
   - POST /auth/login: crear AUP_SESSION
   - GET /: health check
-  
+
 ENDPOINTS PROTEGIDOS:
   - Todos los demás requieren: Authorization: Bearer <token>
 
@@ -142,21 +142,22 @@ logger.info(f"🌍 CORS ACTIVADO: {_allowed_origins}")
 #   Inicialización de Bases de Datos (Separadas)
 # ============================================================
 
-try:
-    # ✅ Crear tablas en AUP_CORE
-    Base_CORE.metadata.create_all(bind=engine_core)
-    logger.info("✅ AUP_CORE: Tablas verificadas/creadas")
-    
-    # ✅ Crear tablas en AUP_EVENT
-    Base_EVENT.metadata.create_all(bind=engine_event)
-    logger.info("✅ AUP_EVENT: Tablas verificadas/creadas")
-    
-    # ✅ Crear tablas en AUP_GOV
-    Base_GOV.metadata.create_all(bind=engine_gov)
-    logger.info("✅ AUP_GOV: Tablas verificadas/creadas")
-    
-except Exception as exc:
-    logger.warning("⚠ No se pudieron crear/verificar todas las tablas", exc_info=exc)
+if os.getenv("AXS_CORPORATE_SANDBOX_ONLY", "").lower() != "true":
+    try:
+        # ✅ Crear tablas en AUP_CORE
+        Base_CORE.metadata.create_all(bind=engine_core)
+        logger.info("✅ AUP_CORE: Tablas verificadas/creadas")
+
+        # ✅ Crear tablas en AUP_EVENT
+        Base_EVENT.metadata.create_all(bind=engine_event)
+        logger.info("✅ AUP_EVENT: Tablas verificadas/creadas")
+
+        # ✅ Crear tablas en AUP_GOV
+        Base_GOV.metadata.create_all(bind=engine_gov)
+        logger.info("✅ AUP_GOV: Tablas verificadas/creadas")
+
+    except Exception as exc:
+        logger.warning("⚠ No se pudieron crear/verificar todas las tablas", exc_info=exc)
 
 
 # ============================================================
@@ -233,12 +234,12 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     logger.info("✅ Frontend estático montado en /static")
-    
+
     @app.get("/")
     async def serve_frontend():
         """Servir frontend HTML para piloto."""
         return FileResponse(os.path.join(static_dir, "index.html"))
-    
+
     @app.get("/admin.html")
     async def serve_admin():
         """Servir panel administrativo."""

@@ -1,5 +1,7 @@
 # Sandbox corporativo: preparación y verificación del 24 de octubre de 2026
 
+> Actualización de implementación: ver [Arranque y permisos](AXS_CORPORATIVO_SANDBOX_ARRANQUE_Y_PERMISOS.md). Este documento conserva el inventario remoto inicial; los bloqueos de vaciedad y SQL descritos abajo son el diagnóstico anterior a ese cambio.
+
 Estado: inventario remoto de solo lectura y plan revisable. **No listo para
 desplegar ni cargar personas reales.** No se aplicaron SQL, grants, LOGIN,
 contraseñas, variables, dominios ni cambios staged de Railway.

@@ -48,9 +48,10 @@ def require_condominio(
     # Autorizar primero para no revelar la modalidad a identidades ajenas.
     # El modo se exige TAMBIEN a usuarios GLOBAL/MSP una vez autorizados.
     # None se reserva a operaciones transversales (p. ej., ARCO).
-    condo = db.query(Condominio).filter(
+    from backend.core.tenant.company_lock import lock_company_query
+    condo = lock_company_query(db, db.query(Condominio).filter(
         Condominio.condominio_id == condominio_id,
-    ).populate_existing().with_for_update().first()
+    ).populate_existing(), condominio_id).first()
     if not condo:
         raise HTTPException(404, "Condominio no encontrado")
     privileged = is_platform_operator(db_gov, usuario) or condo.msp_id in active_msp_ids(db, usuario)

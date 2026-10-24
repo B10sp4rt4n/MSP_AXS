@@ -91,6 +91,7 @@ def publicar_evento(db_event, payload):
         from sqlalchemy.dialects.sqlite import insert
     else:
         raise RuntimeError("Motor EVENT no soportado")
+    _set_postgres_tenant(db_event, values["tenant_id"])
     db_event.execute(insert(Event).values(**values).on_conflict_do_nothing(index_elements=["event_uid"]))
     # No reconocer como enviado un event_uid existente con contenido diferente.
     existing = db_event.query(Event).filter_by(event_uid=values["event_uid"]).one()

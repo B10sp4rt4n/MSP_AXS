@@ -82,6 +82,10 @@ def verify_role(connection, *, name: str) -> None:
 def check_data(values: dict) -> None:
     """Read-only check; no password or database rows are returned."""
     check_config(values)
+    if values.get("AXS_CORPORATE_SANDBOX_PHASE") == "runtime":
+        from scripts.corporate_sandbox_attestation import check_runtime
+        check_runtime(values)
+        return
     for name, tables in REQUIRED_EMPTY.items():
         engine = None
         try:
@@ -103,7 +107,7 @@ def check_data(values: dict) -> None:
 if __name__ == "__main__":
     try:
         check_data(os.environ)
-        print("AXS corporate sandbox: databases empty, roles limited, deployment gate PASS")
+        print("AXS corporate sandbox: selected phase verified, deployment gate PASS")
     except Exception as exc:
         # Do not print exception chains: psycopg might include connection details.
         print(f"FAIL: sandbox no apto para arranque ({type(exc).__name__})", file=sys.stderr)

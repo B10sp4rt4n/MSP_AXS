@@ -209,6 +209,7 @@ def current_directory_limit(policy: Policy | None, action: str, now: datetime) -
 
 
 def has_tenant_policy(gov: Session, tenant_id: str, action: str) -> bool:
+    _set_postgres_tenant(gov, tenant_id)
     now = datetime.utcnow()
     rows = gov.query(Policy).filter(
         Policy.ambito == PolicyScope.TENANT,
@@ -263,6 +264,7 @@ def policy_key(tenant_id: str, action: str) -> str:
 
 
 def quota_rows(gov: Session, tenant_id: str, *, lock=False, validate=True):
+    _set_postgres_tenant(gov, tenant_id)
     keys = [policy_key(tenant_id, action) for action in (
         "crear_sede_corporativa", "crear_destino_corporativo")]
     query = gov.query(Policy).filter(Policy.policy_id.in_(keys)).order_by(Policy.policy_id)
@@ -511,6 +513,7 @@ def company_status(
     details = view(tenant, org, owner.user_id)
     details["privacy_notice_url"] = org.privacy_notice_url
     details["capacidades"] = {}
+    _set_postgres_tenant(gov, tenant_id)
     now = datetime.utcnow()
     for action, name in (("crear_sede_corporativa", "max_sedes"),
                          ("crear_destino_corporativo", "max_destinos_por_sede")):
