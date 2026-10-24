@@ -181,6 +181,8 @@ from backend.routers import solicitudes_acceso_router
 app.include_router(solicitudes_acceso_router.router)
 from backend.routers import arco_router
 app.include_router(arco_router.router)
+from backend.routers import arco_clients_router
+app.include_router(arco_clients_router.router)
 from backend.routers import corporativo_router
 app.include_router(corporativo_router.router)  # feature OFF por defecto; nunca activa empresas
 from backend.routers import corporate_superadmin_router
