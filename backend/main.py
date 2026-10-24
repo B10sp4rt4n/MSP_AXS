@@ -177,6 +177,8 @@ from backend.routers import arco_router
 app.include_router(arco_router.router)
 from backend.routers import corporativo_router
 app.include_router(corporativo_router.router)  # feature OFF por defecto; nunca activa empresas
+from backend.routers import corporate_superadmin_router
+app.include_router(corporate_superadmin_router.router)  # provisioning requiere credencial separada
 app.include_router(visitas_router.router)
 app.include_router(qr_router.router)
 app.include_router(evidencias_router.router)

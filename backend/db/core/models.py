@@ -254,6 +254,10 @@ class CorporateOrganization(Base_CORE):
     __tablename__ = "corporate_organizations"
     tenant_id = Column(String, primary_key=True)
     modalidad = Column(String(16), nullable=False, default="corporativo", server_default="corporativo")
+    # Datos operativos del aviso; no guardar evidencias de titulares aquí.
+    privacy_contact = Column(String(254), nullable=True)
+    privacy_notice_url = Column(String(500), nullable=True)
+    privacy_notice_version = Column(String(80), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     __table_args__ = (
         CheckConstraint("modalidad = 'corporativo'", name="ck_corporate_org_mode"),
