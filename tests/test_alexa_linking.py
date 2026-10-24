@@ -142,7 +142,7 @@ def test_status_and_self_disconnect(client, db_session, beta, signer, envelope):
 
 
 @pytest.mark.parametrize('movement', ['entrada', 'salida'])
-@pytest.mark.parametrize('case', ['valid', 'other-house', 'other-tenant', 'moved', 'revoked', 'no-permission', 'disabled', 'contract', 'recovery'])
+@pytest.mark.parametrize('case', ['valid', 'other-house', 'other-tenant', 'moved', 'revoked', 'no-permission', 'disabled', 'contract', 'recovery', 'corporate-disabled', 'corporate-enabled'])
 def test_notifications_reauthorize_recipients(client, db_session, db_gov_session, beta, signer, envelope, monkeypatch, pilot, case, movement):
     monkeypatch.setenv('AXS_ALEXA_ENABLED', 'true')
     grant(client, signer, envelope)
@@ -164,6 +164,11 @@ def test_notifications_reauthorize_recipients(client, db_session, db_gov_session
         db_session.query(AlexaAccount).update({'permission_granted': False})
     elif case == 'recovery':
         monkeypatch.setenv('AXS_RECOVERY_INCIDENT', 'invalid-incident')
+    elif case.startswith('corporate-'):
+        from backend.db.core import Condominio
+        condo = db_session.query(Condominio).filter_by(condominio_id=pilot.condominio_id).one()
+        condo.modalidad = 'corporativo'
+        condo.corporativo_habilitado = case == 'corporate-enabled'
     db_session.commit()
     @contextmanager
     def core():
