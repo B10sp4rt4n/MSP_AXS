@@ -45,9 +45,31 @@ def programar_aviso(background_tasks, visita):
         reference = "AXS" + hashlib.sha256(
             f"{tenant}:{house}:{visita.visita_id}:{movement}".encode()
         ).hexdigest()
-        background_tasks.add_task(enviar_aviso, user, reference)
+        background_tasks.add_task(enviar_aviso_piloto, user, reference, tenant)
     except Exception:
         logger.warning("Alexa: no se pudo programar el aviso")
+
+
+def enviar_aviso_piloto(user, reference, tenant):
+    """Recheck the residential boundary after commit, before external delivery.
+
+    A queued task must not survive reclassification as a corporate tenant.
+    Missing tenants, unavailable databases and recovery interlocks fail closed.
+    """
+    from backend.db.core import Condominio, SessionLocal_CORE
+    from backend.core.recovery_gate import recovery_allowed
+    if not recovery_allowed(core_factory=SessionLocal_CORE):
+        return
+    try:
+        with SessionLocal_CORE() as db:
+            residential = db.query(Condominio.condominio_id).filter_by(
+                condominio_id=tenant, modalidad="residencial").first()
+        if residential is None:
+            return
+    except Exception:
+        logger.warning("Alexa: no se pudo verificar la modalidad del destinatario piloto")
+        return
+    enviar_aviso(user, reference)
 
 
 def enviar_aviso(user, reference):

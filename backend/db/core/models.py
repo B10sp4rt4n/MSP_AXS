@@ -97,6 +97,15 @@ class Condominio(Base_CORE):
     msp_id = Column(String, ForeignKey("msps_exo.msp_id"))
     nombre = Column(String)
     reglas_acceso = Column(JSON, nullable=True)
+    # La tabla fisica conserva su nombre legacy. La modalidad es de negocio,
+    # no se infiere de viviendas ni del proveedor MSP.
+    modalidad = Column(String(16), nullable=False, default="residencial", server_default="residencial")
+    corporativo_habilitado = Column(Boolean, nullable=False, default=False, server_default="false")
+    __table_args__ = (
+        CheckConstraint("modalidad IN ('residencial', 'corporativo')", name="ck_condominios_modalidad"),
+        CheckConstraint("NOT corporativo_habilitado OR modalidad = 'corporativo'",
+                        name="ck_condominios_corporativo_habilitado"),
+    )
 
 
 class ProviderContract(Base_CORE):

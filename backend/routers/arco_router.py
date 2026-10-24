@@ -68,7 +68,7 @@ class Transition(Input):
 
 
 def actor(condominio_id: str, user: Usuario = Depends(get_current_user),
-          _tenant: str = Depends(authorized_tenant_context(AccessLevel.ADMIN_CONDOMINIO))):
+          _tenant: str = Depends(authorized_tenant_context(AccessLevel.ADMIN_CONDOMINIO, expected_mode=None))):
     # Do not persist the designation on the user model.
     verificar_rol(user, ['ADMIN_CONDOMINIO', 'MSP_ADMIN'])
     allowed = {x.strip() for x in os.getenv('AXS_ARCO_OPERATORS', '').split(',') if x.strip()}

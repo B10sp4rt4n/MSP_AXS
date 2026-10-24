@@ -39,8 +39,10 @@ def list_msps(
     
     resultado = []
     for msp in msps:
+        # Una empresa corporativa no cuenta como condominio residencial.
         total_condos = db.query(Condominio).filter(
-            Condominio.msp_id == msp.msp_id
+            Condominio.msp_id == msp.msp_id,
+            Condominio.modalidad == "residencial",
         ).count()
         
         resultado.append(MSPResponse(
