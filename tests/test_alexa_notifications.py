@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from fastapi import BackgroundTasks
+from sqlalchemy.orm import sessionmaker
 
 from backend.services import alexa_notifications as alexa
 from backend.db.core import Usuario, UserTenantScope, AccessLevel, ScopeStatus, Visita, Casa
@@ -40,7 +41,9 @@ def test_apagado_por_defecto(pilot, monkeypatch):
     assert not tasks.tasks
 
 
-def test_evento_unicast_sin_pii_y_referencia_estable(pilot, monkeypatch):
+def test_evento_unicast_sin_pii_y_referencia_estable(pilot, monkeypatch, db_session, condominio_base):
+    import backend.db.core
+    monkeypatch.setattr(backend.db.core, "SessionLocal_CORE", sessionmaker(bind=db_session.bind))
     requests = []
     def handler(request):
         requests.append(request)
@@ -54,7 +57,7 @@ def test_evento_unicast_sin_pii_y_referencia_estable(pilot, monkeypatch):
     second = BackgroundTasks()
     alexa.programar_aviso(second, pilot)
     assert tasks.tasks[0].args == second.tasks[0].args
-    alexa.enviar_aviso(*tasks.tasks[0].args)
+    tasks.tasks[0].func(*tasks.tasks[0].args)
     import json
     payload = json.loads(requests[1].content)
     assert payload["relevantAudience"] == {"type": "Unicast", "payload": {"user": "amzn1.ask.account.test"}}
@@ -78,6 +81,8 @@ def test_fallo_no_propaga_ni_expone_secretos(pilot, monkeypatch, caplog, mode):
 
 @pytest.mark.parametrize("mode", ["manual", "qr", "direct", "salida"])
 def test_rutas_notifican_solo_entrada_confirmada(client, db_session, condominio_base, pilot, monkeypatch, mode):
+    import backend.db.core
+    monkeypatch.setattr(backend.db.core, "SessionLocal_CORE", sessionmaker(bind=db_session.bind))
     db_session.add(Casa(casa_id="house1", condominio_id=condominio_base.condominio_id, numero="101", tipo="casa"))
     db_session.add(Usuario(usuario_id="alexa-guard", email="guard@alexa.test", rol="GUARDIA",
                            condominio_id=condominio_base.condominio_id))
