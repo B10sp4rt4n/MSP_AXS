@@ -10,6 +10,7 @@ from datetime import datetime
 import pytest
 from sqlalchemy import create_engine,text
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import DBAPIError, NoResultFound
 from scripts.bootstrap_corporate_sandbox_schemas import install_schema
 from scripts.corporate_sandbox_contract import DATABASES,ROLES,ACK
 from scripts.corporate_sandbox_attestation import certify_empty,verify_attestation
@@ -63,7 +64,7 @@ def test_initial_certification_then_seeded_restarts_and_negative_privileges(sand
     run=str(uuid4())
     issuer='https://axs-test.clerk.accounts.dev'
     for domain,(db,engine) in sandbox_databases.items():
-        with pytest.raises(Exception),engine.begin() as conn:
+        with pytest.raises(NoResultFound),engine.begin() as conn:
             as_role(conn,domain)
             verify_attestation(conn,domain,run,issuer,expected_db=db)
         with pytest.raises(RuntimeError),engine.begin() as conn:
@@ -89,9 +90,10 @@ def test_initial_certification_then_seeded_restarts_and_negative_privileges(sand
                 f"INSERT INTO public.{ACK} SELECT * FROM public.{ACK}",
                 "CREATE TABLE public.sandbox_escape(id int)",
             ):
-                with pytest.raises(Exception),engine.begin() as conn:
+                with pytest.raises(DBAPIError) as denied,engine.begin() as conn:
                     as_role(conn,role_domain)
                     conn.execute(text(mutation))
+                assert denied.value.orig.sqlstate == "42501"
         with engine.begin() as conn:
             as_role(conn,domain)
             with pytest.raises(RuntimeError):
@@ -124,7 +126,7 @@ def test_gov_rls_quota_boundary_and_read_only_authority(sandbox_databases):
     with engine.begin() as conn:
         as_role(conn,'GOV')
         conn.execute(text("SELECT set_config('app.tenant_id','A',true)"))
-        conn.execute(text("INSERT INTO policies_gov(policy_id,nombre,ambito,target_tenant_id,accion_objetivo,limites,estado,valida_desde,created_at) VALUES ('quota_a','Synthetic','TENANT','A','crear_sede_corporativa','{\"max_count\":2}','ACTIVO',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)"))
+        conn.execute(text("INSERT INTO policies_gov(policy_id,nombre,ambito,target_tenant_id,accion_objetivo,limites,estado,valida_desde,created_at) VALUES ('quota_a','Synthetic','TENANT','A','crear_sede_corporativa',CAST(:limits AS json),'ACTIVO',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)"), {'limits':'{"max_count":2}'})
     with engine.begin() as conn:
         as_role(conn,'GOV')
         conn.execute(text("SELECT set_config('app.tenant_id','B',true)"))
@@ -134,10 +136,11 @@ def test_gov_rls_quota_boundary_and_read_only_authority(sandbox_databases):
         "INSERT INTO policies_gov(policy_id,nombre,ambito,target_tenant_id,accion_objetivo,limites,estado,valida_desde,created_at) VALUES ('escape','Synthetic','GLOBAL',NULL,'crear_sede_corporativa','{}','ACTIVO',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
         "UPDATE policies_gov SET accion_objetivo='crear_tenant'",
     ):
-        with pytest.raises(Exception),engine.begin() as conn:
+        with pytest.raises(DBAPIError) as denied,engine.begin() as conn:
             as_role(conn,'GOV')
             conn.execute(text("SELECT set_config('app.tenant_id','A',true)"))
             conn.execute(text(mutation))
+        assert denied.value.orig.sqlstate == "42501"
 
 
 def test_core_lock_without_root_update_or_residential_access(sandbox_databases):
@@ -149,9 +152,10 @@ def test_core_lock_without_root_update_or_residential_access(sandbox_databases):
         conn.execute(text("SELECT public.corporate_sandbox_lock_company('A')"))
         assert conn.execute(text("SELECT count(*) FROM condominios_exo WHERE modalidad='residencial'")).scalar_one()==0
     for mutation in ("UPDATE condominios_exo SET corporativo_habilitado=true", "INSERT INTO usuarios(usuario_id) VALUES ('escape')", "SELECT * FROM visitas", "SELECT * FROM evidencias"):
-        with pytest.raises(Exception),engine.begin() as conn:
+        with pytest.raises(DBAPIError) as denied,engine.begin() as conn:
             as_role(conn,'CORE')
             conn.execute(text(mutation))
+        assert denied.value.orig.sqlstate == "42501"
 
 
 def test_event_delivery_rechecks_tenant_and_preserves_append_only(sandbox_databases):
@@ -175,7 +179,8 @@ def test_event_delivery_rechecks_tenant_and_preserves_append_only(sandbox_databa
         conn.execute(text("SELECT set_config('app.tenant_id','B',true)"))
         assert conn.execute(text("SELECT count(*) FROM events_aup WHERE event_uid='synthetic_delivery'")).scalar_one()==0
     for mutation in ("UPDATE events_aup SET resultado='forged'", "DELETE FROM events_aup"):
-        with pytest.raises(Exception),engine.begin() as conn:
+        with pytest.raises(DBAPIError) as denied,engine.begin() as conn:
             as_role(conn,'EVENT')
             conn.execute(text("SELECT set_config('app.tenant_id','A',true)"))
             conn.execute(text(mutation))
+        assert denied.value.orig.sqlstate == "42501"
