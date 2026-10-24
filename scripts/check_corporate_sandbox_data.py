@@ -42,6 +42,11 @@ EXPECTED_DB = {
 
 def require_empty(connection, names: tuple[str, ...], *, label: str) -> None:
     """Fails on any inherited row or missing table; never exposes a row."""
+    if connection.dialect.name == "postgresql":
+        # A tenant-filtered SELECT returning zero is not an emptiness proof.
+        # PostgreSQL must reject the scan if RLS could hide rows. This setting
+        # does NOT grant bypass; it lasts only for the current transaction.
+        connection.execute(text("SET LOCAL row_security=off"))
     for table in names:
         try:
             has_row = connection.execute(

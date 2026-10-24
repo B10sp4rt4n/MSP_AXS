@@ -9,6 +9,43 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
 from scripts.bootstrap_corporate_sandbox_schemas import install_schema, get_metadata
+from scripts.check_corporate_sandbox_data import require_empty
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("has_data", [False, True])
+def test_runtime_rls_view_cannot_certify_global_emptiness(has_data):
+    raw = os.getenv("AXS_TEST_POSTGRES_URL")
+    if not raw:
+        pytest.skip("Requires disposable local CI PostgreSQL")
+    url = make_url(raw)
+    assert url.host in {"localhost", "127.0.0.1"} and url.database == "axs_rls_ci" and url.username == "axs_rls_ci"
+    engine = create_engine(raw)
+    schema = "axs_empty_" + uuid4().hex[:12]
+    try:
+        with engine.begin() as conn:
+            assert not conn.execute(text("SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname=current_user")).scalar_one()
+            conn.execute(text(f"CREATE SCHEMA {schema}"))
+            conn.execute(text(f"CREATE TABLE {schema}.sample (marker text)"))
+            if has_data:
+                conn.execute(text(f"INSERT INTO {schema}.sample VALUES ('PRIVATE_SENTINEL')"))
+            conn.execute(text(f"ALTER TABLE {schema}.sample ENABLE ROW LEVEL SECURITY"))
+            conn.execute(text(f"ALTER TABLE {schema}.sample FORCE ROW LEVEL SECURITY"))
+            conn.execute(text(f"CREATE POLICY closed ON {schema}.sample USING (false)"))
+        with engine.connect() as conn:
+            assert conn.execute(text(f"SELECT count(*) FROM {schema}.sample")).scalar_one() == 0
+            class ScopedConnection:
+                dialect = engine.dialect
+                def execute(self, statement):
+                    return conn.execute(text(str(statement).replace("public.", schema+".")))
+            with pytest.raises(RuntimeError) as error:
+                require_empty(ScopedConnection(), ("sample",), label="CORE")
+            assert "PRIVATE_SENTINEL" not in str(error.value)
+            conn.rollback()
+    finally:
+        with engine.begin() as conn:
+            conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
+        engine.dispose()
 
 
 @pytest.mark.integration

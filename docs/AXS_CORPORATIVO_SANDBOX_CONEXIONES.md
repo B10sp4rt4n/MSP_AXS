@@ -1,5 +1,11 @@
 # AXS Corporativo — cierre de conexiones del sandbox (NO productivo)
 
+**Estado actual:** ver [preparación comprobada el 24 de octubre de 2026](AXS_CORPORATIVO_SANDBOX_PREPARACION_20261024.md).
+Las secciones siguientes conservan la secuencia histórica; los estados previos
+de bases sin tablas o incompletas fueron superados. El entorno sigue sin API
+operativa y sin permisos de aplicación; no aplicar instrucciones antiguas como
+si fueran el estado vigente.
+
 **Fecha:** 2026-10-23. **Estado:** servicio Railway *staged*, SIN despliegue, sin dominios públicos, sin URL con contraseña.
 
 ## Topología aprobada para ensayo futuro
