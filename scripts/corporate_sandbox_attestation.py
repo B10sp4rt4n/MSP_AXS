@@ -29,6 +29,10 @@ def relations(conn):
 def snapshot(conn):
     """Hash catalog metadata only: no application values, secrets or PII."""
     queries = (
+        "SELECT c.relname,p.conname,pg_get_constraintdef(p.oid) FROM pg_constraint p JOIN pg_class c ON c.oid=p.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' ORDER BY c.relname,p.conname",
+        "SELECT c.relname,pg_get_indexdef(i.indexrelid) FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' ORDER BY c.relname",
+        "SELECT c.relname,a.attname,pg_get_expr(d.adbin,d.adrelid) FROM pg_attrdef d JOIN pg_attribute a ON a.attrelid=d.adrelid AND a.attnum=d.adnum JOIN pg_class c ON c.oid=d.adrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' ORDER BY c.relname,a.attname",
+        "SELECT c.relname,t.tgname,pg_get_triggerdef(t.oid) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND NOT t.tgisinternal ORDER BY c.relname,t.tgname",
         "SELECT p.proname,pg_get_functiondef(p.oid),coalesce(p.proacl::text,''),pg_get_userbyid(p.proowner) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.prokind='f' ORDER BY p.proname,p.oid",
         """SELECT c.relname,c.relkind,c.relrowsecurity,c.relforcerowsecurity,
                   pg_get_userbyid(c.relowner),coalesce(c.relacl::text,'')
@@ -49,6 +53,8 @@ def snapshot(conn):
 
 def verify_permissions(conn, domain):
     role = ROLES[domain]
+    if conn.execute(text("SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname NOT IN ('public','information_schema') AND nspname !~ '^pg_')")).scalar_one():
+        raise RuntimeError("Sandbox: esquema adicional no aprobado")
     row = conn.execute(text("""
         SELECT rolname,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolreplication,rolinherit,
           has_schema_privilege(:role,'public','CREATE') AS ddl,

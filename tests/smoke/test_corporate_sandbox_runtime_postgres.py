@@ -6,13 +6,13 @@ CI databases. NO remote connection, LOGIN, passwords or production overrides.
 import os
 from pathlib import Path
 from uuid import uuid4
-from datetime import datetime, timezone
+from datetime import datetime
 import pytest
 from sqlalchemy import create_engine,text
 from sqlalchemy.engine import make_url
 from scripts.bootstrap_corporate_sandbox_schemas import install_schema
 from scripts.corporate_sandbox_contract import DATABASES,ROLES,ACK
-from scripts.corporate_sandbox_attestation import certify_empty,verify_attestation,verify_permissions
+from scripts.corporate_sandbox_attestation import certify_empty,verify_attestation
 
 
 @pytest.fixture(scope='module')
@@ -38,11 +38,11 @@ def sandbox_databases():
                 install_schema(conn,domain)
             if domain=='CORE':
                 with engine.connect().execution_options(isolation_level='AUTOCOMMIT') as conn:
-                    conn.exec_driver_sql(Path('migrations/20261023_corporate_superadmin_c2.sql').read_text())
-                    conn.exec_driver_sql(Path('migrations/20261023_corporate_reconciliation_c4.sql').read_text())
+                    conn.execute(text(Path('migrations/20261023_corporate_superadmin_c2.sql').read_text()))
+                    conn.execute(text(Path('migrations/20261023_corporate_reconciliation_c4.sql').read_text()))
             sql=Path(f'migrations/20261024_corporate_sandbox_{domain.lower()}_permissions.sql').read_text().replace(DATABASES[domain],name)
             with engine.connect().execution_options(isolation_level='AUTOCOMMIT') as conn:
-                conn.exec_driver_sql(sql)
+                conn.execute(text(sql))
         yield engines
     finally:
         for name,engine in engines.values():
@@ -63,6 +63,12 @@ def test_initial_certification_then_seeded_restarts_and_negative_privileges(sand
     run=str(uuid4())
     issuer='https://axs-test.clerk.accounts.dev'
     for domain,(db,engine) in sandbox_databases.items():
+        with pytest.raises(Exception),engine.begin() as conn:
+            as_role(conn,domain)
+            verify_attestation(conn,domain,run,issuer,expected_db=db)
+        with pytest.raises(RuntimeError),engine.begin() as conn:
+            as_role(conn,domain)
+            certify_empty(conn,domain,run,issuer,expected_db=db)
         with engine.begin() as conn:
             certify_empty(conn,domain,run,issuer,expected_db=db)
         with engine.begin() as conn:
@@ -145,4 +151,31 @@ def test_core_lock_without_root_update_or_residential_access(sandbox_databases):
     for mutation in ("UPDATE condominios_exo SET corporativo_habilitado=true", "INSERT INTO usuarios(usuario_id) VALUES ('escape')", "SELECT * FROM visitas", "SELECT * FROM evidencias"):
         with pytest.raises(Exception),engine.begin() as conn:
             as_role(conn,'CORE')
+            conn.execute(text(mutation))
+
+
+def test_event_delivery_rechecks_tenant_and_preserves_append_only(sandbox_databases):
+    from sqlalchemy.orm import Session
+    from backend.services.event_outbox import publicar_evento
+    from backend.core.event.registry import calcular_hash_evento
+    _,engine=sandbox_databases['EVENT']
+    moment=datetime.utcnow()
+    payload=dict(event_uid='synthetic_delivery',session_hash='synthetic_session',tipo_evento='ensayo',
+        identity_id='synthetic_owner',tenant_id='A',entidad='scope',entidad_id='A',
+        accion='ensayo',resultado='exito',timestamp=moment.isoformat())
+    payload['hash_evento']=calcular_hash_evento(payload['event_uid'],payload['identity_id'],
+        payload['session_hash'],payload['tenant_id'],payload['entidad'],payload['entidad_id'],
+        payload['accion'],payload['resultado'],moment)
+    with engine.begin() as conn:
+        as_role(conn,'EVENT')
+        with Session(bind=conn) as session:
+            publicar_evento(session,payload)
+            publicar_evento(session,payload)
+        assert conn.execute(text("SELECT count(*) FROM events_aup WHERE event_uid='synthetic_delivery'")).scalar_one()==1
+        conn.execute(text("SELECT set_config('app.tenant_id','B',true)"))
+        assert conn.execute(text("SELECT count(*) FROM events_aup WHERE event_uid='synthetic_delivery'")).scalar_one()==0
+    for mutation in ("UPDATE events_aup SET resultado='forged'", "DELETE FROM events_aup"):
+        with pytest.raises(Exception),engine.begin() as conn:
+            as_role(conn,'EVENT')
+            conn.execute(text("SELECT set_config('app.tenant_id','A',true)"))
             conn.execute(text(mutation))
