@@ -155,8 +155,12 @@ def get_current_user(
         if clerk_id:
             usuario = db.query(Usuario).filter(Usuario.clerk_id == clerk_id).first()
             # Si el token es válido pero clerk_id no está en la DB, intentar vincular
-            if usuario is None:
+            if usuario is None and os.getenv("AXS_CORPORATE_SANDBOX_ONLY", "").lower() != "true":
                 usuario = _link_clerk_user_by_email(db, clerk_id)
+
+    # Sandbox accepts only explicitly enrolled Clerk subjects.
+    if usuario is None and os.getenv("AXS_CORPORATE_SANDBOX_ONLY", "").lower() == "true":
+        raise credentials_exception
 
     # Fallback: token local HS256
     if usuario is None:

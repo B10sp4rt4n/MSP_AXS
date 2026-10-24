@@ -6,7 +6,7 @@ import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 
 type Case = { case_id: string; subject_ref: string; owner_id: string; right: string; received_at: string; determination_due: string; execution_due: string | null; state: string; version: number; pending_actions: number; history: { state: string; reference: string; at: string; actor: string }[] };
-type Tenant = { condominio_id: string; nombre: string };
+type Tenant = { tenant_id: string; nombre: string; modalidad: "residencial" | "corporativo" };
 const states = ["recibida", "verificada", "resuelta", "ejecutando", "cerrada"];
 const style = "min-h-11 rounded-lg border border-gray-600 bg-gray-900 p-3 text-white";
 const button = `${style} disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-purple-400`;
@@ -14,8 +14,15 @@ const display = (value: string) => new Date(/Z$|[+-]\d\d:\d\d$/.test(value) ? va
 const iso = (value: FormDataEntryValue | null) => new Date(String(value)).toISOString();
 
 export default function ArcoClient() {
+  const { userId, sessionId } = useAuth();
+  return <ArcoWorkspace key={`${userId || "anonymous"}:${sessionId || "none"}`} />;
+}
+
+function ArcoWorkspace() {
   const { getToken } = useAuth();
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [clientsLoaded, setClientsLoaded] = useState(false);
+  const [clientsReload, setClientsReload] = useState(0);
   const [tenant, setTenant] = useState("");
   const [rows, setRows] = useState<Case[] | null>(null);
   const [error, setError] = useState("");
@@ -26,15 +33,18 @@ export default function ArcoClient() {
   const retry = useRef<{ fingerprint: string; id: string } | null>(null);
   const generation = useRef(0);
 
+  useEffect(() => () => { generation.current++; }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     getToken().then(token => {
       if (!token) throw new Error("Inicia sesión nuevamente");
-      return api.get<Tenant[]>("/condominios/", token, controller.signal);
-    }).then(data => { if (!controller.signal.aborted) setTenants(data); })
-      .catch(e => { if (!controller.signal.aborted) setError(e.message); });
+      return api.get<Tenant[]>("/arco-clientes", token, controller.signal);
+    }).then(data => { if (!controller.signal.aborted) { setTenants(data); setClientsLoaded(true); } })
+      .catch(e => { if (!controller.signal.aborted) setError(e instanceof ApiError && e.status === 404
+        ? "El registro ARCO no está habilitado para operar. El canal público de privacidad sigue disponible." : e.message); });
     return () => controller.abort();
-  }, [getToken]);
+  }, [getToken, clientsReload]);
 
   useEffect(() => {
     if (!tenant) return;
@@ -60,6 +70,7 @@ export default function ArcoClient() {
     try {
       const token = await getToken();
       if (!token) throw new Error("Inicia sesión nuevamente");
+      if (currentGeneration !== generation.current) return;
       const base = `/arco/${encodeURIComponent(tenant)}`;
       if (row) {
         const next = states[states.indexOf(row.state) + 1];
@@ -97,8 +108,13 @@ export default function ArcoClient() {
     <label className="grid gap-2">Cliente
       <select aria-label="Cliente" className={style} disabled={busy} value={tenant} onChange={e => {
         generation.current++; setTenant(e.target.value); setRows(null); setSelected(null); setOffset(0); setError(""); retry.current = null;
-      }}><option value="">Selecciona un cliente</option>{tenants.map(t => <option key={t.condominio_id} value={t.condominio_id}>{t.nombre}</option>)}</select>
+      }}><option value="">Selecciona un cliente</option>{tenants.map(t => <option key={t.tenant_id} value={t.tenant_id}>{t.nombre} · {t.modalidad === "corporativo" ? "Empresa" : "Condominio"}</option>)}</select>
     </label>
+    <button className={button} disabled={busy} onClick={() => {
+      generation.current++; setTenants([]); setClientsLoaded(false); setTenant(""); setRows(null);
+      setSelected(null); setOffset(0); setError(""); retry.current = null; setClientsReload(v => v + 1);
+    }}>Actualizar clientes</button>
+    {clientsLoaded && tenants.length === 0 && !error && <p role="status">No tienes clientes con designación de privacidad y permisos vigentes.</p>}
     {error && <p role="alert" className="text-red-300">{error}</p>}
     {tenant && rows === null && !error && <p role="status">Consultando permisos y expedientes…</p>}
     {tenant && <button className={button} disabled={busy} onClick={() => { setRows(null); setSelected(null); setError(""); setReload(v => v + 1); }}>Actualizar</button>}
