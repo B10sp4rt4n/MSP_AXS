@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 import pytest
 from fastapi.routing import APIRoute
-from sqlalchemy import select
+from sqlalchemy import select, text
 from starlette.routing import Match
 
 from backend.core.auth.jwt import create_access_token
@@ -113,7 +113,10 @@ CASES = [
 @pytest.fixture
 def boundary(db_session, db_gov_session, monkeypatch):
     db = db_session
+    if db.get_bind().dialect.name == "sqlite":
+        db.execute(text("PRAGMA foreign_keys=ON"))
     db.add(MSP(msp_id="provider-matrix", nombre="Synthetic provider"))
+    db.flush()
     db.add_all([
         Condominio(condominio_id=TENANT, msp_id="provider-matrix", nombre="Synthetic company",
                    modalidad="corporativo", corporativo_habilitado=False),
