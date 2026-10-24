@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [ main, develop, feature/* ]
+    branches: [ main, develop, feature/*, 'feat/axs-corporativo-c[123]-*' ]
   pull_request:
     branches: [ main, develop ]
 
