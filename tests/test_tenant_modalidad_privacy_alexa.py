@@ -85,6 +85,11 @@ def test_arco_keeps_designated_scoped_access_in_both_corporate_states(
 ):
     db = boundary
     db.query(Condominio).filter_by(condominio_id=TENANT).one().corporativo_habilitado = enabled
+    from backend.db.core import CorporateOrganization, CorporateMembership
+    db.add(CorporateOrganization(tenant_id=TENANT))
+    db.flush()
+    db.add(CorporateMembership(membership_id="privacy-local", tenant_id=TENANT,
+                              user_id="local", rol="admin", estado="activo"))
     db.commit()
     monkeypatch.setenv("AXS_ARCO_CASES_ENABLED", "true")
     monkeypatch.setenv("AXS_ARCO_OPERATORS", "local:" + TENANT + ",outsider-matrix:" + TENANT)

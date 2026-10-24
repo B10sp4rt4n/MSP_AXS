@@ -13,7 +13,7 @@ Contiene:
 - Evidencia (artefactos de operación)
 """
 
-from sqlalchemy import Boolean, CheckConstraint, Column, Integer, String, Text, DateTime, ForeignKey, JSON, Enum as SQLEnum, UniqueConstraint, Index
+from sqlalchemy import Boolean, CheckConstraint, Column, Integer, String, Text, DateTime, ForeignKey, ForeignKeyConstraint, JSON, Enum as SQLEnum, UniqueConstraint, Index
 from datetime import datetime
 import enum
 
@@ -102,6 +102,7 @@ class Condominio(Base_CORE):
     modalidad = Column(String(16), nullable=False, default="residencial", server_default="residencial")
     corporativo_habilitado = Column(Boolean, nullable=False, default=False, server_default="false")
     __table_args__ = (
+        UniqueConstraint("condominio_id", "modalidad", name="uq_condominios_modalidad"),
         CheckConstraint("modalidad IN ('residencial', 'corporativo')", name="ck_condominios_modalidad"),
         CheckConstraint("NOT corporativo_habilitado OR modalidad = 'corporativo'",
                         name="ck_condominios_corporativo_habilitado"),
@@ -242,6 +243,95 @@ class UserTenantScope(Base_CORE):
     
     # Metadatos adicionales
     metadata_json = Column(JSON, nullable=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AXS CORPORATIVO — catálogo separado del dominio de viviendas
+# ═══════════════════════════════════════════════════════════════════════════
+
+class CorporateOrganization(Base_CORE):
+    """Perfil corporativo; FK compuesta impide usar un condominio residencial."""
+    __tablename__ = "corporate_organizations"
+    tenant_id = Column(String, primary_key=True)
+    modalidad = Column(String(16), nullable=False, default="corporativo", server_default="corporativo")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (
+        CheckConstraint("modalidad = 'corporativo'", name="ck_corporate_org_mode"),
+        ForeignKeyConstraint(
+            ["tenant_id", "modalidad"],
+            ["condominios_exo.condominio_id", "condominios_exo.modalidad"],
+            name="fk_corporate_org_tenant_mode",
+        ),
+    )
+
+
+class CorporateSite(Base_CORE):
+    """Sede de empresa; no representa una casa ni un punto residencial."""
+    __tablename__ = "corporate_sites"
+    site_id = Column(String(40), primary_key=True)
+    tenant_id = Column(String, ForeignKey("corporate_organizations.tenant_id"), nullable=False, index=True)
+    nombre = Column(String(120), nullable=False)
+    zona_horaria = Column(String(80), nullable=False, default="America/Mexico_City")
+    activa = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "site_id", name="uq_corporate_site_tenant_id"),
+    )
+
+
+class CorporateDestination(Base_CORE):
+    """Área de destino con sede y empresa congruentes, incluso por FK."""
+    __tablename__ = "corporate_destinations"
+    destination_id = Column(String(40), primary_key=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    site_id = Column(String(40), nullable=False)
+    nombre = Column(String(120), nullable=False)
+    activa = Column(Boolean, nullable=False, default=True)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "site_id"], ["corporate_sites.tenant_id", "corporate_sites.site_id"],
+            name="fk_corporate_destination_site",
+        ),
+        UniqueConstraint("tenant_id", "site_id", "nombre", name="uq_corporate_destination_name"),
+    )
+
+
+class CorporateMembership(Base_CORE):
+    """Rol corporativo explicito por empresa, nunca heredado de Usuario.rol."""
+    __tablename__ = "corporate_memberships"
+    membership_id = Column(String(40), primary_key=True)
+    tenant_id = Column(String, ForeignKey("corporate_organizations.tenant_id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("usuarios.usuario_id"), nullable=False, index=True)
+    rol = Column(String(16), nullable=False)
+    estado = Column(String(12), nullable=False, default="activo")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "user_id", name="uq_corporate_member_tenant_user"),
+        CheckConstraint("rol IN ('owner','admin','host','reception')", name="ck_corporate_member_role"),
+        CheckConstraint("estado IN ('activo','revocado')", name="ck_corporate_member_state"),
+    )
+
+
+class CorporateSiteAssignment(Base_CORE):
+    """Asignación a sede; se requieren empresa/miembro/sede coincidentes."""
+    __tablename__ = "corporate_site_assignments"
+    assignment_id = Column(String(40), primary_key=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    site_id = Column(String(40), nullable=False)
+    user_id = Column(String, nullable=False)
+    estado = Column(String(12), nullable=False, default="activo")
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "site_id"], ["corporate_sites.tenant_id", "corporate_sites.site_id"],
+            name="fk_corporate_assignment_site",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "user_id"], ["corporate_memberships.tenant_id", "corporate_memberships.user_id"],
+            name="fk_corporate_assignment_member",
+        ),
+        UniqueConstraint("tenant_id", "site_id", "user_id", name="uq_corporate_assignment"),
+        CheckConstraint("estado IN ('activo','revocado')", name="ck_corporate_assignment_state"),
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
