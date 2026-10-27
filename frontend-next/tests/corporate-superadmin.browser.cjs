@@ -106,8 +106,9 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
    ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{})});
  try{
   const page=await browser.newPage({viewport:{width:360,height:800}});
+  const css=await require('postcss')([require('@tailwindcss/postcss')()]).process('@import "tailwindcss";', {from:path.join(process.cwd(),'src/app/globals.css')});
   await page.route('**/*',route=>route.request().url()==='http://127.0.0.1:47891/'?
-    route.fulfill({contentType:'text/html',body:'<div id="root"></div>'}):route.abort());
+    route.fulfill({contentType:'text/html',body:`<meta name="viewport" content="width=device-width, initial-scale=1"><style>${css.css}</style><div id="root"></div>`}):route.abort());
   await page.goto('http://127.0.0.1:47891/');
   await page.evaluate(()=>{window.__reads=[];window.__calls=[];window.__companies={};
     window.__capabilities=null;window.__capacityOperations={};window.__govValid=true;
@@ -273,3 +274,4 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
   console.log('PASS: synthetic GLOBAL denial, owner verification, creation replay, quota UUID/revision replay, blocked edits, pending reload recovery, legacy/GOV validity fail-closed, 409 stable UUID, lost confirmation ACK, needs_review block, explicit activation, mobile widths; no real network.');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
+

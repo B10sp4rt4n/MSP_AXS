@@ -166,6 +166,10 @@ export default function CorporativoSuperadminClient() {
       {company&&<section className="mb-5 rounded-xl border border-gray-700 bg-gray-900 p-4">
         <h2 className="font-semibold">{company.nombre}</h2><p className="mt-1 break-all text-xs text-gray-400">{company.tenant_id}</p>
         <p className="mt-2 text-sm">{company.directorio_habilitado?"Directorio habilitado":"Directorio sin habilitar"} · Owner: {company.owner_user_id}</p>
+        {company.directorio_habilitado && <div className="mt-4">
+          <a className="inline-block rounded-xl border border-blue-500 px-4 py-3 text-blue-200" href={`/dashboard/corporativo?empresa=${encodeURIComponent(company.tenant_id)}`}>Abrir directorio de la empresa</a>
+          <p className="mt-2 text-sm text-gray-400">Comparte este enlace con el propietario. La autoridad Superadmin no sustituye una membresía de la empresa.</p>
+        </div>}
       </section>}
       {stage==="alta"&&<section className="space-y-4 rounded-xl border border-gray-700 bg-gray-900 p-5">
         <h2 className="text-lg font-semibold">Nueva empresa</h2>
@@ -198,3 +202,4 @@ export default function CorporativoSuperadminClient() {
     </>}
   </div></main>;
 }
+
