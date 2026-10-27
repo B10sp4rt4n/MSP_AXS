@@ -107,7 +107,8 @@ CREATE POLICY sandbox_security_outbox ON public.security_outbox TO axs_corp_sand
                 AND payload->>'resultado' = 'denegado'
                 AND payload->>'entidad' IN ('session', 'scope')
                 AND payload->>'motivo' IN ('NO_SESSION','INVALID_SESSION','UNKNOWN_IDENTITY',
-                    'SCOPE_DENIED','ROLE_DENIED','MSP_DENIED','PLATFORM_DENIED','RESIDENCE_DENIED'));
+                    'SCOPE_DENIED','ROLE_DENIED','MSP_DENIED','PLATFORM_DENIED','RESIDENCE_DENIED',
+                    'INVALID_CREDENTIALS','TENANT_MODE_DENIED','CORPORATE_DISABLED'));
 -- Row-lock-only capability: SELECT FOR UPDATE otherwise requires UPDATE rights.
 -- Fixed relation, qualified identifiers, no dynamic SQL, no rows returned.
 CREATE FUNCTION public.corporate_sandbox_lock_company(company text) RETURNS void
