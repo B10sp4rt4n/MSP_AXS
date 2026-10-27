@@ -27,4 +27,13 @@ No se cambian tablas, credenciales, permisos, membresías ni backend. La membres
 
 Las capturas de 320/360/1280 fueron inspeccionadas. El ensayo Superadmin ahora carga Tailwind también tras recargar para que su comprobación de ancho mida el diseño real.
 
-La prueba autenticada contra la empresa de ensayo sigue pendiente del recorrido del propietario; las pruebas sintéticas no la sustituyen. Producción, main, San Luis y las bases legadas quedan fuera de este cambio. No se habilitan visitas, QR, hardware, invitaciones ni correo. No se afirma cumplimiento general ARCO ni se sustituye el aviso de prueba por uno real.
+El ensayo autenticado del propietario confirmó consulta, alta y recuperación de Oficina Central — Ensayo y Recepción, y segunda sede Sucursal Norte — Ensayo sin destinos compartidos. La tercera sede fue rechazada y, tras la corrección SQL de PR #103, el rechazo quedó auditado y entregado; permanecen dos sedes. GitHub Actions 40573249007 terminó SUCCESS (Python: 1196 passed, 57 skipped; frontend y navegador aprobados). Producción, main, San Luis y las bases legadas quedan fuera de este cambio. No se habilitan visitas, QR, hardware, invitaciones ni correo. No se afirma cumplimiento general ARCO ni se sustituye el aviso de prueba por uno real.
+
+
+## Aviso de capacidad y conservación de la vista
+
+El 27 de octubre se ajusta el frontend para distinguir el rechazo explícito `403 / Capacidad corporativa restringida por gobierno` de los rechazos de autorización. Ese contrato actual del API se evalúa después de la membresía. El aviso indica qué alta está restringida (sede o destino), conserva los datos ya consultados y permite seguir trabajando. No atribuye el rechazo a la cuenta ni deshabilita la vista.
+
+Otros 401/403 siguen retirando los datos protegidos. Los fallos inciertos de transporte o servidor siguen bloqueando nuevos POST hasta consultar. No se infiere el máximo a partir del número de sedes de la pantalla: el mensaje habla de la capacidad configurada, porque el API actual no devuelve la cuota numérica en este error. No se modifican backend, políticas, cuotas ni datos.
+
+Validación de esta corrección: build, tipos y lint del componente; ensayo Chromium de rechazo de capacidad de sedes/destinos conservando la vista, rechazo real de permisos retirándola, y los recorridos anteriores de aislamiento y recuperación. El despliegue y su SHA se registran en PR #102.
