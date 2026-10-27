@@ -9,7 +9,8 @@ from sqlalchemy import text
 from backend.core.recovery_gate import incident_id
 from backend.core.event.registry import verificar_integridad_evento
 from backend.db.core import (Condominio, Usuario, UserTenantScope, MSPMembership,
-    Visita, EventOutbox, SecurityOutbox, ScopeStatus, AccessLevel)
+    Visita, EventOutbox, SecurityOutbox, ScopeStatus, AccessLevel,
+    CorporateMembership, CorporateSiteAssignment)
 from backend.db.core.models import RecoveryCheckpoint
 from backend.db.gov import Authority, Delegation, GovStatus
 from backend.db.gov.models import RecoveryGovCheckpoint
@@ -49,6 +50,8 @@ def _markers(core, gov, incident):
 def _assert_quarantined(core, gov):
     if (core.query(UserTenantScope).filter(UserTenantScope.estado == ScopeStatus.ACTIVO).count()
         or core.query(MSPMembership).filter(MSPMembership.estado == 'activo').count()
+        or core.query(CorporateMembership).filter(CorporateMembership.estado == 'activo').count()
+        or core.query(CorporateSiteAssignment).filter(CorporateSiteAssignment.estado == 'activo').count()
         or gov.query(Authority).filter(Authority.estado == GovStatus.ACTIVO).count()
         or gov.query(Delegation).filter(Delegation.estado == GovStatus.ACTIVO).count()
         or core.query(Visita).filter(Visita.estado.in_(['pendiente', 'activa'])).count()
@@ -105,6 +108,10 @@ def quarantine(core, gov, incident, *, actor):
             {UserTenantScope.estado: ScopeStatus.REVOCADO, UserTenantScope.revoked_at: now}),
         'memberships_revoked': core.query(MSPMembership).filter(MSPMembership.estado == 'activo').update(
             {MSPMembership.estado: 'revocado', MSPMembership.revoked_at: now}),
+        'corporate_memberships_revoked': core.query(CorporateMembership).filter(CorporateMembership.estado == 'activo').update(
+            {CorporateMembership.estado: 'revocado'}),
+        'corporate_assignments_revoked': core.query(CorporateSiteAssignment).filter(CorporateSiteAssignment.estado == 'activo').update(
+            {CorporateSiteAssignment.estado: 'revocado'}),
         'visits_cancelled': core.query(Visita).filter(Visita.estado.in_(['pendiente', 'activa'])).update(
             {Visita.estado: 'cancelada'}),
         'qr_invalidated': core.query(Visita).filter(Visita.qr_token.is_not(None)).update(
@@ -166,7 +173,7 @@ def reconcile(core, gov, event, incident, *, backup_cutoff):
 
 
 def release(core, gov, event, incident, *, actor, evidence_ref, occupancy_verified,
-            admin_id, tenant_id):
+            admin_id, tenant_id, privacy_verified=False, privacy_review_ref=None):
     c, g = _markers(core, gov, incident)
     _visible(event)
     _assert_quarantined(core, gov)
@@ -174,12 +181,16 @@ def release(core, gov, event, incident, *, actor, evidence_ref, occupancy_verifi
         raise ValueError('Reconciliation required')
     if not actor.strip() or not evidence_ref.strip() or occupancy_verified is not True:
         raise ValueError('Operator, evidence reference and occupancy verification required')
+    if privacy_verified is not True or not isinstance(privacy_review_ref, str) or not privacy_review_ref.strip():
+        raise ValueError('Privacy decisions and restored copies require explicit review and evidence before release')
     if _fingerprint(core, gov, event) != c.report['reconciliation']['fingerprint']:
         raise ValueError('Data changed after reconciliation; reconcile again')
     user = core.query(Usuario).filter_by(usuario_id=admin_id).one_or_none()
     tenant = core.query(Condominio).filter_by(condominio_id=tenant_id).one_or_none()
     if not user or user.rol != 'ADMIN_CONDOMINIO' or not tenant or user.condominio_id != tenant_id:
         raise ValueError('Explicit administrator must belong to the selected tenant')
+    if tenant.modalidad != 'residencial':
+        raise ValueError('Residential recovery release cannot authorize corporate tenants')
     # Only this newly approved scope returns. Prior grants stay revoked.
     core.add(UserTenantScope(usuario_id=admin_id, tenant_id=tenant_id,
         access_level=AccessLevel.ADMIN_CONDOMINIO, estado=ScopeStatus.ACTIVO,
@@ -188,6 +199,7 @@ def release(core, gov, event, incident, *, actor, evidence_ref, occupancy_verifi
                            'recorded_by': actor, 'evidence_ref': evidence_ref}}))
     nonce = uuid.uuid4().hex
     c.report = {**c.report, 'release': {'actor': actor, 'evidence_ref': evidence_ref,
+        'privacy_verified': True, 'privacy_review_ref': privacy_review_ref.strip(),
         'occupancy_verified': True, 'admin_id': admin_id, 'tenant_id': tenant_id,
         'at': datetime.utcnow().isoformat()}}
     c.phase = g.phase = 'released'

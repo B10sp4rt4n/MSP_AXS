@@ -64,6 +64,9 @@ def test_disabled_corporate_privacy_membership_revocation_and_rls(
     monkeypatch.setattr(security_outbox, "SessionFactory", factory)
     try:
         with TestClient(app) as client:
+            clients = client.get("/arco-clientes", headers=headers("owner"))
+            assert clients.status_code == 200 and clients.json() == [
+                {"tenant_id": TENANT, "nombre": "Synthetic", "modalidad": "corporativo"}]
             payload = body()
             response = client.post("/arco/"+TENANT, headers=headers("owner"), json=payload)
             assert response.status_code == 200, response.text
@@ -88,6 +91,7 @@ def test_disabled_corporate_privacy_membership_revocation_and_rls(
                 db.commit()
             # Fresh request with the identical JWT must see the revocation.
             assert client.get("/arco/"+TENANT, headers=headers("owner")).status_code == 403
+            assert client.get("/arco-clientes", headers=headers("owner")).json() == []
     finally:
         app.dependency_overrides.clear()
         app.dependency_overrides.update(previous)

@@ -114,7 +114,8 @@ def create_site(
 ):
     require_corporate_member(db, actor, tenant_id, allowed_roles=ADMIN_ROLES)
     # Serializa el cupo de sedes por empresa antes de insertar.
-    db.query(Condominio).filter_by(condominio_id=tenant_id).with_for_update().one()
+    from backend.core.tenant.company_lock import lock_company_query
+    lock_company_query(db, db.query(Condominio).filter_by(condominio_id=tenant_id), tenant_id).one()
     count = db.query(CorporateSite).filter_by(tenant_id=tenant_id, activa=True).count()
     require_policy(db, gov, tenant_id, "crear_sede_corporativa", count)
     row = CorporateSite(site_id="site_" + uuid.uuid4().hex[:24],

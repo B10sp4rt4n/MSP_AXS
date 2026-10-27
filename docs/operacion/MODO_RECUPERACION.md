@@ -49,7 +49,8 @@ de probar `/ready`. No conceder escritura de checkpoints a clientes o usuarios.
 python -m scripts.recovery quarantine --incident "$AXS_RECOVERY_INCIDENT" --actor operador
 ```
 
-Revoca scopes, membresías MSP, autoridades y delegaciones activas. Cancela las
+Revoca scopes, membresías MSP, membresías corporativas, asignaciones de sede,
+autoridades y delegaciones activas. Cancela las
 visitas pendientes/activas e invalida todos los tokens QR anteriores. Conserva
 estados de personas ya ingresadas, evidencias y ledger. Guarda conteos y operador
 en el checkpoint. Ante una falla entre CORE/GOV el bloqueo permanece.
@@ -73,6 +74,10 @@ siguen sin autorizar: no se reconstruyen ni conceden por inferencia. La herramie
 no recrea visitas desaparecidas ni ajusta automáticamente la ocupación física.
 
 3. Verificar ocupación, identidades externas, evidencia externa y discrepancias.
+Revisar también las decisiones ARCO posteriores al respaldo y los datos/copias
+restaurados: bloqueo, rectificación, conservación, objetos y proveedores según
+corresponda. Conservar una referencia opaca a esa revisión en el expediente
+privado. El CLI no reconstruye decisiones perdidas ni ejecuta una purga general.
 Conservar el reporte y referencia del expediente del incidente fuera del destino.
 Si se corrigen datos, ejecutar de nuevo la conciliación. Elegir un administrador
 existente del condominio cuya identidad haya sido verificada por el operador.
@@ -80,15 +85,18 @@ existente del condominio cuya identidad haya sido verificada por el operador.
 4. Liberación explícita:
 
 ```sh
-python -m scripts.recovery release --incident "$AXS_RECOVERY_INCIDENT" --actor operador --evidence-ref expediente-verificado --occupancy-verified --admin-id administrador-validado --tenant-id condominio-validado
+python -m scripts.recovery release --incident "$AXS_RECOVERY_INCIDENT" --actor operador --evidence-ref expediente-verificado --occupancy-verified --privacy-verified --privacy-review-ref revision-privacidad-copias --admin-id administrador-validado --tenant-id condominio-validado
 ```
 
 Exige conciliación, misma huella de datos, ausencia de permisos/QR anteriores
-activos y confirmación explícita de ocupación. La referencia y la confirmación
+activos, confirmación explícita de ocupación y revisión de privacidad con referencia
+de evidencia. La referencia y la confirmación
 son declaraciones del operador; la herramienta no verifica físicamente el lugar
 ni autentica el contenido del expediente. Concede únicamente un scope NUEVO de
-administrador para el usuario/condominio indicados. No recupera autoridad global
-ni membresías MSP. Registra la decisión y libera ambos checkpoints con un nonce
+administrador para el usuario/condominio **residencial** indicados. Rechaza una
+empresa como destino de este flujo. No recupera autoridad global, membresías MSP
+ni facultades corporativas: estas últimas necesitan un procedimiento específico
+de reautorización aprobado. Registra la decisión y libera ambos checkpoints con un nonce
 nuevo. Si el commit entre dominios falla, permanece cerrado; iniciar un incidente
 nuevo para repetir el procedimiento. No editar marcadores a mano para forzar paso.
 

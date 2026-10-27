@@ -69,7 +69,8 @@ def require_provisioner_role(db: Session):
     owned = db.execute(text("""
         SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
         WHERE n.nspname='public' AND c.relname IN
-            ('condominios_exo','corporate_organizations','corporate_memberships','event_outbox')
+            ('condominios_exo','corporate_organizations','corporate_memberships','event_outbox',
+             'corporate_provisioning_operations')
           AND c.relowner = (SELECT oid FROM pg_roles WHERE rolname=current_user)
     """)).scalar_one()
     if owned:

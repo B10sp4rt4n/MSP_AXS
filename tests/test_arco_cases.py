@@ -46,6 +46,14 @@ def test_private_lifecycle_and_minimal_audit(client, arco):
     assert len(closed.json()['history'])==4
 
 
+def test_private_selector_preserves_residential_access(client, arco):
+    response = client.get('/arco-clientes', headers=headers('admin', 'ADMIN_CONDOMINIO'))
+    assert response.status_code == 200
+    assert response.headers['cache-control'] == 'private, no-store'
+    assert {item['tenant_id'] for item in response.json()} == {'a1'}
+    assert {item['modalidad'] for item in response.json()} == {'residencial'}
+
+
 @pytest.mark.parametrize('user,role,tenant',[('guard','GUARDIA','a1'),('resident','RESIDENTE','a1'),('admin','ADMIN_CONDOMINIO','b1'),('msp','MSP_ADMIN','b1')])
 def test_scope_and_roles(client,arco,user,role,tenant):
     assert client.get('/arco/'+tenant,headers=headers(user,role)).status_code==403

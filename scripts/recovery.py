@@ -12,6 +12,8 @@ def main():
     parser.add_argument('--backup-cutoff', type=datetime.fromisoformat)
     parser.add_argument('--evidence-ref', default='')
     parser.add_argument('--occupancy-verified', action='store_true')
+    parser.add_argument('--privacy-verified', action='store_true', help='Confirm reviewed ARCO decisions and restored copies')
+    parser.add_argument('--privacy-review-ref', default='', help='Opaque reference to private restoration privacy evidence')
     parser.add_argument('--admin-id')
     parser.add_argument('--tenant-id')
     args = parser.parse_args()
@@ -28,6 +30,8 @@ def main():
         parser.error('All three destination database URLs must be explicit')
     if args.action == 'reconcile' and args.backup_cutoff is None:
         parser.error('--backup-cutoff with timezone required')
+    if args.action == 'release' and (not args.privacy_verified or not args.privacy_review_ref.strip()):
+        parser.error('--privacy-verified and --privacy-review-ref required before release')
     engines = [create_engine(os.environ[name]) for name in names]
     try:
         RecoveryCheckpoint.__table__.create(engines[0], checkfirst=True)
@@ -40,6 +44,7 @@ def main():
             else:
                 result = release(core, gov, event, args.incident, actor=args.actor,
                     evidence_ref=args.evidence_ref, occupancy_verified=args.occupancy_verified,
+                    privacy_verified=args.privacy_verified, privacy_review_ref=args.privacy_review_ref,
                     admin_id=args.admin_id, tenant_id=args.tenant_id)
             print(json.dumps(result, indent=2))
     finally:

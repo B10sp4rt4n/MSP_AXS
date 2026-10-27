@@ -103,6 +103,9 @@ def obtener_policies(
     Returns:
         Lista de policies ordenadas por prioridad (TENANT > GLOBAL)
     """
+    if tenant_id:
+        from backend.core.tenant.context import _set_postgres_tenant
+        _set_postgres_tenant(db, tenant_id)
     now = datetime.utcnow()
     
     query = db.query(Policy).filter(

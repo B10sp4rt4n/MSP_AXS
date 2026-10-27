@@ -11,7 +11,8 @@ from backend.db.core import AccessLevel, Condominio, CorporateMembership
 
 
 def require_arco_operator(db, gov, user, tenant_id):
-    tenant = db.query(Condominio).filter_by(condominio_id=tenant_id).populate_existing().with_for_update().first()
+    from backend.core.tenant.company_lock import lock_company_query
+    tenant = lock_company_query(db, db.query(Condominio).filter_by(condominio_id=tenant_id).populate_existing(), tenant_id).first()
     if tenant is None:
         raise HTTPException(404, "Cliente no encontrado")
     if tenant.modalidad == "residencial":

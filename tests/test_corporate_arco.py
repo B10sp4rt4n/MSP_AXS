@@ -112,3 +112,30 @@ def test_revocation_is_effective_for_same_token_and_disabled_company(client, pri
 def test_designated_global_is_transversal_but_msp_alone_is_not(client, privacy_company):
     assert client.get("/arco/"+TENANT, headers=headers("global")).status_code == 200
     assert client.get("/arco/"+TENANT, headers=headers("msp")).status_code == 403
+
+
+@pytest.mark.parametrize("actor", ["owner", "admin", "global"])
+def test_selector_only_returns_designated_and_currently_authorized_clients(client, privacy_company, actor):
+    response = client.get("/arco-clientes", headers=headers(actor))
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "private, no-store"
+    assert response.json() == [{"tenant_id": TENANT, "nombre": "Synthetic", "modalidad": "corporativo"}]
+    assert "privacy-" not in response.text and "example.test" not in response.text
+
+
+@pytest.mark.parametrize("actor", ["host", "reception", "scoped", "msp", "outsider"])
+def test_selector_does_not_reveal_clients_from_designation_alone(client, privacy_company, actor):
+    assert client.get("/arco-clientes", headers=headers(actor)).json() == []
+
+
+def test_selector_rechecks_designation_membership_and_exact_identity(client, privacy_company, monkeypatch):
+    h = headers("owner")
+    assert client.get("/arco-clientes", headers=h).json()
+    privacy_company.query(CorporateMembership).filter_by(membership_id="member-owner").one().estado = "revocado"
+    privacy_company.commit()
+    assert client.get("/arco-clientes", headers=h).json() == []
+    monkeypatch.setenv("AXS_ARCO_OPERATORS", "privacy-owner-other:"+TENANT)
+    assert client.get("/arco-clientes", headers=h).json() == []
+    assert client.get("/arco-clientes").status_code == 401
+    monkeypatch.setenv("AXS_ARCO_CASES_ENABLED", "false")
+    assert client.get("/arco-clientes", headers=h).status_code == 404

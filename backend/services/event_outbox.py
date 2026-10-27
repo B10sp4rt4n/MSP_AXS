@@ -7,6 +7,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 import uuid
+from sqlalchemy import text
 
 from backend.db.core import Condominio, EventOutbox
 from backend.db.event import Event
@@ -91,6 +92,12 @@ def publicar_evento(db_event, payload):
         from sqlalchemy.dialects.sqlite import insert
     else:
         raise RuntimeError("Motor EVENT no soportado")
+    if dialect == "postgresql":
+        # Worker errors must remain database errors for durable retry classification.
+        # The request helper translates them into HTTPException, which is unsuitable here.
+        db_event.info["app_tenant_id"] = values["tenant_id"]
+        db_event.execute(text("SELECT set_config('app.tenant_id', :tenant, true)"),
+                         {"tenant": values["tenant_id"]})
     db_event.execute(insert(Event).values(**values).on_conflict_do_nothing(index_elements=["event_uid"]))
     # No reconocer como enviado un event_uid existente con contenido diferente.
     existing = db_event.query(Event).filter_by(event_uid=values["event_uid"]).one()
