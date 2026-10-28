@@ -138,3 +138,14 @@ Se validaron ambos YAML con js-yaml y la coincidencia de filtros con los nombres
 Esta integración debe provocar ambos workflows al actualizar la rama de #103. El cierre exige observar Tests (Python, frontend y navegador) y PostgreSQL RLS aprobados sobre el mismo SHA resultante. Un job pendiente o un resultado heredado no lo sustituyen; consultar el resultado exacto en #103.
 
 El contrato #87 y la auditoría #95 continúan pendientes y no se incorporan en esta tarea. No se fusiona a main ni se modifican infraestructura, datos, designaciones o despliegues. Los servicios del sandbox conservan sus versiones fijadas y el ensayo autenticado cerrado sigue siendo evidencia operativa de esas versiones.
+
+
+## 7. Incorporación del contrato y la auditoría
+
+Se incorporan íntegros docs/AXS_CORPORATIVO_CONTRATO_V1.md desde #87 (7844ce74367d35796fd7abbcbff70bdc1334f28b) y docs/AXS_CORPORATIVO_AUDITORIA_BASE_20261023.md desde #95 (3129f0f0df46752ef0b34bdb3c02af00e1ea15eb). Sus blobs originales y commits se conservan; la integración tiene como primer padre el paquete técnico validado 498c737 y añade los dos commits documentales como padres.
+
+[La matriz de trazabilidad](../AXS_CORPORATIVO_TRAZABILIDAD_ACEPTACION_20261027.md) vincula los criterios originales con evidencia y pendientes, e identifica el cambio de significado de C2/C3 entre propuesta e implementación.
+
+Esta sección sustituye el pendiente I3 de ausencia documental. No declara cumplido el contrato íntegro ni modifica sus requisitos. La aplicación, tests, workflows y migraciones se conservan idénticos al paquete técnico 498c737; solo se agregan los dos documentos, la matriz y este registro. CI del head documental se verifica en #103 sin otro commit posterior que cambie el SHA validado.
+
+Los PR #87/#95 siguen abiertos hasta que corresponda resolverlos en main. Esta tarea no fusiona a main, no despliega y no cambia infraestructura o datos.
