@@ -7,6 +7,7 @@ import copy
 import json
 import os
 from pathlib import Path
+import re
 import sys
 from types import ModuleType
 from uuid import uuid4
@@ -97,11 +98,39 @@ def restore_catalog(connection, catalog):
 
 
 def canonical(catalog):
-    # Only the local owner/database/server build and provider defaults differ.
+    # Re-parsing historical varchar-array casts on PG18 distributes the text
+    # cast over literal elements. Normalize only that exact equivalent form.
+    def sql_form(value):
+        if isinstance(value, dict):
+            return {k: sql_form(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [sql_form(v) for v in value]
+        if isinstance(value, str):
+            return re.sub(r"ARRAY\[((?:'(?:''|[^'])*'::character varying(?:,\s*)?)+)\]::text\[\]",
+                          lambda m: "ARRAY[" + m[1].replace("::character varying", "::character varying::text") + "]", value)
+        return value
     result = {k: copy.deepcopy(catalog[k]) for k in ("tables", "sequences", "types", "functions", "schemas", "extensions")}
     for table in result["tables"]:
         table.pop("owner")
-    return result
+    return sql_form(result)
+
+
+def assert_same_catalog(actual, expected):
+    differences = []
+    def compare(a, b, path):
+        if len(differences) >= 8:
+            return
+        if isinstance(a, dict) and isinstance(b, dict) and a.keys() == b.keys():
+            for key in a:
+                compare(a[key], b[key], path + "." + str(key))
+        elif isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
+            for index, (left, right) in enumerate(zip(a, b)):
+                compare(left, right, path + f"[{index}]")
+        elif a != b:
+            differences.append(path + ": " + repr(a)[:180] + " != " + repr(b)[:180])
+    compare(actual, expected, "catalog")
+    if differences:
+        pytest.fail("Catalog mismatch: " + "; ".join(differences), pytrace=False)
 
 
 def capture(engine):
@@ -147,7 +176,7 @@ def target():
             c.exec_driver_sql(f"GRANT USAGE ON SCHEMA public TO {runtime}")
             restore_catalog(c, catalog)
         # Every test proves fidelity before seeding or migrating.
-        assert canonical(capture(engine)) == canonical(catalog)
+        assert_same_catalog(canonical(capture(engine)), canonical(catalog))
         with engine.begin() as c:
             c.exec_driver_sql("INSERT INTO msps_exo(msp_id,nombre) VALUES ('msp_synthetic','Synthetic MSP')")
             for tenant in ("res_a", "res_b"):
@@ -236,7 +265,7 @@ def test_target_catalog_upgrade_and_legacy_model_rollback(target):
         table["column_acl"] = [a for a in table["column_acl"] if a["grantee"] != provisioner]
     for seq in after["sequences"]:
         seq["acl"] = [a for a in seq["acl"] if a["grantee"] != provisioner]
-    assert after == canonical(catalog)
+    assert_same_catalog(after, canonical(catalog))
     model_workload(engine, runtime, "backend/db/core/models.py", "integrated_after")
     model_workload(engine, runtime, legacy, "legacy_after_rollback")
     with engine.connect() as c:

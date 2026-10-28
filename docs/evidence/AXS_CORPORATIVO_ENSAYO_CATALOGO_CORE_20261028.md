@@ -31,7 +31,8 @@ mayor. No recibe secretos de Neon ni credenciales productivas.
 
 Antes de insertar datos o aplicar migraciones, cada prueba vuelve a capturar
 los catálogos y compara todos los objetos estructurales del fixture. Solo
-normaliza el propietario local y excluye contexto del proveedor. Si la
+normaliza el propietario local, la distribución equivalente del cast a texto
+en arrays literales históricos varchar, y excluye contexto del proveedor. Si la
 restauración pierde una columna, constraint, índice, policy o grant, falla.
 
 Después siembra dos tenants residenciales ficticios con viviendas, usuarios,
