@@ -12,6 +12,16 @@ const buttonClass = "min-h-12 rounded-xl bg-blue-600 px-5 py-3 font-semibold tex
 const panelClass = "rounded-2xl border border-gray-700 bg-gray-900 p-5";
 const companyPattern = /^corp_[a-zA-Z0-9_-]{1,100}$/;
 
+function capacityMessage(error: unknown, kind: "site" | "destination"): string | null {
+  // Existing API contract: this exact rejection follows the membership check.
+  // Other 403 responses must keep failing closed; no quota is inferred from status alone.
+  if (!(error instanceof ApiError) || error.status !== 403 ||
+      error.message !== "Capacidad corporativa restringida por gobierno") return null;
+  return kind === "site"
+    ? "La capacidad configurada de esta empresa no permite crear otra sede. Revisa el límite con tu administrador."
+    : "La capacidad configurada de esta sede no permite crear otro destino. Revisa el límite con tu administrador.";
+}
+
 function message(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 401) return "Tu sesión venció. Vuelve a iniciar sesión.";
@@ -143,10 +153,11 @@ function Directory({ tenant, getToken }: { tenant: string; getToken: TokenGetter
       }
     } catch (err) {
       if (signal.aborted) return;
-      setError(message(err));
+      const capacity = capacityMessage(err, kind);
+      setError(capacity ?? message(err));
       // POSTs are not idempotent. Never retry automatically after an unknown result.
       if (!(err instanceof ApiError) || err.status >= 500) setUncertain(true);
-      if (err instanceof ApiError && [401, 403].includes(err.status)) { setSites(null); setDestinations(null); }
+      if (err instanceof ApiError && [401, 403].includes(err.status) && !capacity) { setSites(null); setDestinations(null); }
     } finally {
       mutationLock.current = false;
       if (!signal.aborted) setBusy(false);

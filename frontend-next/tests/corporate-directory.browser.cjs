@@ -55,6 +55,7 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
  const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{})});
  try {
   const page=await browser.newPage({viewport:{width:360,height:800}}),errors=[];
+  page.setDefaultTimeout(10000);
   page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/*',route=>route.request().url()==='http://127.0.0.1:47892/'?
     route.fulfill({contentType:'text/html',body:'<meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div>'}):route.abort());
@@ -99,14 +100,26 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
   await click('Consultar estado del directorio');
   await page.getByRole('button',{name:'Sede con ACK perdido America/Mexico_City',exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>window.__writes.length),writes,'Read-back must never resend POST');
-  // Quota denial remains visible and does not claim success or expose stale lists.
+  // Capacity rejection preserves the authorized directory and distinguishes site/destination.
   await page.evaluate(()=>window.__quota=true);
   await page.getByLabel('Nombre de sede').fill('Sede excedente');
   await click('Crear sede');
-  await page.getByRole('alert').waitFor();
-  assert.equal(await page.getByRole('button',{name:'Crear sede',exact:true}).count(),0);
+  await page.getByRole('alert').getByText('La capacidad configurada de esta empresa no permite crear otra sede. Revisa el límite con tu administrador.',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Crear sede',exact:true}).count(),1);
+  assert.equal(await page.getByRole('listitem').textContent(),'Recepción');
   assert.equal(await page.evaluate(()=>window.__sites.length),3);
-  await page.evaluate(()=>{window.__quota=false;window.__mount();});
+  assert.equal(await page.getByText(/El alta pudo haberse guardado/).count(),0);
+  await page.getByLabel('Nombre del destino').fill('Destino excedente');
+  await click('Crear destino');
+  await page.getByRole('alert').getByText('La capacidad configurada de esta sede no permite crear otro destino. Revisa el límite con tu administrador.',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('listitem').count(),1);
+  // A genuine permission denial still removes protected content.
+  await page.evaluate(()=>{window.__quota=false;window.__deny=true;});
+  await click('Crear sede');
+  await page.getByRole('alert').getByText('Tu cuenta no tiene permiso para esta operación o el directorio no está habilitado.',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Crear sede',exact:true}).count(),0);
+  assert.equal(await page.getByRole('listitem').count(),0);
+  await page.evaluate(()=>{window.__deny=false;window.__mount();});
   await page.getByRole('button',{name:'Oficina de ensayo America/Mexico_City',exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>window.__sites.length),3,'Remount reads persisted state without writes');
   // Delayed read from the old company cannot appear after switching companies.

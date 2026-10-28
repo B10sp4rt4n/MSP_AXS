@@ -1,5 +1,7 @@
 # AXS Corporativo: cierre del ensayo y revisión de integración
 
+Las secciones 1–5 conservan el corte de revisión inicial. La sección 6 registra la integración técnica posterior y sustituye los pendientes I1/I2 en lo que corresponde al código; el resultado final de CI se registra en el PR para no cambiar el SHA que se valida.
+
 Corte: 27 de octubre de 2026, hora de Ciudad de México. Repositorio: B10sp4rt4n/MSP_AXS.
 Alcance: sandbox corporativo con identidades Clerk Development, dos empresas de ensayo y un expediente ficticio. Revisión de dependencias, diferencias relevantes y CI; no constituye aprobación de todas las líneas de código ni autorización de producción.
 
@@ -120,3 +122,19 @@ El contrato exige recorrido de visitas y atención de los cuatro derechos, conse
 3. Con ese resultado listo, revisar la integración por dependencias C0 #96→C1 #97→C2 #98→C3 #100→C5 #102→#103. Al cambiar bases o integrar, volver a comprobar el SHA y sus checks. Revisar previamente los despliegues que main pueda disparar y el procedimiento de migración/recuperación correspondiente.
 
 Esta revisión no fusionó PR, no cambió flags, designaciones, infraestructura o producción, y no añadió funcionalidades. Solo consolida evidencia y estado de integración. Las fuentes de datos, criterios de privacidad y funcionalidades excluidas no se amplían por cerrar el ensayo.
+
+
+## 6. Integración del código y cierre de disparadores CI
+
+Se reúne el head correctivo c7c502239c2549c9f9a670a4eafb2906758d5522 con el C5 vigente 3ba15f70ec890544e95bd50438f5a6b03c34b878 mediante un commit con ambos padres. El primer padre conserva SQL/evidencia de #103; el segundo incorpora el ajuste UX que faltaba. La comparación por blobs contra el ancestro 3c7397b confirmó tres archivos C5 modificados y cero conflictos; esos tres blobs se conservan exactamente como en #102.
+
+Los workflows incorporan:
+- Tests por push de fix/axs-corporativo-* y PR dirigido a ramas corporativas/correctivas, además de los filtros anteriores.
+- PostgreSQL RLS por push de C5 y de la rama correctiva, y PR dirigido a ramas corporativas/correctivas.
+- workflow_dispatch en Tests; PG ya lo tenía.
+
+Se validaron ambos YAML con js-yaml y la coincidencia de filtros con los nombres reales de la rama correctiva y C5. No se modifican los comandos, matrices, servicios PostgreSQL desechables ni los casos ejecutados por los jobs.
+
+Esta integración debe provocar ambos workflows al actualizar la rama de #103. El cierre exige observar Tests (Python, frontend y navegador) y PostgreSQL RLS aprobados sobre el mismo SHA resultante. Un job pendiente o un resultado heredado no lo sustituyen; consultar el resultado exacto en #103.
+
+El contrato #87 y la auditoría #95 continúan pendientes y no se incorporan en esta tarea. No se fusiona a main ni se modifican infraestructura, datos, designaciones o despliegues. Los servicios del sandbox conservan sus versiones fijadas y el ensayo autenticado cerrado sigue siendo evidencia operativa de esas versiones.

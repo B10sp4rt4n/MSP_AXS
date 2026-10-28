@@ -2,9 +2,9 @@ name: PostgreSQL RLS gate
 
 on:
   push:
-    branches: ['feat/axs-corporativo-c[123]-*']
+    branches: ['feat/axs-corporativo-c[1235]-*', 'fix/axs-corporativo-*']
   pull_request:
-    branches: [main]
+    branches: [main, 'feat/axs-corporativo-*', 'fix/axs-corporativo-*']
   workflow_dispatch:
 
 jobs:
