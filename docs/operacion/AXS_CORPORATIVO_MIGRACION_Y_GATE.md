@@ -62,3 +62,15 @@ consultas legacy ensayadas toleran esas adiciones.
 No se incluye el bootstrap de sandbox, sus grants particulares ni las migraciones
 ARCO en esta secuencia CORE. Este ensayo no modifica Neon, Railway, Vercel ni
 `main`, y no acredita visitas corporativas ni el procedimiento ARCO completo.
+
+## Ensayo adicional del catálogo objetivo
+
+El job independiente `corporate-target-catalog` reproduce en PostgreSQL 18 las
+17 tablas, 53 índices, nueve secuencias, enums, RLS y grants públicos capturados
+del CORE revisado el 28 de octubre. Compara la estructura restaurada antes de
+migrar, ejecuta modelos antiguos e integrados y ensaya reversión de aplicación
+conservando las adiciones. La evidencia, las exclusiones de contexto del
+proveedor y las condiciones de liberación están en
+[el informe del catálogo](../evidence/AXS_CORPORATIVO_ENSAYO_CATALOGO_CORE_20261028.md).
+No sustituye la comprobación de conexiones efectivas ni la regresión HTTP en
+la ventana de cambio.

@@ -1,0 +1,3387 @@
+{
+  "types": [
+    {
+      "kind": "e",
+      "name": "accesslevel",
+      "labels": [
+        "MSP_ADMIN",
+        "ADMIN_CONDOMINIO",
+        "GUARDIA",
+        "RESIDENTE",
+        "LECTURA"
+      ]
+    },
+    {
+      "kind": "e",
+      "name": "scopestatus",
+      "labels": [
+        "ACTIVO",
+        "INACTIVO",
+        "SUSPENDIDO",
+        "REVOCADO"
+      ]
+    }
+  ],
+  "tables": [
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": false,
+      "name": "alexa_accounts",
+      "force": false,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "account_key",
+          "type": "character varying(64)",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "amazon_user_id",
+          "type": "character varying(1024)",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "usuario_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "condominio_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "casa_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "linked_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "disabled_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "permission_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "permission_granted",
+          "type": "boolean",
+          "default": "false",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "subscription_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "subscribed",
+          "type": "boolean",
+          "default": "false",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "alexa_accounts_amazon_user_id_key",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX alexa_accounts_amazon_user_id_key ON public.alexa_accounts USING btree (amazon_user_id)"
+        },
+        {
+          "name": "alexa_accounts_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX alexa_accounts_pkey ON public.alexa_accounts USING btree (account_key)"
+        },
+        {
+          "name": "ix_alexa_accounts_condominio_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_alexa_accounts_condominio_id ON public.alexa_accounts USING btree (condominio_id)"
+        },
+        {
+          "name": "ix_alexa_accounts_usuario_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_alexa_accounts_usuario_id ON public.alexa_accounts USING btree (usuario_id)"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "alexa_accounts_account_key_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL account_key"
+        },
+        {
+          "name": "alexa_accounts_amazon_user_id_key",
+          "type": "u",
+          "validated": true,
+          "definition": "UNIQUE (amazon_user_id)"
+        },
+        {
+          "name": "alexa_accounts_amazon_user_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL amazon_user_id"
+        },
+        {
+          "name": "alexa_accounts_casa_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (casa_id) REFERENCES casas(casa_id)"
+        },
+        {
+          "name": "alexa_accounts_condominio_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (condominio_id) REFERENCES condominios_exo(condominio_id)"
+        },
+        {
+          "name": "alexa_accounts_permission_granted_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL permission_granted"
+        },
+        {
+          "name": "alexa_accounts_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (account_key)"
+        },
+        {
+          "name": "alexa_accounts_subscribed_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL subscribed"
+        },
+        {
+          "name": "alexa_accounts_usuario_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id)"
+        },
+        {
+          "name": "alexa_complete_binding",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (usuario_id IS NULL AND condominio_id IS NULL AND casa_id IS NULL AND linked_at IS NULL OR usuario_id IS NOT NULL AND condominio_id IS NOT NULL AND casa_id IS NOT NULL AND linked_at IS NOT NULL)"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": true,
+      "name": "arco_cases",
+      "force": true,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "case_id",
+          "type": "character varying(36)",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "condominio_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "received_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "determination_due",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "execution_due",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "right",
+          "type": "character varying(20)",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "subject_ref",
+          "type": "character varying(100)",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "owner_id",
+          "type": "character varying(100)",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "state",
+          "type": "character varying(20)",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "outcome",
+          "type": "character varying(20)",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "version",
+          "type": "integer",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "pending_actions",
+          "type": "integer",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "history",
+          "type": "json",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "arco_cases_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX arco_cases_pkey ON public.arco_cases USING btree (case_id)"
+        },
+        {
+          "name": "ix_arco_cases_condominio_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_arco_cases_condominio_id ON public.arco_cases USING btree (condominio_id)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "arco_cases_tenant",
+          "check": "((condominio_id)::text = current_setting('app.tenant_id'::text, true))",
+          "roles": [
+            "public"
+          ],
+          "using": "((condominio_id)::text = current_setting('app.tenant_id'::text, true))",
+          "command": "*",
+          "permissive": true
+        }
+      ],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "arco_cases_case_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL case_id"
+        },
+        {
+          "name": "arco_cases_condominio_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (condominio_id) REFERENCES condominios_exo(condominio_id)"
+        },
+        {
+          "name": "arco_cases_condominio_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL condominio_id"
+        },
+        {
+          "name": "arco_cases_determination_due_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL determination_due"
+        },
+        {
+          "name": "arco_cases_history_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL history"
+        },
+        {
+          "name": "arco_cases_owner_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL owner_id"
+        },
+        {
+          "name": "arco_cases_pending_actions_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL pending_actions"
+        },
+        {
+          "name": "arco_cases_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (case_id)"
+        },
+        {
+          "name": "arco_cases_received_at_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL received_at"
+        },
+        {
+          "name": "arco_cases_right_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL \"right\""
+        },
+        {
+          "name": "arco_cases_state_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL state"
+        },
+        {
+          "name": "arco_cases_subject_ref_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL subject_ref"
+        },
+        {
+          "name": "arco_cases_version_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL version"
+        },
+        {
+          "name": "arco_state",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (state::text = ANY (ARRAY['recibida'::character varying, 'verificada'::character varying, 'resuelta'::character varying, 'ejecutando'::character varying, 'cerrada'::character varying]::text[]))"
+        },
+        {
+          "name": "arco_version",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (version > 0 AND pending_actions >= 0)"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": false,
+      "name": "casas",
+      "force": false,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "default": "nextval('casas_id_seq'::regclass)",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "casa_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "condominio_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "numero",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "tipo",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "descripcion",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "casas_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX casas_pkey ON public.casas USING btree (id)"
+        },
+        {
+          "name": "ix_casas_casa_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE UNIQUE INDEX ix_casas_casa_id ON public.casas USING btree (casa_id)"
+        },
+        {
+          "name": "ix_casas_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_casas_id ON public.casas USING btree (id)"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "casas_condominio_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (condominio_id) REFERENCES condominios_exo(condominio_id)"
+        },
+        {
+          "name": "casas_condominio_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL condominio_id"
+        },
+        {
+          "name": "casas_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "casas_numero_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL numero"
+        },
+        {
+          "name": "casas_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": true,
+      "name": "casetas",
+      "force": false,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "default": "nextval('casetas_id_seq'::regclass)",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "caseta_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "condominio_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "nombre",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "casetas_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX casetas_pkey ON public.casetas USING btree (id)"
+        },
+        {
+          "name": "ix_casetas_caseta_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE UNIQUE INDEX ix_casetas_caseta_id ON public.casetas USING btree (caseta_id)"
+        },
+        {
+          "name": "ix_casetas_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_casetas_id ON public.casetas USING btree (id)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "axs_tenant_casetas",
+          "check": "((condominio_id)::text = current_setting('app.tenant_id'::text, true))",
+          "roles": [
+            "public"
+          ],
+          "using": "((condominio_id)::text = current_setting('app.tenant_id'::text, true))",
+          "command": "*",
+          "permissive": true
+        }
+      ],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "casetas_condominio_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (condominio_id) REFERENCES condominios_exo(condominio_id)"
+        },
+        {
+          "name": "casetas_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "casetas_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": false,
+      "name": "condominios_exo",
+      "force": false,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "default": "nextval('condominios_exo_id_seq'::regclass)",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "condominio_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "msp_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "nombre",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "reglas_acceso",
+          "type": "json",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "condominios_exo_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX condominios_exo_pkey ON public.condominios_exo USING btree (id)"
+        },
+        {
+          "name": "ix_condominios_exo_condominio_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE UNIQUE INDEX ix_condominios_exo_condominio_id ON public.condominios_exo USING btree (condominio_id)"
+        },
+        {
+          "name": "ix_condominios_exo_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_condominios_exo_id ON public.condominios_exo USING btree (id)"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "condominios_exo_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "condominios_exo_msp_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (msp_id) REFERENCES msps_exo(msp_id)"
+        },
+        {
+          "name": "condominios_exo_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        }
+      ],
+      "rls": true,
+      "name": "event_outbox",
+      "force": true,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "event_uid",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "condominio_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "payload",
+          "type": "json",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "delivered_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "attempts",
+          "type": "integer",
+          "default": "0",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "next_attempt_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "last_error",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "event_outbox_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX event_outbox_pkey ON public.event_outbox USING btree (event_uid)"
+        },
+        {
+          "name": "ix_event_outbox_pending",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_event_outbox_pending ON public.event_outbox USING btree (condominio_id, delivered_at, next_attempt_at)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "event_outbox_tenant",
+          "check": "((condominio_id)::text = current_setting('app.tenant_id'::text, true))",
+          "roles": [
+            "public"
+          ],
+          "using": "((condominio_id)::text = current_setting('app.tenant_id'::text, true))",
+          "command": "*",
+          "permissive": true
+        }
+      ],
+      "triggers": [],
+      "column_acl": [
+        {
+          "column": "delivered_at",
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "column": "attempts",
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "column": "next_attempt_at",
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "column": "last_error",
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "event_outbox_attempts_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL attempts"
+        },
+        {
+          "name": "event_outbox_condominio_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (condominio_id) REFERENCES condominios_exo(condominio_id)"
+        },
+        {
+          "name": "event_outbox_condominio_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL condominio_id"
+        },
+        {
+          "name": "event_outbox_created_at_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "event_outbox_event_uid_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL event_uid"
+        },
+        {
+          "name": "event_outbox_next_attempt_at_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL next_attempt_at"
+        },
+        {
+          "name": "event_outbox_payload_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL payload"
+        },
+        {
+          "name": "event_outbox_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (event_uid)"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": true,
+      "name": "evidencias",
+      "force": false,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "default": "nextval('evidencias_id_seq'::regclass)",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "evidencia_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "visita_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "categoria",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "sub_tipo",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "archivo_url",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "hash_sha256",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "guardia_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "metadata_json",
+          "type": "json",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "evidencias_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX evidencias_pkey ON public.evidencias USING btree (id)"
+        },
+        {
+          "name": "ix_evidencias_evidencia_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE UNIQUE INDEX ix_evidencias_evidencia_id ON public.evidencias USING btree (evidencia_id)"
+        },
+        {
+          "name": "ix_evidencias_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_evidencias_id ON public.evidencias USING btree (id)"
+        },
+        {
+          "name": "ix_evidencias_visita_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_evidencias_visita_id ON public.evidencias USING btree (visita_id)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "axs_tenant_evidencias",
+          "check": "(EXISTS ( SELECT 1\n   FROM visitas v\n  WHERE (((v.visita_id)::text = (evidencias.visita_id)::text) AND ((v.condominio_id)::text = current_setting('app.tenant_id'::text, true)))))",
+          "roles": [
+            "public"
+          ],
+          "using": "(EXISTS ( SELECT 1\n   FROM visitas v\n  WHERE (((v.visita_id)::text = (evidencias.visita_id)::text) AND ((v.condominio_id)::text = current_setting('app.tenant_id'::text, true)))))",
+          "command": "*",
+          "permissive": true
+        }
+      ],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "evidencias_guardia_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (guardia_id) REFERENCES usuarios(usuario_id)"
+        },
+        {
+          "name": "evidencias_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "evidencias_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "evidencias_visita_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (visita_id) REFERENCES visitas(visita_id)"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": false,
+      "name": "external_identities",
+      "force": false,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "identity_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "usuario_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "provider",
+          "type": "character varying(16)",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "reference",
+          "type": "character varying(300)",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "consent_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "consent_version",
+          "type": "character varying(40)",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "verified_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "verification_method",
+          "type": "character varying(80)",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "external_identities_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX external_identities_pkey ON public.external_identities USING btree (identity_id)"
+        },
+        {
+          "name": "ix_external_identities_usuario_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_external_identities_usuario_id ON public.external_identities USING btree (usuario_id)"
+        },
+        {
+          "name": "uq_external_identity_provider",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX uq_external_identity_provider ON public.external_identities USING btree (usuario_id, provider)"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "external_identities_consent_at_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL consent_at"
+        },
+        {
+          "name": "external_identities_consent_version_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL consent_version"
+        },
+        {
+          "name": "external_identities_identity_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL identity_id"
+        },
+        {
+          "name": "external_identities_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (identity_id)"
+        },
+        {
+          "name": "external_identities_provider_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL provider"
+        },
+        {
+          "name": "external_identities_updated_at_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL updated_at"
+        },
+        {
+          "name": "external_identities_usuario_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id)"
+        },
+        {
+          "name": "external_identities_usuario_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL usuario_id"
+        },
+        {
+          "name": "external_provider",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (provider::text = ANY (ARRAY['whatsapp'::character varying, 'facebook'::character varying, 'instagram'::character varying, 'amazon'::character varying]::text[]))"
+        },
+        {
+          "name": "external_revocation",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (revoked_at IS NULL AND reference IS NOT NULL OR revoked_at IS NOT NULL AND reference IS NULL AND verified_at IS NULL)"
+        },
+        {
+          "name": "external_verification",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (verified_at IS NULL AND verification_method IS NULL OR verified_at IS NOT NULL AND verification_method IS NOT NULL)"
+        },
+        {
+          "name": "uq_external_identity_provider",
+          "type": "u",
+          "validated": true,
+          "definition": "UNIQUE (usuario_id, provider)"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": false,
+      "name": "msp_memberships",
+      "force": false,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "default": "nextval('msp_memberships_id_seq'::regclass)",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "usuario_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "msp_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "estado",
+          "type": "character varying",
+          "default": "'activo'::character varying",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp without time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_msp_memberships_msp_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_msp_memberships_msp_id ON public.msp_memberships USING btree (msp_id)"
+        },
+        {
+          "name": "ix_msp_memberships_usuario_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_msp_memberships_usuario_id ON public.msp_memberships USING btree (usuario_id)"
+        },
+        {
+          "name": "msp_memberships_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX msp_memberships_pkey ON public.msp_memberships USING btree (id)"
+        },
+        {
+          "name": "uq_msp_membership",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX uq_msp_membership ON public.msp_memberships USING btree (usuario_id, msp_id)"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "msp_memberships_created_at_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "msp_memberships_estado_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (estado::text = ANY (ARRAY['activo'::character varying, 'revocado'::character varying]::text[]))"
+        },
+        {
+          "name": "msp_memberships_estado_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL estado"
+        },
+        {
+          "name": "msp_memberships_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "msp_memberships_msp_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (msp_id) REFERENCES msps_exo(msp_id)"
+        },
+        {
+          "name": "msp_memberships_msp_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL msp_id"
+        },
+        {
+          "name": "msp_memberships_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "msp_memberships_usuario_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id)"
+        },
+        {
+          "name": "msp_memberships_usuario_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL usuario_id"
+        },
+        {
+          "name": "uq_msp_membership",
+          "type": "u",
+          "validated": true,
+          "definition": "UNIQUE (usuario_id, msp_id)"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": false,
+      "name": "msps_exo",
+      "force": false,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "default": "nextval('msps_exo_id_seq'::regclass)",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "msp_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "nombre",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_msps_exo_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_msps_exo_id ON public.msps_exo USING btree (id)"
+        },
+        {
+          "name": "ix_msps_exo_msp_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE UNIQUE INDEX ix_msps_exo_msp_id ON public.msps_exo USING btree (msp_id)"
+        },
+        {
+          "name": "msps_exo_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX msps_exo_pkey ON public.msps_exo USING btree (id)"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "msps_exo_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "msps_exo_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": false,
+      "name": "provider_contracts",
+      "force": false,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "contract_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "condominio_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "msp_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "version",
+          "type": "integer",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "evidence_ref",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "opened_by",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "opened_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "closed_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "open_event_uid",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "close_event_uid",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "close_receipt",
+          "type": "json",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "provider_contracts_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX provider_contracts_pkey ON public.provider_contracts USING btree (contract_id)"
+        },
+        {
+          "name": "uq_provider_contract_active",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE UNIQUE INDEX uq_provider_contract_active ON public.provider_contracts USING btree (condominio_id) WHERE (closed_at IS NULL)"
+        },
+        {
+          "name": "uq_provider_contract_version",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX uq_provider_contract_version ON public.provider_contracts USING btree (condominio_id, version)"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "provider_contracts_condominio_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (condominio_id) REFERENCES condominios_exo(condominio_id)"
+        },
+        {
+          "name": "provider_contracts_condominio_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL condominio_id"
+        },
+        {
+          "name": "provider_contracts_contract_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL contract_id"
+        },
+        {
+          "name": "provider_contracts_evidence_ref_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL evidence_ref"
+        },
+        {
+          "name": "provider_contracts_msp_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (msp_id) REFERENCES msps_exo(msp_id)"
+        },
+        {
+          "name": "provider_contracts_msp_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL msp_id"
+        },
+        {
+          "name": "provider_contracts_open_event_uid_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL open_event_uid"
+        },
+        {
+          "name": "provider_contracts_opened_at_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL opened_at"
+        },
+        {
+          "name": "provider_contracts_opened_by_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL opened_by"
+        },
+        {
+          "name": "provider_contracts_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (contract_id)"
+        },
+        {
+          "name": "provider_contracts_version_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL version"
+        },
+        {
+          "name": "uq_provider_contract_version",
+          "type": "u",
+          "validated": true,
+          "definition": "UNIQUE (condominio_id, version)"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        }
+      ],
+      "rls": false,
+      "name": "recovery_checkpoints",
+      "force": false,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "incident_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "phase",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "release_nonce",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "report",
+          "type": "json",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "recovery_checkpoints_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX recovery_checkpoints_pkey ON public.recovery_checkpoints USING btree (incident_id)"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "recovery_checkpoints_created_at_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "recovery_checkpoints_incident_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL incident_id"
+        },
+        {
+          "name": "recovery_checkpoints_phase_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL phase"
+        },
+        {
+          "name": "recovery_checkpoints_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (incident_id)"
+        },
+        {
+          "name": "recovery_checkpoints_report_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL report"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        }
+      ],
+      "rls": true,
+      "name": "security_outbox",
+      "force": true,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "event_uid",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "payload",
+          "type": "json",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "delivered_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "attempts",
+          "type": "integer",
+          "default": "0",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "next_attempt_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "last_error",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_security_outbox_pending",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_security_outbox_pending ON public.security_outbox USING btree (delivered_at, next_attempt_at)"
+        },
+        {
+          "name": "security_outbox_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX security_outbox_pkey ON public.security_outbox USING btree (event_uid)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "security_outbox_backend",
+          "check": "(((payload ->> 'tenant_id'::text) = 'PLATFORM_SECURITY'::text) AND ((payload ->> 'event_uid'::text) = (event_uid)::text) AND ((payload ->> 'accion'::text) = 'denegar'::text) AND ((payload ->> 'resultado'::text) = 'denegado'::text) AND ((payload ->> 'entidad'::text) = ANY (ARRAY['session'::text, 'scope'::text])) AND ((payload ->> 'motivo'::text) = ANY (ARRAY['NO_SESSION'::text, 'INVALID_SESSION'::text, 'UNKNOWN_IDENTITY'::text, 'SCOPE_DENIED'::text, 'ROLE_DENIED'::text, 'MSP_DENIED'::text, 'PLATFORM_DENIED'::text, 'RESIDENCE_DENIED'::text, 'INVALID_CREDENTIALS'::text])))",
+          "roles": [
+            "axs_core_app"
+          ],
+          "using": "true",
+          "command": "*",
+          "permissive": true
+        }
+      ],
+      "triggers": [],
+      "column_acl": [
+        {
+          "column": "delivered_at",
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "column": "attempts",
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "column": "next_attempt_at",
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        },
+        {
+          "column": "last_error",
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "security_outbox_attempts_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL attempts"
+        },
+        {
+          "name": "security_outbox_created_at_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "security_outbox_event_uid_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL event_uid"
+        },
+        {
+          "name": "security_outbox_next_attempt_at_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL next_attempt_at"
+        },
+        {
+          "name": "security_outbox_payload_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL payload"
+        },
+        {
+          "name": "security_outbox_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (event_uid)"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": true,
+      "name": "solicitudes_acceso",
+      "force": true,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "solicitud_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "condominio_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "visita_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "destino_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "solicitada_por",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "destinatarios",
+          "type": "json",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "fingerprint",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "estado",
+          "type": "character varying",
+          "default": "'pendiente'::character varying",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "creada_en",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "expira_en",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "respondida_por",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "respondida_en",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "consentimiento_en",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_solicitudes_acceso_condominio_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_solicitudes_acceso_condominio_id ON public.solicitudes_acceso USING btree (condominio_id)"
+        },
+        {
+          "name": "ix_solicitudes_acceso_visita_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_solicitudes_acceso_visita_id ON public.solicitudes_acceso USING btree (visita_id)"
+        },
+        {
+          "name": "solicitudes_acceso_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX solicitudes_acceso_pkey ON public.solicitudes_acceso USING btree (solicitud_id)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "solicitudes_acceso_tenant",
+          "check": "(((condominio_id)::text = current_setting('app.tenant_id'::text, true)) AND (EXISTS ( SELECT 1\n   FROM visitas v\n  WHERE (((v.visita_id)::text = (solicitudes_acceso.visita_id)::text) AND ((v.condominio_id)::text = (solicitudes_acceso.condominio_id)::text)))) AND (EXISTS ( SELECT 1\n   FROM casas c\n  WHERE (((c.casa_id)::text = (solicitudes_acceso.destino_id)::text) AND ((c.condominio_id)::text = (solicitudes_acceso.condominio_id)::text)))))",
+          "roles": [
+            "public"
+          ],
+          "using": "(((condominio_id)::text = current_setting('app.tenant_id'::text, true)) AND (EXISTS ( SELECT 1\n   FROM visitas v\n  WHERE (((v.visita_id)::text = (solicitudes_acceso.visita_id)::text) AND ((v.condominio_id)::text = (solicitudes_acceso.condominio_id)::text)))))",
+          "command": "*",
+          "permissive": true
+        }
+      ],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "solicitudes_acceso_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (expira_en > creada_en)"
+        },
+        {
+          "name": "solicitudes_acceso_check1",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK ((estado::text <> ALL (ARRAY['permitida'::character varying, 'rechazada'::character varying, 'consumida'::character varying]::text[])) OR respondida_por IS NOT NULL AND respondida_en IS NOT NULL AND consentimiento_en IS NOT NULL)"
+        },
+        {
+          "name": "solicitudes_acceso_condominio_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (condominio_id) REFERENCES condominios_exo(condominio_id)"
+        },
+        {
+          "name": "solicitudes_acceso_condominio_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL condominio_id"
+        },
+        {
+          "name": "solicitudes_acceso_creada_en_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL creada_en"
+        },
+        {
+          "name": "solicitudes_acceso_destinatarios_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL destinatarios"
+        },
+        {
+          "name": "solicitudes_acceso_destino_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (destino_id) REFERENCES casas(casa_id)"
+        },
+        {
+          "name": "solicitudes_acceso_destino_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL destino_id"
+        },
+        {
+          "name": "solicitudes_acceso_estado_check",
+          "type": "c",
+          "validated": true,
+          "definition": "CHECK (estado::text = ANY (ARRAY['pendiente'::character varying, 'permitida'::character varying, 'rechazada'::character varying, 'expirada'::character varying, 'consumida'::character varying]::text[]))"
+        },
+        {
+          "name": "solicitudes_acceso_estado_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL estado"
+        },
+        {
+          "name": "solicitudes_acceso_expira_en_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL expira_en"
+        },
+        {
+          "name": "solicitudes_acceso_fingerprint_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL fingerprint"
+        },
+        {
+          "name": "solicitudes_acceso_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (solicitud_id)"
+        },
+        {
+          "name": "solicitudes_acceso_respondida_por_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (respondida_por) REFERENCES usuarios(usuario_id)"
+        },
+        {
+          "name": "solicitudes_acceso_solicitada_por_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (solicitada_por) REFERENCES usuarios(usuario_id)"
+        },
+        {
+          "name": "solicitudes_acceso_solicitada_por_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL solicitada_por"
+        },
+        {
+          "name": "solicitudes_acceso_solicitud_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL solicitud_id"
+        },
+        {
+          "name": "solicitudes_acceso_visita_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (visita_id) REFERENCES visitas(visita_id)"
+        },
+        {
+          "name": "solicitudes_acceso_visita_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL visita_id"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": false,
+      "name": "user_tenant_scope",
+      "force": false,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "default": "nextval('user_tenant_scope_id_seq'::regclass)",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "usuario_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "access_level",
+          "type": "accesslevel",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "estado",
+          "type": "scopestatus",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "metadata_json",
+          "type": "json",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_user_tenant_scope_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_user_tenant_scope_id ON public.user_tenant_scope USING btree (id)"
+        },
+        {
+          "name": "ix_user_tenant_scope_tenant_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_user_tenant_scope_tenant_id ON public.user_tenant_scope USING btree (tenant_id)"
+        },
+        {
+          "name": "ix_user_tenant_scope_usuario_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_user_tenant_scope_usuario_id ON public.user_tenant_scope USING btree (usuario_id)"
+        },
+        {
+          "name": "user_tenant_scope_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX user_tenant_scope_pkey ON public.user_tenant_scope USING btree (id)"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "user_tenant_scope_access_level_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL access_level"
+        },
+        {
+          "name": "user_tenant_scope_created_at_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "user_tenant_scope_estado_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL estado"
+        },
+        {
+          "name": "user_tenant_scope_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "user_tenant_scope_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "user_tenant_scope_tenant_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (tenant_id) REFERENCES condominios_exo(condominio_id)"
+        },
+        {
+          "name": "user_tenant_scope_tenant_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL tenant_id"
+        },
+        {
+          "name": "user_tenant_scope_usuario_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id)"
+        },
+        {
+          "name": "user_tenant_scope_usuario_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL usuario_id"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": false,
+      "name": "usuarios",
+      "force": false,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "default": "nextval('usuarios_id_seq'::regclass)",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "usuario_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "msp_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "condominio_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "casa_unidad",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "nombre",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "email",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "rol",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "password_hash",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "creado",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "clerk_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "casa_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "celular",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "whatsapp",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "facebook_url",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "instagram_usuario",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "celular_verified_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "celular_consent_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_usuarios_email",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE UNIQUE INDEX ix_usuarios_email ON public.usuarios USING btree (email)"
+        },
+        {
+          "name": "ix_usuarios_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_usuarios_id ON public.usuarios USING btree (id)"
+        },
+        {
+          "name": "ix_usuarios_usuario_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE UNIQUE INDEX ix_usuarios_usuario_id ON public.usuarios USING btree (usuario_id)"
+        },
+        {
+          "name": "usuarios_clerk_id_key",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX usuarios_clerk_id_key ON public.usuarios USING btree (clerk_id)"
+        },
+        {
+          "name": "usuarios_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX usuarios_pkey ON public.usuarios USING btree (id)"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "usuarios_casa_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (casa_id) REFERENCES casas(casa_id)"
+        },
+        {
+          "name": "usuarios_clerk_id_key",
+          "type": "u",
+          "validated": true,
+          "definition": "UNIQUE (clerk_id)"
+        },
+        {
+          "name": "usuarios_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "usuarios_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        }
+      ]
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "DELETE"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "INSERT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "UPDATE"
+        }
+      ],
+      "rls": true,
+      "name": "visitas",
+      "force": false,
+      "owner": "neondb_owner",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "default": "nextval('visitas_id_seq'::regclass)",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "visita_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "condominio_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "nombre_visitante",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "casa_unidad",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "tipo_visita",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "vigencia",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "qr_token",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "qr_vigencia",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "estado",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "entrada_registrada_en",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "salida_registrada_en",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "destino_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "destino_tipo",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "destino_motivo",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "proposito",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "autorizada_por",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "autorizada_en",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "solicitud_remota_id",
+          "type": "character varying",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "autorizacion_remota_hasta",
+          "type": "timestamp without time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_visitas_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE INDEX ix_visitas_id ON public.visitas USING btree (id)"
+        },
+        {
+          "name": "ix_visitas_visita_id",
+          "valid": true,
+          "constraint": false,
+          "definition": "CREATE UNIQUE INDEX ix_visitas_visita_id ON public.visitas USING btree (visita_id)"
+        },
+        {
+          "name": "visitas_pkey",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX visitas_pkey ON public.visitas USING btree (id)"
+        },
+        {
+          "name": "visitas_qr_token_key",
+          "valid": true,
+          "constraint": true,
+          "definition": "CREATE UNIQUE INDEX visitas_qr_token_key ON public.visitas USING btree (qr_token)"
+        }
+      ],
+      "policies": [
+        {
+          "name": "axs_tenant_visitas",
+          "check": "((condominio_id)::text = current_setting('app.tenant_id'::text, true))",
+          "roles": [
+            "public"
+          ],
+          "using": "((condominio_id)::text = current_setting('app.tenant_id'::text, true))",
+          "command": "*",
+          "permissive": true
+        }
+      ],
+      "triggers": [],
+      "column_acl": [],
+      "constraints": [
+        {
+          "name": "visitas_autorizada_por_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (autorizada_por) REFERENCES usuarios(usuario_id)"
+        },
+        {
+          "name": "visitas_condominio_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (condominio_id) REFERENCES condominios_exo(condominio_id)"
+        },
+        {
+          "name": "visitas_destino_id_fkey",
+          "type": "f",
+          "validated": true,
+          "definition": "FOREIGN KEY (destino_id) REFERENCES casas(casa_id)"
+        },
+        {
+          "name": "visitas_id_not_null",
+          "type": "n",
+          "validated": true,
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "visitas_pkey",
+          "type": "p",
+          "validated": true,
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "visitas_qr_token_key",
+          "type": "u",
+          "validated": true,
+          "definition": "UNIQUE (qr_token)"
+        }
+      ]
+    }
+  ],
+  "schemas": [
+    "public"
+  ],
+  "version": "18.6 (fd34222)",
+  "database": "neondb",
+  "functions": [],
+  "sequences": [
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "USAGE"
+        }
+      ],
+      "max": 2147483647,
+      "min": 1,
+      "name": "casas_id_seq",
+      "type": "integer",
+      "cache": 1,
+      "cycle": false,
+      "start": 1,
+      "table": "casas",
+      "column": "id",
+      "increment": 1
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "USAGE"
+        }
+      ],
+      "max": 2147483647,
+      "min": 1,
+      "name": "casetas_id_seq",
+      "type": "integer",
+      "cache": 1,
+      "cycle": false,
+      "start": 1,
+      "table": "casetas",
+      "column": "id",
+      "increment": 1
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "USAGE"
+        }
+      ],
+      "max": 2147483647,
+      "min": 1,
+      "name": "condominios_exo_id_seq",
+      "type": "integer",
+      "cache": 1,
+      "cycle": false,
+      "start": 1,
+      "table": "condominios_exo",
+      "column": "id",
+      "increment": 1
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "USAGE"
+        }
+      ],
+      "max": 2147483647,
+      "min": 1,
+      "name": "evidencias_id_seq",
+      "type": "integer",
+      "cache": 1,
+      "cycle": false,
+      "start": 1,
+      "table": "evidencias",
+      "column": "id",
+      "increment": 1
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "USAGE"
+        }
+      ],
+      "max": 2147483647,
+      "min": 1,
+      "name": "msp_memberships_id_seq",
+      "type": "integer",
+      "cache": 1,
+      "cycle": false,
+      "start": 1,
+      "table": "msp_memberships",
+      "column": "id",
+      "increment": 1
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "USAGE"
+        }
+      ],
+      "max": 2147483647,
+      "min": 1,
+      "name": "msps_exo_id_seq",
+      "type": "integer",
+      "cache": 1,
+      "cycle": false,
+      "start": 1,
+      "table": "msps_exo",
+      "column": "id",
+      "increment": 1
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "USAGE"
+        }
+      ],
+      "max": 2147483647,
+      "min": 1,
+      "name": "user_tenant_scope_id_seq",
+      "type": "integer",
+      "cache": 1,
+      "cycle": false,
+      "start": 1,
+      "table": "user_tenant_scope",
+      "column": "id",
+      "increment": 1
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "USAGE"
+        }
+      ],
+      "max": 2147483647,
+      "min": 1,
+      "name": "usuarios_id_seq",
+      "type": "integer",
+      "cache": 1,
+      "cycle": false,
+      "start": 1,
+      "table": "usuarios",
+      "column": "id",
+      "increment": 1
+    },
+    {
+      "acl": [
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "SELECT"
+        },
+        {
+          "grantee": "axs_core_app",
+          "grantable": false,
+          "privilege": "USAGE"
+        }
+      ],
+      "max": 2147483647,
+      "min": 1,
+      "name": "visitas_id_seq",
+      "type": "integer",
+      "cache": 1,
+      "cycle": false,
+      "start": 1,
+      "table": "visitas",
+      "column": "id",
+      "increment": 1
+    }
+  ],
+  "extensions": [
+    {
+      "name": "plpgsql",
+      "schema": "pg_catalog",
+      "version": "1.0"
+    }
+  ],
+  "default_acls": [
+    {
+      "acl": "{neon_superuser=a*r*w*d*D*x*t*m*/cloud_admin}",
+      "role": "cloud_admin",
+      "type": "r",
+      "schema": "public"
+    },
+    {
+      "acl": "{neon_superuser=r*w*U*/cloud_admin}",
+      "role": "cloud_admin",
+      "type": "S",
+      "schema": "public"
+    }
+  ],
+  "provenance": {
+    "captured_at": "2026-10-28",
+    "project": "patient-tree-68362559",
+    "branch": "br-empty-firefly-b5ob1gsg",
+    "database": "neondb",
+    "scope": "public application schema; metadata only; no rows or current sequence values"
+  }
+}

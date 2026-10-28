@@ -54,3 +54,35 @@ jobs:
           AXS_EXPORT_SANDBOX_DDL: schema-only
         run: python -m scripts.export_corporate_sandbox_ddl
 
+  corporate-target-catalog:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        # Match the captured production CORE major version, independently of PG16.
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Retrieve pinned production model for rollback rehearsal
+        run: |
+          git fetch --no-tags --depth=1 origin 76bc9d619836f0872241741570fb7974e51d2bf6
+          git show 76bc9d619836f0872241741570fb7974e51d2bf6:backend/db/core/models.py > /tmp/axs_upgrade_legacy_models.py
+      - name: Verify captured catalog, upgrade, runtime isolation and legacy rollback
+        env:
+          AXS_TEST_TARGET_SCHEMA_ADMIN_URL: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
+          AXS_TEST_LEGACY_CORE_MODELS: /tmp/axs_upgrade_legacy_models.py
+        run: python -m pytest -q --no-cov tests/smoke/test_corporate_target_catalog_postgres.py
+
