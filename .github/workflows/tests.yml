@@ -2,9 +2,10 @@ name: Tests
 
 on:
   push:
-    branches: [ main, develop, feature/*, 'feat/axs-corporativo-c[1235]-*' ]
+    branches: [ main, develop, feature/*, 'feat/axs-corporativo-c[1235]-*', 'fix/axs-corporativo-*' ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, 'feat/axs-corporativo-*', 'fix/axs-corporativo-*' ]
+  workflow_dispatch:
 
 jobs:
   provider-console-browser:

@@ -143,6 +143,12 @@ logger.info(f"🌍 CORS ACTIVADO: {_allowed_origins}")
 # ============================================================
 
 if os.getenv("AXS_CORPORATE_SANDBOX_ONLY", "").lower() != "true":
+    # Fail before create_all: an existing PostgreSQL CORE must be migrated
+    # explicitly. Missing corporate objects must never be repaired at startup.
+    if engine_core.dialect.name == "postgresql":
+        from scripts.check_corporate_schema import run_gate
+
+        run_gate(engine_core)
     try:
         # ✅ Crear tablas en AUP_CORE
         Base_CORE.metadata.create_all(bind=engine_core)
@@ -272,3 +278,4 @@ def health_check():
         "aup_blocks_active": True,
         "version": "3.0.0-aup-gov"
     }
+
