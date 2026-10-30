@@ -2,9 +2,10 @@ name: Tests
 
 on:
   push:
-    branches: [ main, develop, feature/* ]
+    branches: [ main, develop, feature/*, 'feat/axs-corporativo-c[1235]-*', 'fix/axs-corporativo-*' ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, 'feat/axs-corporativo-*', 'fix/axs-corporativo-*' ]
+  workflow_dispatch:
 
 jobs:
   provider-console-browser:
@@ -35,6 +36,8 @@ jobs:
     - run: node tests/provider-console.browser.cjs
       env:
         AXS_SCREENSHOT_DIR: screenshots/provider-console
+    - run: node tests/corporate-superadmin.browser.cjs
+    - run: node tests/corporate-directory.browser.cjs
     - uses: actions/upload-artifact@v4
       if: always()
       with:
@@ -55,6 +58,10 @@ jobs:
         cache-dependency-path: frontend-next/package-lock.json
     - run: npm ci
     - run: npm run test:roles
+    - run: node --test tests/corporate-superadmin-gate.test.cjs tests/corporate-directory-gate.test.cjs
+    - run: npm install --no-save --package-lock=false jsdom@26.1.0
+    - run: node --test tests/corporate-reconciliation-dom.test.cjs
+    - run: node --test tests/arco-clients-dom.test.cjs
     - run: npx next typegen && npx tsc --noEmit
 
   test:
@@ -107,3 +114,4 @@ jobs:
     
     - name: Check coverage threshold
       run: coverage report --fail-under=40
+

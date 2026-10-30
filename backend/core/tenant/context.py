@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import event, text
 import logging
 
-from backend.db.core import Usuario, get_core_db
+from backend.db.core import Usuario, Condominio, get_core_db
 from backend.core.auth.dependencies import get_current_user
 from backend.core.scope.validator import validar_scope
 from backend.db.core import AccessLevel
@@ -39,6 +39,18 @@ logger = logging.getLogger("aup.tenant")
 class TenantContextError(Exception):
     """Error al configurar contexto de tenant."""
     pass
+
+
+
+def _require_residential_mode(db: Session, tenant_id: str) -> None:
+    """Restringe dependencias legacy a residenciales; no es un guard corporativo."""
+    tenant = db.query(Condominio).filter(Condominio.condominio_id == tenant_id).first()
+    if not tenant or tenant.modalidad != "residencial":
+        raise SecurityDenial(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Operacion solo disponible para residencial",
+            reason="TENANT_MODE_DENIED",
+        )
 
 
 def set_tenant_context(
@@ -114,6 +126,9 @@ def set_tenant_context(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Sin acceso al tenant {tenant_id}"
         )
+
+    # La autorizacion legacy tambien exige la modalidad residencial.
+    _require_residential_mode(db, tenant_id)
 
     # ─────────────────────────────────────────────────────────────────────
     # El contexto pertenece a la transacción de esta misma sesión ORM.
@@ -201,6 +216,7 @@ def require_tenant_context(required_level: AccessLevel = AccessLevel.LECTURA):
                 detail=f"Requiere nivel {required_level.value} en tenant {tenant_id}"
             )
 
+        _require_residential_mode(db, tenant_id)
         _set_postgres_tenant(db, tenant_id)
 
         return tenant_id

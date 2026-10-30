@@ -7,11 +7,11 @@ SISTEMA DE AUTENTICACIÓN:
   - AUP_IDENTITY: Usuario en base de datos
   - AUP_CREDENTIAL: Password hash (bcrypt)
   - AUP_SESSION: JWT con identity_id + role
-  
+
 ENDPOINTS PÚBLICOS:
   - POST /auth/login: crear AUP_SESSION
   - GET /: health check
-  
+
 ENDPOINTS PROTEGIDOS:
   - Todos los demás requieren: Authorization: Bearer <token>
 
@@ -41,6 +41,12 @@ logging.basicConfig(
 # Reducir verbosidad de librerías de terceros
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
+
+# Sandbox fail-closed BEFORE importing engines or running legacy create_all.
+# Normal residential runtime stays unchanged unless this explicit flag is set.
+if os.getenv("AXS_CORPORATE_SANDBOX_ONLY", "").lower() == "true":
+    from scripts.check_corporate_sandbox_data import check_data
+    check_data(os.environ)
 
 # ✅ AUP: Importar engines y bases separadas por dominio
 from .db.core import Base_CORE, engine_core
@@ -136,21 +142,28 @@ logger.info(f"🌍 CORS ACTIVADO: {_allowed_origins}")
 #   Inicialización de Bases de Datos (Separadas)
 # ============================================================
 
-try:
-    # ✅ Crear tablas en AUP_CORE
-    Base_CORE.metadata.create_all(bind=engine_core)
-    logger.info("✅ AUP_CORE: Tablas verificadas/creadas")
-    
-    # ✅ Crear tablas en AUP_EVENT
-    Base_EVENT.metadata.create_all(bind=engine_event)
-    logger.info("✅ AUP_EVENT: Tablas verificadas/creadas")
-    
-    # ✅ Crear tablas en AUP_GOV
-    Base_GOV.metadata.create_all(bind=engine_gov)
-    logger.info("✅ AUP_GOV: Tablas verificadas/creadas")
-    
-except Exception as exc:
-    logger.warning("⚠ No se pudieron crear/verificar todas las tablas", exc_info=exc)
+if os.getenv("AXS_CORPORATE_SANDBOX_ONLY", "").lower() != "true":
+    # Fail before create_all: an existing PostgreSQL CORE must be migrated
+    # explicitly. Missing corporate objects must never be repaired at startup.
+    if engine_core.dialect.name == "postgresql":
+        from scripts.check_corporate_schema import run_gate
+
+        run_gate(engine_core)
+    try:
+        # ✅ Crear tablas en AUP_CORE
+        Base_CORE.metadata.create_all(bind=engine_core)
+        logger.info("✅ AUP_CORE: Tablas verificadas/creadas")
+
+        # ✅ Crear tablas en AUP_EVENT
+        Base_EVENT.metadata.create_all(bind=engine_event)
+        logger.info("✅ AUP_EVENT: Tablas verificadas/creadas")
+
+        # ✅ Crear tablas en AUP_GOV
+        Base_GOV.metadata.create_all(bind=engine_gov)
+        logger.info("✅ AUP_GOV: Tablas verificadas/creadas")
+
+    except Exception as exc:
+        logger.warning("⚠ No se pudieron crear/verificar todas las tablas", exc_info=exc)
 
 
 # ============================================================
@@ -175,6 +188,12 @@ from backend.routers import solicitudes_acceso_router
 app.include_router(solicitudes_acceso_router.router)
 from backend.routers import arco_router
 app.include_router(arco_router.router)
+from backend.routers import arco_clients_router
+app.include_router(arco_clients_router.router)
+from backend.routers import corporativo_router
+app.include_router(corporativo_router.router)  # feature OFF por defecto; nunca activa empresas
+from backend.routers import corporate_superadmin_router
+app.include_router(corporate_superadmin_router.router)  # provisioning requiere credencial separada
 app.include_router(visitas_router.router)
 app.include_router(qr_router.router)
 app.include_router(evidencias_router.router)
@@ -221,12 +240,12 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     logger.info("✅ Frontend estático montado en /static")
-    
+
     @app.get("/")
     async def serve_frontend():
         """Servir frontend HTML para piloto."""
         return FileResponse(os.path.join(static_dir, "index.html"))
-    
+
     @app.get("/admin.html")
     async def serve_admin():
         """Servir panel administrativo."""
@@ -259,3 +278,4 @@ def health_check():
         "aup_blocks_active": True,
         "version": "3.0.0-aup-gov"
     }
+

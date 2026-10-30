@@ -16,7 +16,9 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from backend.db.core import (Base_CORE, MSP, Condominio, Casa, Usuario, Visita,
-    Evidencia, UserTenantScope, ScopeStatus, AccessLevel, MSPMembership)
+    Evidencia, UserTenantScope, ScopeStatus, AccessLevel, MSPMembership,
+    CorporateOrganization, CorporateMembership, CorporateSite, CorporateSiteAssignment)
+from backend.core.scope.corporate_boundary import require_corporate_member
 from backend.db.event import Base_EVENT, Event
 from backend.db.gov import (Base_GOV, Authority, AuthorityType, Delegation, GovStatus)
 from backend.core.scope.msp_boundary import require_condominio
@@ -85,6 +87,12 @@ def test_backup_restore_and_stale_authorization_quarantine(tmp_path, request):
                              tipo=AuthorityType.GLOBAL, estado=GovStatus.ACTIVO)); db.flush()
             db.add(Delegation(delegation_id='delegation', authority_id='global',
                 target_identity_id='guard', permisos_delegados=['crear_tenant']))
+            db.add(Condominio(condominio_id='corp', msp_id='m', modalidad='corporativo', corporativo_habilitado=True))
+            db.flush()
+            db.add(CorporateOrganization(tenant_id='corp')); db.flush()
+            db.add(CorporateMembership(membership_id='corp-member', tenant_id='corp', user_id='platform', rol='owner', estado='activo'))
+            db.add(CorporateSite(site_id='corp-site', tenant_id='corp', nombre='Synthetic')); db.flush()
+            db.add(CorporateSiteAssignment(assignment_id='corp-assignment', tenant_id='corp', site_id='corp-site', user_id='platform', estado='activo'))
             for vid, state in [('pending', 'pendiente'), ('inside', 'entrada_registrada')]:
                 visit = Visita(visita_id=vid, condominio_id='a', destino_id='home',
                     nombre_visitante='Synthetic visitor', tipo_visita='eventual', estado=state,
@@ -104,6 +112,8 @@ def test_backup_restore_and_stale_authorization_quarantine(tmp_path, request):
         with Session(engine) as db:
             registrar_entrada(db, 'pending', qr_token='qr-pending', auditoria=audit)
             db.query(UserTenantScope).update({UserTenantScope.estado: ScopeStatus.REVOCADO})
+            db.query(CorporateMembership).update({CorporateMembership.estado: 'revocado'})
+            db.query(CorporateSiteAssignment).update({CorporateSiteAssignment.estado: 'revocado'})
             db.commit()
             assert enviar_pendientes(db, 'a', lambda: Session(engine)) == 1
             guard = db.query(Usuario).filter_by(usuario_id='guard').one()
@@ -132,6 +142,10 @@ def test_backup_restore_and_stale_authorization_quarantine(tmp_path, request):
                 require_condominio(db, db, user, 'a', AccessLevel.GUARDIA)
             assert db.query(Visita).filter_by(visita_id='pending').one().estado == 'pendiente'
             assert db.query(UserTenantScope).one().estado == ScopeStatus.ACTIVO
+            # Restoring an older archive resurrects corporate grants too.
+            assert db.query(CorporateMembership).one().estado == 'activo'
+            platform = db.query(Usuario).filter_by(usuario_id='platform').one()
+            assert require_corporate_member(db, platform, 'corp').rol == 'owner'
             # Demonstrate actual service acceptance on the stale restore, then roll it back.
             # registrar_entrada commits; an external transaction confines this probe.
         with engine.connect() as conn:
@@ -144,11 +158,16 @@ def test_backup_restore_and_stale_authorization_quarantine(tmp_path, request):
         with Session(engine) as db:
             db.query(UserTenantScope).update({UserTenantScope.estado: ScopeStatus.REVOCADO})
             db.query(MSPMembership).update({MSPMembership.estado: 'revocado'})
+            db.query(CorporateMembership).update({CorporateMembership.estado: 'revocado'})
+            db.query(CorporateSiteAssignment).update({CorporateSiteAssignment.estado: 'revocado'})
             db.query(Authority).update({Authority.estado: GovStatus.REVOCADO})
             db.query(Delegation).update({Delegation.estado: GovStatus.REVOCADO})
             db.query(Visita).filter(Visita.estado.in_(['pendiente', 'activa'])).update({
                 Visita.estado: 'cancelada', Visita.qr_token: None, Visita.qr_vigencia: None})
             db.commit()
+            with pytest.raises(HTTPException) as denied:
+                require_corporate_member(db, db.query(Usuario).filter_by(usuario_id='platform').one(), 'corp')
+            assert denied.value.status_code == 403
             for user in db.query(Usuario):
                 with pytest.raises(HTTPException) as denied:
                     require_condominio(db, db, user, 'a', AccessLevel.GUARDIA)

@@ -1,0 +1,225 @@
+"""Regresión C0 sintética: modo de tenant aislado. SQLite NO prueba RLS real."""
+import pytest
+from fastapi import HTTPException
+
+from backend.core.scope.msp_boundary import (
+    authorized_tenant_context, require_condominio,
+)
+from backend.db.core import (
+    AccessLevel, Condominio, MSP, MSPMembership, ScopeStatus,
+    UserTenantScope, Usuario,
+)
+from backend.db.gov import Authority, AuthorityType, GovStatus
+from backend.routers.condominios_router import list_condominios
+
+
+
+def test_legacy_cloudinary_router_without_tenant_guard_is_not_mounted():
+    """La versión legacy no aplica require_visita: debe permanecer fuera de la API."""
+    from fastapi.routing import APIRoute
+    from backend.main import app
+
+    # Inspecciona rutas EFECTIVAMENTE publicadas, no solo imports del repositorio.
+    risky = [
+        (sorted(route.methods or []), route.path)
+        for route in app.routes
+        if isinstance(route, APIRoute)
+        and route.endpoint.__module__ == "backend.routers.evidencias_router_cloudinary"
+    ]
+    assert risky == [], "No montar Cloudinary legacy sin guard residencial y pruebas RLS"
+
+
+@pytest.fixture
+def modes(db_core_session, db_gov_session):
+    db = db_core_session
+    db.add(MSP(msp_id="provider", nombre="Proveedor sintético"))
+    db.add_all([
+        Condominio(condominio_id="res", msp_id="provider", nombre="Residencial"),
+        Condominio(condominio_id="corp", msp_id="provider", nombre="Empresa",
+                   modalidad="corporativo", corporativo_habilitado=False),
+    ])
+    db.add_all([
+        Usuario(usuario_id="global", email="global@example.test", rol="MSP_ADMIN"),
+        Usuario(usuario_id="msp", email="msp@example.test", rol="MSP_ADMIN"),
+        Usuario(usuario_id="worker", email="worker@example.test", rol="GUARDIA",
+                condominio_id="corp"),
+        Usuario(usuario_id="outsider", email="outsider@example.test", rol="GUARDIA"),
+    ])
+    db.flush()
+    db.add(MSPMembership(usuario_id="msp", msp_id="provider"))
+    db.add(UserTenantScope(usuario_id="worker", tenant_id="corp",
+                           estado=ScopeStatus.ACTIVO, access_level=AccessLevel.GUARDIA))
+    db.commit()
+    db_gov_session.add(Authority(authority_id="global-c0", identity_id="global",
+                                 tipo=AuthorityType.GLOBAL, estado=GovStatus.ACTIVO))
+    db_gov_session.commit()
+    return {u.usuario_id: u for u in db.query(Usuario).all()}
+
+
+def expect_denied(call):
+    with pytest.raises(HTTPException) as exc:
+        call()
+    assert exc.value.status_code == 403
+
+
+def test_existing_tenants_default_residential(modes, db_core_session):
+    resident = db_core_session.query(Condominio).filter_by(condominio_id="res").one()
+    assert resident.modalidad == "residencial"
+    assert resident.corporativo_habilitado is False
+
+
+@pytest.mark.parametrize("actor", ["global", "msp", "worker"])
+def test_residential_boundary_rejects_corporate_even_with_valid_scope(
+    modes, db_core_session, db_gov_session, actor,
+):
+    expect_denied(lambda: require_condominio(
+        db_core_session, db_gov_session, modes[actor], "corp", AccessLevel.GUARDIA,
+    ))
+    require_condominio(db_core_session, db_gov_session, modes["global"],
+                       "res", AccessLevel.GUARDIA)
+
+
+def test_disabled_corporate_is_not_operable_even_for_global(
+    modes, db_core_session, db_gov_session,
+):
+    expect_denied(lambda: require_condominio(
+        db_core_session, db_gov_session, modes["global"], "corp",
+        AccessLevel.ADMIN_CONDOMINIO, expected_mode="corporativo",
+    ))
+    # La modalidad no debe revelarse a quien no tiene scope.
+    with pytest.raises(HTTPException) as denied_exc:
+        require_condominio(db_core_session, db_gov_session, modes["outsider"],
+                           "corp", AccessLevel.GUARDIA)
+    assert denied_exc.value.status_code == 403
+    assert denied_exc.value.detail == "Sin acceso al condominio"
+    # Una autorización transversal tampoco omite identidad / scope.
+    expect_denied(lambda: require_condominio(
+        db_core_session, db_gov_session, modes["outsider"], "corp",
+        AccessLevel.GUARDIA, expected_mode=None,
+    ))
+    # ARCO conserva un camino transversal únicamente para un actor autorizado;
+    # el expediente además exige designación expresa en su router.
+    assert require_condominio(
+        db_core_session, db_gov_session, modes["worker"], "corp",
+        AccessLevel.GUARDIA, expected_mode=None,
+    ).condominio_id == "corp"
+
+
+def test_explicit_corporate_enablement_does_not_grant_other_tenants(
+    modes, db_core_session, db_gov_session,
+):
+    db = db_core_session
+    corp = db.query(Condominio).filter_by(condominio_id="corp").one()
+    corp.corporativo_habilitado = True
+    db.commit()
+    assert require_condominio(
+        db, db_gov_session, modes["worker"], "corp", AccessLevel.GUARDIA,
+        expected_mode="corporativo",
+    ).modalidad == "corporativo"
+    expect_denied(lambda: require_condominio(
+        db, db_gov_session, modes["outsider"], "corp", AccessLevel.GUARDIA,
+        expected_mode="corporativo",
+    ))
+    expect_denied(lambda: require_condominio(
+        db, db_gov_session, modes["worker"], "res", AccessLevel.GUARDIA,
+        expected_mode="residencial",
+    ))
+
+
+def test_residential_list_never_exposes_corporate(
+    modes, db_core_session, db_gov_session,
+):
+    db = db_core_session
+    gov = db_gov_session
+    for actor in ("global", "msp"):
+        ids = {c.condominio_id for c in list_condominios(None, db, gov, modes[actor])}
+        assert ids == {"res"}
+    assert list_condominios(None, db, gov, modes["worker"]) == []
+
+
+def test_dependency_rejects_mode_before_setting_rls(
+    modes, db_core_session, db_gov_session, monkeypatch,
+):
+    from backend.core.tenant import context
+    calls = []
+    monkeypatch.setattr(context, "_set_postgres_tenant", lambda *args: calls.append(args))
+    residential = authorized_tenant_context(AccessLevel.GUARDIA)
+    expect_denied(lambda: residential(
+        "corp", db_core_session, db_gov_session, modes["worker"],
+    ))
+    assert calls == []
+    corporate = authorized_tenant_context(AccessLevel.GUARDIA, expected_mode="corporativo")
+    expect_denied(lambda: corporate(
+        "corp", db_core_session, db_gov_session, modes["global"],
+    ))
+    assert calls == []
+
+
+def test_http_residential_api_rejects_corporate(
+    modes, db_core_session, db_gov_session, db_event_session, monkeypatch,
+):
+    """Prueba HTTP sintética, con auditoría durable aislada; no es RLS PostgreSQL."""
+    from sqlalchemy.orm import sessionmaker
+    from backend.services import security_outbox
+    from fastapi.testclient import TestClient
+    from backend.main import app
+    from backend.db.core import get_core_db
+    from backend.db.gov import get_gov_db
+    from backend.db.event import get_event_db
+    from backend.core.auth.jwt import create_access_token
+
+    # El middleware escribe denegaciones en una sesión independiente.
+    # Redirigirla explícitamente a SQLite sintético evita usar el fallback local.
+    monkeypatch.setattr(security_outbox, "SessionFactory", sessionmaker(bind=db_core_session.bind))
+    app.dependency_overrides[get_core_db] = lambda: db_core_session
+    app.dependency_overrides[get_gov_db] = lambda: db_gov_session
+    app.dependency_overrides[get_event_db] = lambda: db_event_session
+    headers = {"Authorization": f"Bearer {create_access_token('global', 'MSP_ADMIN')}"}
+    try:
+        with TestClient(app) as client:
+            response = client.get("/visitas/condominio/corp", headers=headers)
+            assert response.status_code == 403
+            assert response.json()["detail"] == "Operacion no disponible para esta modalidad"
+            from backend.db.core import SecurityOutbox
+            events = db_core_session.query(SecurityOutbox).all()
+            assert len(events) == 1
+            assert events[0].payload["motivo"] == "TENANT_MODE_DENIED"
+            assert events[0].payload["metadata_json"]["route"] == "/visitas/condominio/{condominio_id}"
+            assert "corp" not in str(events[0].payload)
+            visible = client.get("/condominios/", headers=headers)
+            assert visible.status_code == 200, visible.text
+            assert {row["condominio_id"] for row in visible.json()} == {"res"}
+            # Contratos y baja de proveedor son rutas residenciales heredadas.
+            # Ni siquiera GLOBAL puede afectar la relación MSP de una empresa.
+            protected = (
+                "/condominios/corp/proveedor/contratos",
+                "/condominios/corp/permisos/procedencia",
+            )
+            for route in protected:
+                denied = client.get(route, headers=headers)
+                assert denied.status_code == 403, (route, denied.text)
+                assert denied.json()["detail"] == "Operacion no disponible para esta modalidad"
+            denied_exit = client.post(
+                "/condominios/corp/proveedor/baja", headers=headers,
+                json={"msp_id": "provider", "reason": "prueba sintetica"},
+            )
+            assert denied_exit.status_code == 403, denied_exit.text
+            # Cobertura de TODOS los endpoints de contratos y procedencia
+            # que utilizan lock_condo, incluidas las escrituras con ID de alcance.
+            mutations = (
+                ("PUT", "/condominios/corp/permisos/1/procedencia",
+                 {"kind": "condominio", "evidence_ref": "registro-sintetico"}),
+                ("POST", "/condominios/corp/proveedor/contratos",
+                 {"contract_id": "00000000-0000-4000-8000-000000000001",
+                  "msp_id": "provider", "evidence_ref": "contrato-sintetico"}),
+                ("POST", "/condominios/corp/proveedor/contratos/00000000-0000-4000-8000-000000000001/personal/worker",
+                 {"evidence_ref": "personal-sintetico"}),
+            )
+            for method, route, payload in mutations:
+                denied = client.request(method, route, headers=headers, json=payload)
+                assert denied.status_code == 403, (method, route, denied.text)
+                assert denied.json()["detail"] == "Operacion no disponible para esta modalidad"
+            assert db_core_session.query(Condominio).filter_by(
+                condominio_id="corp").one().msp_id == "provider"
+    finally:
+        app.dependency_overrides.clear()

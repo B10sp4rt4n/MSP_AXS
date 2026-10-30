@@ -108,9 +108,57 @@ def reconcile_it(state):
 def release_it(state, **kwargs):
     core, gov, event, incident = state
     args = dict(actor='operator', evidence_ref='exercise/occupancy-checked',
-                occupancy_verified=True, admin_id='admin', tenant_id='a')
+                occupancy_verified=True, privacy_verified=True, privacy_review_ref='exercise/privacy-copies-reviewed',
+                admin_id='admin', tenant_id='a')
     args.update(kwargs)
     return release(core, gov, event, incident, **args)
+
+
+@pytest.fixture
+def corporate_recovery(recovery):
+    from backend.db.core import CorporateOrganization, CorporateMembership, CorporateSite, CorporateSiteAssignment
+    core, gov, event, incident = recovery
+    core.add(Condominio(condominio_id="corp-restored", msp_id="m", modalidad="corporativo", corporativo_habilitado=True))
+    core.flush()
+    core.add(CorporateOrganization(tenant_id="corp-restored"))
+    core.flush()
+    core.add(CorporateMembership(membership_id="restored-member", tenant_id="corp-restored", user_id="admin", rol="owner", estado="activo"))
+    core.add(CorporateSite(site_id="restored-site", tenant_id="corp-restored", nombre="Synthetic"))
+    core.flush()
+    core.add(CorporateSiteAssignment(assignment_id="restored-assignment", tenant_id="corp-restored", site_id="restored-site", user_id="admin", estado="activo"))
+    core.commit()
+    return recovery
+
+
+def test_restore_quarantine_revokes_corporate_permissions_too(corporate_recovery):
+    from backend.db.core import CorporateMembership, CorporateSiteAssignment
+    core, gov, event, incident = corporate_recovery
+    quarantine(core, gov, incident, actor="operator")
+    assert core.query(CorporateMembership).one().estado == "revocado"
+    assert core.query(CorporateSiteAssignment).one().estado == "revocado"
+    reconcile_it(corporate_recovery)
+    release_it(corporate_recovery)
+    assert core.query(CorporateMembership).one().estado == "revocado"
+
+
+def test_restore_detects_reactivated_corporate_membership(corporate_recovery):
+    from backend.db.core import CorporateMembership
+    core, gov, event, incident = corporate_recovery
+    quarantine(core, gov, incident, actor="operator")
+    core.query(CorporateMembership).one().estado = "activo"
+    core.commit()
+    with pytest.raises(ValueError, match="Quarantine incomplete"):
+        reconcile_it(corporate_recovery)
+
+
+def test_residential_recovery_release_cannot_create_scope_for_company(corporate_recovery):
+    core, gov, event, incident = corporate_recovery
+    core.query(Usuario).filter_by(usuario_id="admin").one().condominio_id = "corp-restored"
+    core.commit()
+    quarantine(core, gov, incident, actor="operator")
+    reconcile_it(corporate_recovery)
+    with pytest.raises(ValueError):
+        release_it(corporate_recovery, tenant_id="corp-restored")
 
 
 def test_recovery_blocks_all_paths_and_worker(client, recovery):
@@ -165,7 +213,7 @@ def test_quarantine_reconcile_release_old_denied_new_allowed(client, recovery):
     assert core.get(RecoveryCheckpoint, incident).report['release']['evidence_ref']
 
 
-@pytest.mark.parametrize('fault', ['no_reconcile', 'no_occupancy', 'no_evidence', 'changed_data', 'corrupt_event'])
+@pytest.mark.parametrize('fault', ['no_reconcile', 'no_occupancy', 'no_evidence', 'changed_data', 'corrupt_event', 'no_privacy_review', 'no_privacy_evidence'])
 def test_release_requires_verified_unchanged_reconciliation(recovery, fault):
     core, gov, event, incident = recovery
     quarantine(core, gov, incident, actor='operator')
@@ -180,6 +228,10 @@ def test_release_requires_verified_unchanged_reconciliation(recovery, fault):
     args = {'occupancy_verified': False} if fault == 'no_occupancy' else {}
     if fault == 'no_evidence':
         args['evidence_ref'] = ''
+    if fault == 'no_privacy_review':
+        args['privacy_verified'] = False
+    if fault == 'no_privacy_evidence':
+        args['privacy_review_ref'] = ' '
     with pytest.raises(ValueError):
         release_it(recovery, **args)
     assert not recovery_gate.recovery_allowed()

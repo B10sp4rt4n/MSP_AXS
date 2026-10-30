@@ -49,6 +49,7 @@ from backend.db.gov import get_gov_db
 from backend.db.event import get_event_db
 from backend.core.auth.dependencies import get_current_user
 from backend.core.scope.validator import validar_scope
+from backend.core.scope.msp_boundary import require_condominio
 from backend.core.security_denial import SecurityDenial
 from backend.core.gov.facade import puede_ejecutar_accion
 from backend.core.event.registry import registrar_evento
@@ -194,6 +195,12 @@ def generar_qr_gobernado(
             reason="SCOPE_DENIED"
         )
 
+    # Mantener el alcance legacy anterior, pero nunca operar sobre empresas.
+    # GLOBAL/MSP tampoco eluden la modalidad; falla antes de GOV o EVENT.
+    require_condominio(
+        db, db_gov, usuario, body.tenant_id, AccessLevel.RESIDENTE,
+        expected_mode="residencial",
+    )
     logger.info(f"✅ PASO 2/5: SCOPE validado (tenant={body.tenant_id})")
     
     # ─────────────────────────────────────────────────────────────────────

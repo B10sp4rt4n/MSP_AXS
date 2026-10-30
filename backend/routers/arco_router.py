@@ -6,11 +6,11 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
-from backend.db.core import get_core_db, Usuario, AccessLevel
+from backend.db.core import get_core_db, Usuario
+from backend.db.gov import get_gov_db
 from backend.db.core.models import ArcoCase
 from backend.core.auth.dependencies import get_current_user
-from backend.core.scope.msp_boundary import authorized_tenant_context
-from backend.core.security import verificar_rol
+from backend.core.scope.arco_boundary import require_arco_operator
 from backend.services.event_outbox import contexto_evento, encolar_evento
 
 
@@ -68,13 +68,8 @@ class Transition(Input):
 
 
 def actor(condominio_id: str, user: Usuario = Depends(get_current_user),
-          _tenant: str = Depends(authorized_tenant_context(AccessLevel.ADMIN_CONDOMINIO))):
-    # Do not persist the designation on the user model.
-    verificar_rol(user, ['ADMIN_CONDOMINIO', 'MSP_ADMIN'])
-    allowed = {x.strip() for x in os.getenv('AXS_ARCO_OPERATORS', '').split(',') if x.strip()}
-    if f'{user.usuario_id}:{condominio_id}' not in allowed:
-        raise HTTPException(403, 'Requiere designación de privacidad para este cliente')
-    return user
+          db: Session = Depends(get_core_db), gov: Session = Depends(get_gov_db)):
+    return require_arco_operator(db, gov, user, condominio_id)
 
 
 def view(row):
