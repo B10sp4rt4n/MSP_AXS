@@ -1,5 +1,10 @@
 # AXS · Laboratorio de contingencia O0
 
+Existe un adaptador firmado posterior [O1](O1.md), separado del servidor HTML O0.
+Para ejecutar solo las 18 pruebas originales sin dependencias Python, usar
+`python -m unittest discover -s labs/contingency -p 'test_journal.py' -v`.
+Para descubrir todas las pruebas se requiere la dependencia descrita en O1.
+
 Primera implementación aislada de [la propuesta](../../docs/ADR_AXS_CONTINGENCIA_001.md).
 HTML servido localmente + SQLite persistente + un segundo SQLite que simula el receptor.
 Es parte del mismo repositorio, sin importar ni modificar el backend o frontend de AXS.
