@@ -1,0 +1,49 @@
+name: Contingency lab (synthetic SQLite)
+on:
+  pull_request:
+    paths: ['labs/contingency/**', '.github/workflows/contingency-lab.yml']
+  push:
+    branches: ['feat/axs-contingencia-*']
+jobs:
+  synthetic-sqlite:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s labs/contingency -p 'test_*.py' -v
+  synthetic-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix "$RUNNER_TEMP/axs-lab-tools" --no-package-lock playwright@1.58.2
+      - run: node "$RUNNER_TEMP/axs-lab-tools/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Browser to SQLite with no external requests
+        shell: bash
+        run: |
+          python -m labs.contingency.server --data-dir "$RUNNER_TEMP/axs-lab-data" > "$RUNNER_TEMP/axs-lab.log" 2>&1 &
+          lab_pid=$!
+          trap 'kill "$lab_pid"' EXIT
+          python - <<'PY'
+          import time, urllib.request
+          for attempt in range(30):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:8766', timeout=1) as response:
+                      assert response.status == 200
+                  break
+              except OSError:
+                  time.sleep(0.2)
+          else:
+              raise RuntimeError('Local laboratory did not start')
+          PY
+          NODE_PATH="$RUNNER_TEMP/axs-lab-tools/node_modules" node labs/contingency/test_browser.cjs

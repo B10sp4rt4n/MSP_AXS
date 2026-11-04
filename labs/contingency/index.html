@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es-MX"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AXS · Laboratorio de contingencia</title>
+<style>
+:root{font:16px system-ui,sans-serif;color:#21153b;background:#f4f2f8}*{box-sizing:border-box}body{margin:0}main{max-width:1080px;margin:auto;padding:24px}header{display:flex;justify-content:space-between;align-items:center;gap:20px}h1{font-size:clamp(24px,4vw,36px);margin:16px 0 8px}h2{font-size:20px;margin:0 0 16px}p{line-height:1.5}.brand{font-size:32px;font-weight:850;color:#6b23e5}.tag{background:#e5d9fa;color:#421294;padding:8px 12px;border-radius:20px;font-weight:700;font-size:13px}.notice{background:#fff0cd;border-left:5px solid #c87e00;padding:14px 18px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:20px 0}.card{background:white;border:1px solid #ded8e9;border-radius:16px;padding:22px;min-width:0}button,select,input{font:inherit;border-radius:9px;padding:12px;border:1px solid #bbb0cf}button{cursor:pointer;min-height:50px;background:#6321d9;color:white;font-weight:700}button.secondary{background:#eee6fd;color:#451196}button:disabled{cursor:wait;opacity:.55}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #9470ef;outline-offset:3px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}label{display:block;font-weight:650;margin:16px 0 6px}input{width:100%}.muted{color:#645b72;font-size:14px}.facts{display:grid;grid-template-columns:1fr 1fr;gap:12px}.facts strong{display:block;color:#4f1bad}.facts p{margin:0}.state{padding:12px;background:#f0eafa;border-radius:9px;margin:14px 0;font-weight:700}#message{padding:12px 0;min-height:44px;font-weight:650;white-space:pre-wrap}.event{border-top:1px solid #e4deed;padding:14px 0;overflow-wrap:anywhere}.event p{margin:6px 0}.badge{display:inline-block;border-radius:7px;padding:4px 9px;background:#f4e7ba;font-size:13px}.accepted{background:#dcf5e4}.conflict{background:#ffe0e0}small{font-size:12px}footer{padding:10px 0 24px;color:#645b72;font-size:14px}@media(max-width:720px){main{padding:16px}.grid{grid-template-columns:1fr}header{align-items:flex-start}.actions{grid-template-columns:1fr}}
+</style></head><body><main>
+<header><div class="brand">AXS</div><span class="tag">Laboratorio · datos ficticios</span></header>
+<h1>La caseta conserva el movimiento.</h1>
+<p>Ensayo local de entrada, salida y conciliación al recuperar la conexión.</p>
+<div class="notice"><strong>Demostración aislada.</strong> No abre puertas ni se conecta con AXS. El receptor es otro archivo local que simula al servidor. El selector A/B representa fixtures, no usuarios autenticados.</div>
+<label for="condo">Escenario ficticio</label><select id="condo"><option value="A">Condominio A · Caseta A</option><option value="B">Condominio B · Caseta B</option></select>
+<div id="message" role="status" aria-live="polite"></div>
+<div class="grid"><section class="card"><h2>Operación local</h2>
+<div class="facts"><p><strong>Última copia</strong><span id="issued">—</span></p><p><strong>Válida hasta</strong><span id="expires">—</span></p><p><strong>Pendientes</strong><span id="pending">0</span></p><p><strong>En revisión</strong><span id="conflicts">0</span></p></div>
+<div class="state" id="state">Cargando…</div><p id="destination"></p>
+<label for="credential">Pase ficticio descargado</label><input id="credential" autocomplete="off"><p class="muted">Es una referencia de laboratorio. Los QR productivos aún no se validan aquí.</p>
+<div class="actions"><button id="entry">Registrar entrada ficticia</button><button id="exit" class="secondary">Registrar salida ficticia</button></div>
+<button id="retry" class="secondary" hidden>Recuperar solicitud sin confirmar</button>
+<p class="muted">La salida es una observación: no concede acceso. Reiniciar conserva los registros y la vigencia original.</p></section>
+<section class="card"><h2>Receptor simulado</h2><p>La sincronización se ejecuta al pulsar un botón. Toda esta demostración funciona sin conexión externa.</p><div class="state" id="receiver">—</div>
+<div class="actions"><button id="sync">Sincronizar con simulador</button><button id="lost" class="secondary">Simular confirmación perdida</button></div>
+<label>Ensayar una discrepancia</label><button id="cancel" class="secondary">Cancelar visita solo en el receptor</button>
+<p class="muted">Cancela antes de registrar la entrada local. Al sincronizar, el hecho queda en revisión y no sobrescribe la cancelación.</p>
+<p class="muted">Para probar persistencia: registra un movimiento, cierra y vuelve a abrir esta dirección. Puedes detener y reiniciar el servicio con la misma carpeta de datos.</p></section></div>
+<section class="card"><h2>Bitácora del escenario seleccionado</h2><div id="events"></div></section>
+<footer>O0 · Un nodo por condominio · Sin datos personales, fotografías, credenciales reales ni integraciones externas.</footer>
+</main><script nonce="__LAB_TOKEN__">
+'use strict';
+const token='__LAB_TOKEN__', $=id=>document.getElementById(id);
+const names={pendiente:'Visita preparada',entrada_registrada:'Entrada registrada localmente',salida_registrada:'Salida registrada localmente',cancelada:'Visita cancelada'};
+let current, busy=false;
+const condo=()=>$('condo').value;
+const storageKey=()=>`axs-contingency-lab-pending-${condo()}`;
+function message(text){$('message').textContent=text;}
+async function api(path, body){const r=await fetch(path,{method:body?'POST':'GET',headers:{'X-Lab-Token':token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();if(!r.ok){const e=new Error(data.error||'No se confirmó la solicitud');e.status=r.status;throw e;}return data;}
+function date(t){return new Date(t*1000).toLocaleString('es-MX');}
+function node(tag,txt,cls){const n=document.createElement(tag);n.textContent=txt;if(cls)n.className=cls;return n;}
+async function refresh(){current=await api(`/api/state?condo=${condo()}`);const s=current.snapshot;
+ $('issued').textContent=date(s.issued_at);$('expires').textContent=date(s.expires_at);
+ $('pending').textContent=current.events.filter(e=>e.status==='pending').length;
+ $('conflicts').textContent=current.events.filter(e=>e.status==='conflict').length;
+ $('state').textContent=names[current.state]+(current.expired?' · Copia vencida: entradas bloqueadas':'');
+ $('destination').textContent=s.destination;$('credential').value=s.credential;
+ $('receiver').textContent=`${names[current.receiver.state]} · ${current.receiver.received} movimientos recibidos`;
+ $('retry').hidden=!localStorage.getItem(storageKey());
+ const list=$('events');list.replaceChildren();
+ if(!current.events.length)list.append(node('p','Todavía no hay movimientos en este escenario.','muted'));
+ for(const e of current.events){const div=node('div','','event');div.append(node('strong',`${e.seq}. ${e.payload.action==='entry'?'Entrada':'Salida'} · ${date(e.payload.observed_at)}`),node('p',{pending:'Pendiente de sincronizar',accepted:'Recibido por simulador',conflict:'En revisión'}[e.status],`badge ${e.status}`),node('p',e.reason,'muted'),node('small',e.event_uid));list.append(div);}}
+async function work(fn){if(busy)return;busy=true;document.querySelectorAll('button,select').forEach(b=>b.disabled=true);message('Procesando…');try{await fn();}catch(e){message(e.message);}finally{try{await refresh();}catch(e){message(`No se pudo consultar el estado: ${e.message}`);}busy=false;document.querySelectorAll('button,select').forEach(b=>b.disabled=false);}}
+async function submit(body){try{await api('/api/operation',body);localStorage.removeItem(storageKey());}catch(e){if(e.status===400)localStorage.removeItem(storageKey());throw e;}}
+async function record(action){if(localStorage.getItem(storageKey()))throw new Error('Recupera primero la solicitud sin confirmar.');const body={condo:condo(),request_id:crypto.randomUUID(),visit:current.snapshot.visit,action,credential:action==='entry'?$('credential').value:''};localStorage.setItem(storageKey(),JSON.stringify(body));await submit(body);message('Movimiento ficticio conservado en SQLite local.');}
+$('entry').onclick=()=>work(()=>record('entry'));
+$('exit').onclick=()=>work(()=>record('exit'));
+$('retry').onclick=()=>work(async()=>{const raw=localStorage.getItem(storageKey());if(!raw)return;await submit(JSON.parse(raw));message('Solicitud recuperada con el mismo identificador.');});
+for(const [id,lose_ack] of [['sync',false],['lost',true]])$(id).onclick=()=>work(async()=>{const r=await api('/api/sync',{condo:condo(),lose_ack});message(`${r.delivered} movimientos confirmados por el simulador.`);});
+$('cancel').onclick=()=>work(async()=>{await api('/api/cancel',{condo:condo()});message('Cancelación aplicada exclusivamente al receptor ficticio.');});
+$('condo').onchange=()=>work(async()=>message('Escenario seleccionado.'));
+refresh().catch(e=>message(e.message));
+</script></body></html>
