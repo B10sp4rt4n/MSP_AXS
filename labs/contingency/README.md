@@ -1,6 +1,8 @@
 # AXS · Laboratorio de contingencia O0
 
 Existe un adaptador firmado posterior [O1](O1.md), separado del servidor HTML O0.
+El protocolo de recepción autenticada [O2a](O2A.md) añade HTTP loopback y acuses
+firmados, también separado de la UI O0 y del backend real AXS.
 Para ejecutar solo las 18 pruebas originales sin dependencias Python, usar
 `python -m unittest discover -s labs/contingency -p 'test_journal.py' -v`.
 Para descubrir todas las pruebas se requiere la dependencia descrita en O1.

@@ -139,6 +139,10 @@ class VerifiedJournal(Journal):
         self.trust = trust
         with database(self.path) as db:
             db.execute("CREATE TABLE IF NOT EXISTS packages (scope TEXT PRIMARY KEY, version INTEGER NOT NULL, envelope TEXT NOT NULL)")
+            db.execute("CREATE TABLE IF NOT EXISTS package_history (digest TEXT PRIMARY KEY, scope TEXT NOT NULL, envelope TEXT NOT NULL)")
+            for row in db.execute("SELECT scope,envelope FROM packages").fetchall():
+                db.execute("INSERT OR IGNORE INTO package_history VALUES (?,?,?)",
+                           (digest(json.loads(row[1])), row[0], row[1]))
 
     def prepare_fixture(self, scope):
         raise Denied("O1 requiere paquete firmado; no admite habilitación por fixture")
@@ -168,6 +172,8 @@ class VerifiedJournal(Journal):
                     raise Denied("O1 conserva una visita por escenario; no reemplazar su historial")
             db.execute("INSERT INTO packages VALUES (?,?,?) ON CONFLICT(scope) DO UPDATE SET version=excluded.version,envelope=excluded.envelope",
                        (scope.key, claims["version"], canonical(envelope)))
+            db.execute("INSERT OR IGNORE INTO package_history VALUES (?,?,?)",
+                       (digest(envelope), scope.key, canonical(envelope)))
             db.execute("INSERT INTO snapshots VALUES (?,?) ON CONFLICT(scope) DO UPDATE SET payload=excluded.payload", (scope.key, canonical(snap)))
             db.execute("INSERT OR IGNORE INTO visits VALUES (?,?,?)", (scope.key, snap["visit"], "pendiente"))
             db.execute("INSERT INTO clocks VALUES (?,?) ON CONFLICT(scope) DO UPDATE SET last_seen=MAX(last_seen,excluded.last_seen)", (scope.key, now))
