@@ -117,7 +117,7 @@ class Journal:
             return {"snapshot": snapshot, "state": state, "events": events,
                     "expired": self.clock() >= snapshot["expires_at"]}
 
-    def record(self, scope, *, request_id, visit, action, credential=""):
+    def record(self, scope, *, request_id, visit, action, credential="", _guard=None):
         if (not isinstance(request_id, str) or not 1 <= len(request_id) <= 100
                 or action not in ("entry", "exit")):
             raise Denied("Solicitud inválida")
@@ -125,6 +125,7 @@ class Journal:
         intent = {"visit": visit, "action": action, "credential": credential}
         now = self.clock()
         with database(self.path) as db:
+            authorization = _guard(db, now) if _guard is not None else None
             existing = db.execute("SELECT payload,checksum FROM journal WHERE scope=? AND request_id=?",
                                   (scope.key, request_id)).fetchone()
             if existing:
@@ -167,6 +168,8 @@ class Journal:
                        "policy_version": snap["policy_version"], "intent_hash": digest(intent),
                        "clock_suspect": now < last,
                        "snapshot_expired": now >= snap["expires_at"]}
+            if authorization is not None:
+                payload["authorization"] = authorization
             db.execute("INSERT INTO journal VALUES (?,?,?,?,?,?)",
                        (payload["event_uid"], scope.key, request_id, seq, canonical(payload), digest(payload)))
             db.execute("UPDATE visits SET state=? WHERE scope=? AND visit=?", (next_state, scope.key, visit))

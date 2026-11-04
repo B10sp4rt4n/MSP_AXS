@@ -1,0 +1,2 @@
+# Existing AXS cryptography pin, isolated here for standalone laboratory tests.
+cryptography==46.0.3
