@@ -32,6 +32,7 @@ def test_correct_production_configuration_preserves_pinned_key():
     ("CLERK_JWT_ISSUER", "http://clerk.auth.axs-mx.com"),
     ("CLERK_JWT_ISSUER", "https://secret@clerk.auth.axs-mx.com"),
     ("CLERK_PUBLISHABLE_KEY", "pk_test_" + base64.b64encode(b"clerk.auth.axs-mx.com$").decode()),
+    ("CLERK_PUBLISHABLE_KEY", "pk_live_" + base64.b64encode(b"clerk.frontend-next-psi-ashen.vercel.app$").decode()),
 ])
 def test_misaligned_instance_fails_even_with_pinned_key(key, value):
     values = {**configuration(), key: value}

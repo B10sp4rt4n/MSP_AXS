@@ -40,7 +40,7 @@ def domains():
             sql = Path(f"migrations/20261114_{domain.lower()}_runtime_permissions.sql").read_text()
             sql = sql.replace("aup_" + domain.lower(), name).replace("axs_" + domain.lower() + "_app", role)
             with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as c:
-                c.exec_driver_sql(sql)
+                c.execute(text(sql))
                 assert not c.execute(text("SELECT rolcanlogin FROM pg_roles WHERE rolname=:role"), {"role": role}).scalar_one()
                 # Local disposable CI only: real runtime authentication, not an
                 # admin SET ROLE session that could still SET ROLE back to admin.
