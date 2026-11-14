@@ -22,6 +22,7 @@ from urllib.parse import parse_qs, urlsplit
 from sqlalchemy import create_engine, text
 
 from scripts.check_corporate_sandbox_config import ENDPOINT, HOSTS
+from scripts.corporate_sandbox_targets import sandbox_targets
 
 TARGETS = (
     ("CORE", "axs_corp_core_sbx", "backend.db.core.models", "Base_CORE"),
@@ -110,7 +111,8 @@ def apply_bootstrap(values: dict, *, explicitly_confirmed: bool) -> dict:
     if not explicitly_confirmed or values.get("AXS_CORPORATE_SCHEMA_BOOTSTRAP_CONFIRM") != CONFIRM:
         raise RuntimeError("Bootstrap: falta autorización explícita")
     configurations = []
-    for key, database, _, _ in TARGETS:
+    targets = sandbox_targets(values)
+    for key, database in targets.databases.items():
         name = f"AXS_CORPORATE_BOOTSTRAP_{key}_URL"
         url = values.get(name, "")
         check_bootstrap_url(url, database)
