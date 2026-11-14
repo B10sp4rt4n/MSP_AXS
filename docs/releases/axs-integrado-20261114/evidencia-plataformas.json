@@ -1,0 +1,293 @@
+{
+  "observed_at_utc": "2026-11-14T13:13:13.668Z",
+  "repository": "B10sp4rt4n/MSP_AXS",
+  "railway": {
+    "project_id": "532a32f5-6313-4ee3-98de-cfcfc225dbb7",
+    "environment_id": "72f597ee-89d2-4dd4-9295-6618d3694d22",
+    "service": {
+      "id": "55c12ef5-ba69-449c-ad84-b77ee280eb5b",
+      "name": "web",
+      "state": "live"
+    },
+    "source": {
+      "repo": "B10sp4rt4n/MSP_AXS",
+      "branch": "release/axs-corporativo-20261029",
+      "commitSha": "a68d1149242dd0b16cd0e363df3ccda917199423"
+    },
+    "build": {
+      "builder": "RAILPACK",
+      "buildEnvironment": "V3"
+    },
+    "deploy": {
+      "startCommand": "uvicorn backend.main:app --host 0.0.0.0 --port $PORT",
+      "preDeployCommand": [
+        "python scripts/check_core_rls.py && python -m scripts.check_corporate_schema"
+      ],
+      "healthcheckPath": "/health",
+      "healthcheckTimeout": 100,
+      "useLegacyStacker": false,
+      "ipv6EgressEnabled": false,
+      "runtime": "V2",
+      "multiRegionConfig": {
+        "us-west2": {
+          "numReplicas": 1
+        }
+      }
+    },
+    "latest_deployment": {
+      "id": "be9b87a6-8a58-4341-a181-b4fc70ebd808",
+      "status": "SUCCESS",
+      "createdAt": "2026-10-30T16:50:58.325Z",
+      "url": null
+    },
+    "staged": null,
+    "domains": {
+      "serviceDomains": [
+        {
+          "id": "95cf7b02-6313-4380-a23b-069ac914f38e",
+          "domain": "web-production-ed4f3.up.railway.app",
+          "targetPort": null
+        }
+      ],
+      "customDomains": []
+    },
+    "rollback_baseline": [
+      {
+        "id": "be9b87a6-8a58-4341-a181-b4fc70ebd808",
+        "status": "SUCCESS",
+        "sha": "a68d1149242dd0b16cd0e363df3ccda917199423",
+        "branch": "release/axs-corporativo-20261029",
+        "canRollback": true,
+        "canRedeploy": true
+      }
+    ],
+    "variable_values_redacted": true,
+    "required_variable_presence": {
+      "DATABASE_CORE_URL": true,
+      "DATABASE_EVENT_URL": true,
+      "DATABASE_GOV_URL": true,
+      "AXS_CORPORATE_API_ENABLED": true,
+      "AXS_CORPORATE_PROVISIONING_ENABLED": true,
+      "AXS_CORPORATE_SANDBOX_ONLY": true,
+      "DATABASE_CORPORATE_PROVISIONING_URL": false,
+      "CLERK_JWT_ISSUER": true,
+      "CLERK_JWKS_URL": true,
+      "ALLOWED_ORIGINS": true,
+      "AXS_ID_PHOTOS_ENABLED": true,
+      "BLOB_READ_WRITE_TOKEN": true
+    },
+    "effective_runtime_audit": {
+      "audit_started_at_utc": "2026-11-14T13:37:25.587766+00:00",
+      "evidence": "docs/evidence/AXS_BACKEND_Y_RESTAURACION_REAL_20261114.json",
+      "connections_confirmed": true,
+      "core_rls": "PASS",
+      "core_schema": "PASS",
+      "event_gov_roles_require_correction": true,
+      "clerk_jwks_requires_alignment": true
+    }
+  },
+  "vercel": {
+    "observed_at_utc": "2026-11-14T13:25:36.614Z",
+    "current_verification": "verified_after_user_team_authorization",
+    "team_id": "team_wCPRqvRGXWpRT4eUvfAz38jF",
+    "team_slug": "salvador-ruiz-esparzas-projects",
+    "project": {
+      "id": "prj_m4X1hxQCfaYOFWzN50Uu1z6NrE3S",
+      "name": "frontend-next",
+      "framework": "nextjs",
+      "nodeVersion": "24.x"
+    },
+    "production_alias": {
+      "hostname": "app.axs-mx.com",
+      "deployment_id": "dpl_Dcd9Rw6L9FWn1PQBXRhjS9L2q17t",
+      "project_id": "prj_m4X1hxQCfaYOFWzN50Uu1z6NrE3S",
+      "updated_at": 1792759856721
+    },
+    "production_deployment": {
+      "id": "dpl_Dcd9Rw6L9FWn1PQBXRhjS9L2q17t",
+      "url": "frontend-next-ibwyplnq2-salvador-ruiz-esparzas-projects.vercel.app",
+      "state": "READY",
+      "target": "production",
+      "sha": "76bc9d619836f0872241741570fb7974e51d2bf6",
+      "branch": "main",
+      "repository": "B10sp4rt4n/MSP_AXS"
+    },
+    "rollback": {
+      "previous_production_deployment_id": "dpl_Dcd9Rw6L9FWn1PQBXRhjS9L2q17t",
+      "previous_sha": "76bc9d619836f0872241741570fb7974e51d2bf6",
+      "status": "baseline_ready_and_alias_verified_remote_rollback_not_executed"
+    },
+    "public_production_configuration": {
+      "api": {
+        "key": "NEXT_PUBLIC_API_URL",
+        "value": "https://web-production-ed4f3.up.railway.app",
+        "target": [
+          "production"
+        ]
+      },
+      "clerk": {
+        "instance": "production",
+        "host": "clerk.auth.axs-mx.com",
+        "target": [
+          "production"
+        ]
+      },
+      "secret_values_read": false
+    },
+    "environment_metadata": [
+      {
+        "key": "BLOB_WEBHOOK_PUBLIC_KEY",
+        "type": "plain",
+        "target": [
+          "development"
+        ]
+      },
+      {
+        "key": "BLOB_STORE_ID",
+        "type": "plain",
+        "target": [
+          "development"
+        ]
+      },
+      {
+        "key": "BLOB_READ_WRITE_TOKEN",
+        "type": "encrypted",
+        "target": [
+          "development"
+        ]
+      },
+      {
+        "key": "CLERK_SECRET_KEY",
+        "type": "sensitive",
+        "target": [
+          "production"
+        ]
+      },
+      {
+        "key": "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+        "type": "encrypted",
+        "target": [
+          "production"
+        ]
+      },
+      {
+        "key": "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL",
+        "type": "encrypted",
+        "target": [
+          "production"
+        ]
+      },
+      {
+        "key": "NEXT_PUBLIC_API_URL",
+        "type": "encrypted",
+        "target": [
+          "production"
+        ]
+      },
+      {
+        "key": "NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL",
+        "type": "encrypted",
+        "target": [
+          "production"
+        ]
+      },
+      {
+        "key": "NEXT_PUBLIC_CLERK_SIGN_UP_URL",
+        "type": "encrypted",
+        "target": [
+          "production"
+        ]
+      },
+      {
+        "key": "NEXT_PUBLIC_CLERK_SIGN_IN_URL",
+        "type": "encrypted",
+        "target": [
+          "production"
+        ]
+      }
+    ],
+    "release_preview": {
+      "id": "dpl_H6Kagg9e13JJLrfTAUDjMucUSfiT",
+      "url": "frontend-next-7i23oe5j6-salvador-ruiz-esparzas-projects.vercel.app",
+      "state": "READY",
+      "target": null,
+      "sha": "f4b82722278df94a6779d4715de4e3a6006f7466",
+      "branch": "release/axs-integrado-20261114",
+      "production_alias_assigned": false
+    },
+    "verification_history": [
+      {
+        "observed_at_utc": "2026-11-14T13:13:13.668Z",
+        "current_verification": "blocked_team_authorization",
+        "http_status": 403,
+        "resolution": "user_authorized_team_then_same_target_retried_successfully"
+      }
+    ],
+    "automatic_preview_observed_via_github": {
+      "sha": "6adb936423c480f899f76c4df4c0278ec90d4ad7",
+      "context": "Vercel",
+      "state": "success",
+      "description": "Deployment has completed",
+      "url": "https://vercel.com/salvador-ruiz-esparzas-projects/frontend-next/7izQxmXbt4kyX6eRcQPyg2qH7sRg",
+      "production_alias_not_verified": true
+    }
+  },
+  "ci": [
+    {
+      "id": 43597124709,
+      "name": "PostgreSQL RLS gate",
+      "event": "pull_request",
+      "head_sha": "bc04dcc4934a76e62cdc355943d16674cd8ab3b7",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/B10sp4rt4n/MSP_AXS/actions/runs/43597124709"
+    },
+    {
+      "id": 43597124724,
+      "name": "Tests",
+      "event": "pull_request",
+      "head_sha": "bc04dcc4934a76e62cdc355943d16674cd8ab3b7",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/B10sp4rt4n/MSP_AXS/actions/runs/43597124724"
+    },
+    {
+      "id": 43597122129,
+      "name": "PostgreSQL RLS gate",
+      "event": "push",
+      "head_sha": "bc04dcc4934a76e62cdc355943d16674cd8ab3b7",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/B10sp4rt4n/MSP_AXS/actions/runs/43597122129"
+    },
+    {
+      "id": 43597122166,
+      "name": "Tests",
+      "event": "push",
+      "head_sha": "bc04dcc4934a76e62cdc355943d16674cd8ab3b7",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/B10sp4rt4n/MSP_AXS/actions/runs/43597122166"
+    }
+  ],
+  "operations_executed": {
+    "migrations": false,
+    "production_backups": true,
+    "activation": false,
+    "production_deployments": false,
+    "isolated_database_restore": true,
+    "production_application_data_writes": false,
+    "production_role_or_grant_changes": false,
+    "production_configuration_changes": false
+  },
+  "backup_and_restore": {
+    "snapshot_id": "snap-orange-hill-b5sz65pw",
+    "snapshot_expires_at": "2026-11-21T13:40:13Z",
+    "restore_branch_id": "br-fancy-firefly-b5ov421w",
+    "restore_compute_disabled": true,
+    "restore_compute_final_state": "idle",
+    "database_verification": "completed_with_documented_limits",
+    "blob_binaries_included": false,
+    "evidence": "docs/evidence/AXS_BACKEND_Y_RESTAURACION_REAL_20261114.json"
+  }
+}

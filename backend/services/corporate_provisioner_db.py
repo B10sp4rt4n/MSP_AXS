@@ -54,7 +54,14 @@ def require_provisioner_role(db: Session):
                has_schema_privilege(current_user,'public','CREATE') AS can_create
         FROM pg_roles r WHERE r.rolname = current_user
     """)).mappings().one_or_none()
-    if (not result or result["rolname"] != "axs_corporate_provisioner"
+    expected_role = "axs_corporate_provisioner"
+    if os.getenv("AXS_CORPORATE_SANDBOX_ONLY", "").lower() == "true":
+        from scripts.corporate_sandbox_targets import sandbox_targets
+        try:
+            expected_role = sandbox_targets(os.environ).roles["PROVISIONER"]
+        except RuntimeError:
+            raise HTTPException(503, "Perfil de ensayo no aprobado") from None
+    if (not result or result["rolname"] != expected_role
             or any(result[field] for field in (
                 "rolsuper", "rolbypassrls", "rolcreatedb", "rolcreaterole",
                 "rolreplication", "rolinherit", "can_create",

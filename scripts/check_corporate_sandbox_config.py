@@ -9,6 +9,7 @@ import base64
 import re
 from uuid import UUID
 from urllib.parse import parse_qs, urlsplit
+from scripts.corporate_sandbox_targets import sandbox_targets
 
 ENDPOINT = "ep-bitter-snow-b5sgxc4h"
 HOSTS = {
@@ -30,6 +31,9 @@ def check(values: dict) -> None:
     if phase not in {"closed", "runtime"}:
         raise RuntimeError("Sandbox corporativo: fase desconocida")
     runtime = phase == "runtime"
+    targets = sandbox_targets(values)
+    if not runtime and values.get("AXS_CORPORATE_SANDBOX_RUN_PROFILE", "legacy") != "legacy":
+        raise RuntimeError("Sandbox: perfil nuevo exige fase runtime explícita")
     expected = {
         "APP_ENV": "development",
         "ENV": "development",
@@ -59,11 +63,13 @@ def check(values: dict) -> None:
         raise RuntimeError("Sandbox corporativo: secreto de sesión independiente requerido")
     destinations = dict(DATABASES)
     if runtime:
-        destinations.update({
-            "DATABASE_CORE_URL": ("axs_corp_core_sbx", "axs_corp_sandbox_core"),
-            "DATABASE_URL": ("axs_corp_core_sbx", "axs_corp_sandbox_core"),
-            "DATABASE_CORPORATE_PROVISIONING_URL": ("axs_corp_core_sbx", "axs_corporate_provisioner"),
-        })
+        destinations = {
+            "DATABASE_CORE_URL": (targets.databases["CORE"], targets.roles["CORE"]),
+            "DATABASE_URL": (targets.databases["CORE"], targets.roles["CORE"]),
+            "DATABASE_GOV_URL": (targets.databases["GOV"], targets.roles["GOV"]),
+            "DATABASE_EVENT_URL": (targets.databases["EVENT"], targets.roles["EVENT"]),
+            "DATABASE_CORPORATE_PROVISIONING_URL": (targets.databases["CORE"], targets.roles["PROVISIONER"]),
+        }
         try:
             UUID(values.get("AXS_CORPORATE_SANDBOX_RUN_ID", ""))
             pk = values["CLERK_PUBLISHABLE_KEY"].split("_", 2)[2]

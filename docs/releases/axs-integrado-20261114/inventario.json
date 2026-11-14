@@ -1,0 +1,224 @@
+{
+  "release": "axs-integrado-20261114",
+  "status": "prepared_backend_findings_require_correction_before_publication",
+  "prepared_at_utc": "2026-11-14T13:13:13.936907+00:00",
+  "release_branch": "release/axs-integrado-20261114",
+  "repository": "B10sp4rt4n/MSP_AXS",
+  "tested_code_sha": "bc04dcc4934a76e62cdc355943d16674cd8ab3b7",
+  "tested_tree_sha": "d3d2d08e5f70c9f30443b78b3d381fac75ac93c2",
+  "release_additions_scope": "docs_only",
+  "backend_baseline_verified_sha": "a68d1149242dd0b16cd0e363df3ccda917199423",
+  "frontend_baseline_status": "verified_alias_production_deployment_ready",
+  "new_migrations_vs_verified_backend": [],
+  "db_models_changed_vs_verified_backend": [],
+  "code_ci": {
+    "tests_run_id": 43597122166,
+    "postgres_run_id": 43597122129,
+    "python_passed": 1217,
+    "python_skipped": 73,
+    "coverage_percent": 82,
+    "postgres_passed": 138,
+    "browser_scripts_passed": 13
+  },
+  "remote_evidence_commit": "aa04b169ab9e454e0aa6fbec9e36dd2080c4eeb0",
+  "backend_delta": [
+    {
+      "status": "M",
+      "path": ".github/workflows/postgres-rls.yml",
+      "bytes": 4611,
+      "sha256": "b4c58fb2fb4a72f0afa47d9d6d0a0e3697de7e62c0afa7e677662d2f09f84142"
+    },
+    {
+      "status": "M",
+      "path": "backend/services/corporate_provisioner_db.py",
+      "bytes": 3867,
+      "sha256": "48c694422d597da2e069e4f0a20ee6a6313cfee77b78a4a976da3893f6e4157c"
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/AXS_CORPORATIVO_SIMULACION_20261114.md",
+      "bytes": 3278,
+      "sha256": "24407306c701c888c928f2eccaf7a1dc7d34823c17d566ba8fe5c6520455eae9"
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/AXS_REGRESION_RESIDENCIAL_SIMULADA_20261114.md",
+      "bytes": 3081,
+      "sha256": "86db45b506959e1c6c0c93d2a102e6879f1135bbe13aab31544c05957b22c2da"
+    },
+    {
+      "status": "A",
+      "path": "docs/operacion/AXS_CORPORATIVO_ENSAYO_INTEGRADO_20261114.md",
+      "bytes": 3796,
+      "sha256": "231c2c061c8e75a1c0c7c8b374bdd9d7edd799e756c1534c645ee1d434e15984"
+    },
+    {
+      "status": "M",
+      "path": "scripts/bootstrap_corporate_sandbox_schemas.py",
+      "bytes": 7020,
+      "sha256": "bb139c04b7e0effb1218c7a9dcff6eb2e9ccd61b6001b0391d955ae3d56ec3bd"
+    },
+    {
+      "status": "M",
+      "path": "scripts/check_corporate_sandbox_config.py",
+      "bytes": 6312,
+      "sha256": "d59559778137a546726b66ebc5eeb678116183a178490daf31f3be2997d6f2c6"
+    },
+    {
+      "status": "M",
+      "path": "scripts/corporate_sandbox_attestation.py",
+      "bytes": 13782,
+      "sha256": "12290eb7b87be585572ec71c6ec5490b44e832aa1c0b53a1e633c71f13a4eafb"
+    },
+    {
+      "status": "A",
+      "path": "scripts/corporate_sandbox_targets.py",
+      "bytes": 1387,
+      "sha256": "438707862b49f7c8f0c9f80f6c80d4e73eac66c52770cab956c34af55eaa770c"
+    },
+    {
+      "status": "A",
+      "path": "scripts/prepare_integrated_sandbox_bundle.py",
+      "bytes": 967,
+      "sha256": "fc3f0483ccf81ad7e513c5339c10e8c4dcac4ed69f59ca89593c275ae72b525b"
+    },
+    {
+      "status": "A",
+      "path": "tests/smoke/test_corporate_integrated_run_postgres.py",
+      "bytes": 4496,
+      "sha256": "55ee359c9d01a9bcfe1dfc53c44a90405397a1af9a4f9a69b28c417ef3e91c30"
+    },
+    {
+      "status": "A",
+      "path": "tests/test_corporate_sandbox_run_profile.py",
+      "bytes": 2348,
+      "sha256": "c925db4d988ed3aba896cfbaece5c9df8b98236bd898b303394fa0817e6738f8"
+    },
+    {
+      "status": "A",
+      "path": "tests/test_corporate_simulated_journey.py",
+      "bytes": 4642,
+      "sha256": "ccdbd8aed5c80c67b1e620dce98397e7d1b8af3abbeba004dd63c347e5ff9af1"
+    },
+    {
+      "status": "A",
+      "path": "tests/test_residential_simulated_journey.py",
+      "bytes": 5856,
+      "sha256": "bfd6ae7cdf12b50c5ec87f34a5fa0e9c4115defbbdb51d4108f592ae6af81925"
+    }
+  ],
+  "publication_targets": {
+    "AXS_CORPORATE_API_ENABLED": "false",
+    "AXS_CORPORATE_PROVISIONING_ENABLED": "false",
+    "AXS_CORPORATE_SANDBOX_ONLY": "false"
+  },
+  "pending_conditions": [
+    "segregate_event_and_gov_runtime_roles_and_permissions",
+    "align_clerk_jwks_configuration_and_verify_authentication",
+    "private_blob_recovery_evidence",
+    "real_clerk_camera_blob_acceptance_before_pilot"
+  ],
+  "backup_status": "neon_snapshot_restored_and_verified_database_only",
+  "publication_status": "not_executed",
+  "activation_status": "not_executed",
+  "reviewable_runbook": "docs/operacion/AXS_LIBERACION_CONTROLADA_20261114.md",
+  "platform_evidence": "docs/releases/axs-integrado-20261114/evidencia-plataformas.json",
+  "frontend_baseline_verified_sha": "76bc9d619836f0872241741570fb7974e51d2bf6",
+  "frontend_baseline_verified_at_utc": "2026-11-14T13:25:36.614Z",
+  "frontend_delta_from_verified_baseline": [
+    {
+      "status": "M",
+      "path": "frontend-next/src/app/dashboard/arco/ArcoClient.tsx",
+      "bytes": 12028,
+      "sha256": "b968ae493e036dccc9767dee6943d4b27162a0c24889134978e624d36fa5ab17"
+    },
+    {
+      "status": "A",
+      "path": "frontend-next/src/app/dashboard/corporativo-superadmin/CorporativoSuperadminClient.tsx",
+      "bytes": 18245,
+      "sha256": "6e190ab5e809fc88430f26898fa6206d4321cac43cd55b91d8548852e0209ab1"
+    },
+    {
+      "status": "A",
+      "path": "frontend-next/src/app/dashboard/corporativo-superadmin/layout.tsx",
+      "bytes": 1268,
+      "sha256": "043250ef933dc56e69638e58f2877cadd6bde89dbb1d6db108e6ed4ca79c9c26"
+    },
+    {
+      "status": "A",
+      "path": "frontend-next/src/app/dashboard/corporativo-superadmin/page.tsx",
+      "bytes": 339,
+      "sha256": "a3edd43c9f3026117c2d98e1d6882463ec0eaaa23e64872ab192704ee3bab494"
+    },
+    {
+      "status": "A",
+      "path": "frontend-next/src/app/dashboard/corporativo/CorporateDirectoryClient.tsx",
+      "bytes": 13557,
+      "sha256": "50b193d66fb3959a7556ded2669b2989dfac63c939996b07edce3cecd4a1f9d5"
+    },
+    {
+      "status": "A",
+      "path": "frontend-next/src/app/dashboard/corporativo/page.tsx",
+      "bytes": 689,
+      "sha256": "a3c95e5e9e514b0ec08095f2fd59f5c106f7deda7455168417b41558a75e08f1"
+    },
+    {
+      "status": "M",
+      "path": "frontend-next/src/app/dashboard/msp/MSPClient.tsx",
+      "bytes": 11353,
+      "sha256": "0da3f600b6ed430cf12e9d15b78e3155032acaf249b6b98135851913991f6186"
+    },
+    {
+      "status": "M",
+      "path": "frontend-next/tests/arco-cases.browser.cjs",
+      "bytes": 6454,
+      "sha256": "a8323fdd91816370575e15af426f4197ff7285de7fe9cc33b8a1241a9e800fa4"
+    },
+    {
+      "status": "A",
+      "path": "frontend-next/tests/arco-clients-dom.test.cjs",
+      "bytes": 5584,
+      "sha256": "f619b85d422e246f088686fea6fd9c53d0248853d7b5fff47b9ad67959eee170"
+    },
+    {
+      "status": "A",
+      "path": "frontend-next/tests/corporate-directory-gate.test.cjs",
+      "bytes": 1488,
+      "sha256": "a255fda188e4f84309b161c6f9a9753fb8cac762b4bb3528648384fd36c35fc6"
+    },
+    {
+      "status": "A",
+      "path": "frontend-next/tests/corporate-directory.browser.cjs",
+      "bytes": 10932,
+      "sha256": "7cb4cc6f793994d7076bd6ca7f3a8bd36df5ef9fa216de9895eed6745ed3883d"
+    },
+    {
+      "status": "A",
+      "path": "frontend-next/tests/corporate-reconciliation-dom.test.cjs",
+      "bytes": 12720,
+      "sha256": "54d7fd7343027623a36a0b0106a3ddffd74857d059c72ece46a2435e932e3cec"
+    },
+    {
+      "status": "A",
+      "path": "frontend-next/tests/corporate-superadmin-gate.test.cjs",
+      "bytes": 2306,
+      "sha256": "32157ad1b0e4619edf762d3ba116dd13ff911831d9d57a5a12dd99fe08c0e4c5"
+    },
+    {
+      "status": "A",
+      "path": "frontend-next/tests/corporate-superadmin.browser.cjs",
+      "bytes": 19865,
+      "sha256": "e1a55b77c4fc55384f9ea0fd2725164f34f4b390c4cb60160a358c00d48c2b6d"
+    }
+  ],
+  "completed_conditions": [
+    "vercel_team_authorization_and_current_baseline",
+    "frontend_public_production_api_and_clerk_instance",
+    "effective_database_connections_and_runtime_configuration_observed",
+    "effective_core_schema_and_rls_gates_passed",
+    "database_snapshot_created_and_isolated_restore_verified"
+  ],
+  "backend_audit_evidence": "docs/evidence/AXS_BACKEND_Y_RESTAURACION_REAL_20261114.json",
+  "backup_snapshot_id": "snap-orange-hill-b5sz65pw",
+  "backup_expires_at": "2026-11-21T13:40:13Z"
+}
