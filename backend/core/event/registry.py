@@ -193,6 +193,8 @@ def registrar_evento(
     
     db_event = next(get_event_db())
     try:
+        from backend.core.tenant.context import _set_postgres_tenant
+        _set_postgres_tenant(db_event, tenant_id)
         db_event.add(evento)
         db_event.commit()
         db_event.refresh(evento)

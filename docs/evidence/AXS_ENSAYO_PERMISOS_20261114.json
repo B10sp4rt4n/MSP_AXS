@@ -1,0 +1,198 @@
+{
+  "date": "2026-11-14",
+  "scope": "isolated-restored-copy-only",
+  "production_changes": false,
+  "candidate_branch": "fix/axs-corporativo-runtime-least-privilege-20261114",
+  "pull_request": 113,
+  "neon": {
+    "project": "patient-tree-68362559",
+    "branch": "br-nameless-boat-b5g5l0fl",
+    "snapshot": "snap-orange-hill-b5sz65pw",
+    "postgres_major": 18,
+    "expires_at": "2026-11-15T13:56:19Z",
+    "endpoint": "ep-noisy-sound-b53m4x3t",
+    "endpoint_disabled": true,
+    "endpoint_state": "idle",
+    "max_cu": 0.25,
+    "suspend_timeout_seconds": 300,
+    "roles_login": false,
+    "temporary_set_role_grants_removed": true,
+    "remaining_owner_grants": "Neon cloud_admin automatic ADMIN only; SET=false, INHERIT=false",
+    "final_counts": {
+      "events": 267,
+      "authorities": 1,
+      "policies": 6
+    },
+    "synthetic_writes_persisted": false
+  },
+  "positives": {
+    "event_insert": true,
+    "event_replay_no_duplicate": true,
+    "event_cross_tenant_hidden": true,
+    "gov_control_plane_read": true,
+    "gov_own_quota_insert_lock_update": true,
+    "gov_cross_tenant_update_rows": 0
+  },
+  "negative_tests": [
+    {
+      "domain": "EVENT",
+      "test": "update",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "EVENT",
+      "test": "delete",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "EVENT",
+      "test": "truncate",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "EVENT",
+      "test": "ddl",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "EVENT",
+      "test": "temp",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "EVENT",
+      "test": "disable_rls",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "EVENT",
+      "test": "cross_tenant",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "EVENT",
+      "test": "missing_tenant",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "EVENT",
+      "test": "forged_platform",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "GOV",
+      "test": "create_authority",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "GOV",
+      "test": "update_authority",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "GOV",
+      "test": "update_delegation",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "GOV",
+      "test": "truncate",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "GOV",
+      "test": "change_action",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "GOV",
+      "test": "create_global",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "GOV",
+      "test": "cross_quota",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "GOV",
+      "test": "ddl",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "GOV",
+      "test": "temp",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    },
+    {
+      "domain": "GOV",
+      "test": "disable_rls",
+      "expected_denial": true,
+      "sqlstate": "42501"
+    }
+  ],
+  "gates": {
+    "event": "PASS",
+    "gov": "PASS",
+    "clerk_live": "FAIL_INSTANCE_MISMATCH",
+    "clerk_proposal": "PASS_IN_MEMORY",
+    "clerk_proposal_preserves_pinned_key": true
+  },
+  "clerk": {
+    "issuer": "https://clerk.auth.axs-mx.com",
+    "backend_publishable_key_domain_observed": "clerk.frontend-next-psi-ashen.vercel.app",
+    "frontend_production_publishable_key_domain": "clerk.auth.axs-mx.com",
+    "proposed_backend_publishable_key_source": "Vercel frontend-next Production variable NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+    "proposed_jwks": "https://clerk.auth.axs-mx.com/.well-known/jwks.json",
+    "only_jwks_change_insufficient": true,
+    "real_session_after_change": "NOT_EXECUTED"
+  },
+  "local_verification": {
+    "passed": 42,
+    "skipped": 23,
+    "skip_reason": "PostgreSQL disposable CI required"
+  },
+  "ci": {
+    "status": "see PR for final commit checks",
+    "postgres16": "actual runtime login fixture",
+    "postgres18": "captured target catalog workflow"
+  },
+  "limitations": [
+    "Neon isolated probes used SET LOCAL ROLE from owner; escalation denial is verified separately by CI runtime logins",
+    "GOV reads control-plane data globally by design",
+    "No production role creation, LOGIN activation, credentials, variables or deployment",
+    "JWKS signature verification covered with synthetic RSA; real post-change session pending"
+  ],
+  "previous_restoration_endpoints": [
+    {
+      "id": "ep-round-hall-b5u0mup3",
+      "disabled": true,
+      "state": "idle",
+      "max": 0.25
+    },
+    {
+      "id": "ep-lingering-tree-b54koo6i",
+      "disabled": true,
+      "state": "idle",
+      "max": 0.25
+    }
+  ]
+}

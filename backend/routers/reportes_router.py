@@ -61,6 +61,7 @@ def operacion(
 ):
     condo = require_condominio(db, gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
     _set_postgres_tenant(db, condominio_id)
+    _set_postgres_tenant(event_db, condominio_id)
     if hasta < desde or (hasta - desde).days > 30 or hasta == date.max:
         raise HTTPException(422, "Selecciona un periodo de 1 a 31 días")
     inicio = datetime.combine(desde, time.min, ZONA).astimezone(timezone.utc).replace(tzinfo=None)
