@@ -1,0 +1,151 @@
+{
+  "environment": "AXS Corporativo Sandbox",
+  "source": "Railway HTTP logs",
+  "timezone": "UTC",
+  "rows": [
+    {
+      "timestamp": "2026-11-14T11:35:17.135426607Z",
+      "method": "GET",
+      "path": "/plataforma/corporativo/acceso",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:35:17.298798944Z",
+      "method": "OPTIONS",
+      "path": "/plataforma/corporativo/acceso",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:35:17.635571779Z",
+      "method": "GET",
+      "path": "/plataforma/corporativo/acceso",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:35:18.107363172Z",
+      "method": "GET",
+      "path": "/plataforma/corporativo/acceso",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:36:03.765237651Z",
+      "method": "OPTIONS",
+      "path": "/plataforma/corporativo/empresas/corp_f9e6900162c24716964e5ac190d2960d",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:36:05.916112369Z",
+      "method": "GET",
+      "path": "/plataforma/corporativo/empresas/corp_f9e6900162c24716964e5ac190d2960d",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:36:17.306469764Z",
+      "method": "OPTIONS",
+      "path": "/plataforma/corporativo/empresas/corp_cbf1b8df457d43d0bef55ec0d7deb6e6",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:36:17.457586724Z",
+      "method": "OPTIONS",
+      "path": "/corporativo/corp_f9e6900162c24716964e5ac190d2960d/sedes",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:36:18.158138238Z",
+      "method": "GET",
+      "path": "/corporativo/corp_f9e6900162c24716964e5ac190d2960d/sedes",
+      "status": 403
+    },
+    {
+      "timestamp": "2026-11-14T11:36:18.924378142Z",
+      "method": "GET",
+      "path": "/plataforma/corporativo/empresas/corp_cbf1b8df457d43d0bef55ec0d7deb6e6",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:36:32.500828762Z",
+      "method": "OPTIONS",
+      "path": "/corporativo/corp_cbf1b8df457d43d0bef55ec0d7deb6e6/sedes",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:36:33.158408739Z",
+      "method": "GET",
+      "path": "/corporativo/corp_cbf1b8df457d43d0bef55ec0d7deb6e6/sedes",
+      "status": 403
+    },
+    {
+      "timestamp": "2026-11-14T11:42:24.293733587Z",
+      "method": "GET",
+      "path": "/plataforma/corporativo/acceso",
+      "status": 403
+    },
+    {
+      "timestamp": "2026-11-14T11:42:25.517163918Z",
+      "method": "GET",
+      "path": "/plataforma/corporativo/acceso",
+      "status": 403
+    },
+    {
+      "timestamp": "2026-11-14T11:42:37.082161490Z",
+      "method": "GET",
+      "path": "/corporativo/corp_f9e6900162c24716964e5ac190d2960d/sedes",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:42:49.385312372Z",
+      "method": "OPTIONS",
+      "path": "/corporativo/corp_f9e6900162c24716964e5ac190d2960d/sedes/site_e984d79d859847448b31b96f/destinos",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:42:49.899864776Z",
+      "method": "GET",
+      "path": "/corporativo/corp_f9e6900162c24716964e5ac190d2960d/sedes/site_e984d79d859847448b31b96f/destinos",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:43:13.703999520Z",
+      "method": "OPTIONS",
+      "path": "/corporativo/corp_f9e6900162c24716964e5ac190d2960d/sedes/site_516a50ac332a49a99ded6e06/destinos",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:43:14.299115628Z",
+      "method": "GET",
+      "path": "/corporativo/corp_f9e6900162c24716964e5ac190d2960d/sedes/site_516a50ac332a49a99ded6e06/destinos",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:43:20.194204986Z",
+      "method": "GET",
+      "path": "/corporativo/corp_cbf1b8df457d43d0bef55ec0d7deb6e6/sedes",
+      "status": 403
+    },
+    {
+      "timestamp": "2026-11-14T11:43:26.715764529Z",
+      "method": "GET",
+      "path": "/corporativo/corp_f9e6900162c24716964e5ac190d2960d/sedes",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:43:43.981158440Z",
+      "method": "POST",
+      "path": "/corporativo/corp_f9e6900162c24716964e5ac190d2960d/sedes",
+      "status": 403
+    },
+    {
+      "timestamp": "2026-11-14T11:43:56.724536171Z",
+      "method": "GET",
+      "path": "/corporativo/corp_f9e6900162c24716964e5ac190d2960d/sedes",
+      "status": 200
+    },
+    {
+      "timestamp": "2026-11-14T11:44:01.245079684Z",
+      "method": "GET",
+      "path": "/corporativo/corp_f9e6900162c24716964e5ac190d2960d/sedes/site_e984d79d859847448b31b96f/destinos",
+      "status": 200
+    }
+  ]
+}
