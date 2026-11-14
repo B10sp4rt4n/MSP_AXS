@@ -1,0 +1,134 @@
+{
+  "observed_at_utc": "2026-11-14T13:13:13.668Z",
+  "repository": "B10sp4rt4n/MSP_AXS",
+  "railway": {
+    "project_id": "532a32f5-6313-4ee3-98de-cfcfc225dbb7",
+    "environment_id": "72f597ee-89d2-4dd4-9295-6618d3694d22",
+    "service": {
+      "id": "55c12ef5-ba69-449c-ad84-b77ee280eb5b",
+      "name": "web",
+      "state": "live"
+    },
+    "source": {
+      "repo": "B10sp4rt4n/MSP_AXS",
+      "branch": "release/axs-corporativo-20261029",
+      "commitSha": "a68d1149242dd0b16cd0e363df3ccda917199423"
+    },
+    "build": {
+      "builder": "RAILPACK",
+      "buildEnvironment": "V3"
+    },
+    "deploy": {
+      "startCommand": "uvicorn backend.main:app --host 0.0.0.0 --port $PORT",
+      "preDeployCommand": [
+        "python scripts/check_core_rls.py && python -m scripts.check_corporate_schema"
+      ],
+      "healthcheckPath": "/health",
+      "healthcheckTimeout": 100,
+      "useLegacyStacker": false,
+      "ipv6EgressEnabled": false,
+      "runtime": "V2",
+      "multiRegionConfig": {
+        "us-west2": {
+          "numReplicas": 1
+        }
+      }
+    },
+    "latest_deployment": {
+      "id": "be9b87a6-8a58-4341-a181-b4fc70ebd808",
+      "status": "SUCCESS",
+      "createdAt": "2026-10-30T16:50:58.325Z",
+      "url": null
+    },
+    "staged": null,
+    "domains": {
+      "serviceDomains": [
+        {
+          "id": "95cf7b02-6313-4380-a23b-069ac914f38e",
+          "domain": "web-production-ed4f3.up.railway.app",
+          "targetPort": null
+        }
+      ],
+      "customDomains": []
+    },
+    "rollback_baseline": [
+      {
+        "id": "be9b87a6-8a58-4341-a181-b4fc70ebd808",
+        "status": "SUCCESS",
+        "sha": "a68d1149242dd0b16cd0e363df3ccda917199423",
+        "branch": "release/axs-corporativo-20261029",
+        "canRollback": true,
+        "canRedeploy": true
+      }
+    ],
+    "variable_values_redacted": true,
+    "required_variable_presence": {
+      "DATABASE_CORE_URL": true,
+      "DATABASE_EVENT_URL": true,
+      "DATABASE_GOV_URL": true,
+      "AXS_CORPORATE_API_ENABLED": true,
+      "AXS_CORPORATE_PROVISIONING_ENABLED": true,
+      "AXS_CORPORATE_SANDBOX_ONLY": true,
+      "DATABASE_CORPORATE_PROVISIONING_URL": false,
+      "CLERK_JWT_ISSUER": true,
+      "CLERK_JWKS_URL": true,
+      "ALLOWED_ORIGINS": true,
+      "AXS_ID_PHOTOS_ENABLED": true,
+      "BLOB_READ_WRITE_TOKEN": true
+    }
+  },
+  "vercel": {
+    "current_verification": "blocked_team_authorization",
+    "http_status": 403,
+    "team_slug": "salvador-ruiz-esparzas-projects",
+    "team_id": "team_wCPRqvRGXWpRT4eUvfAz38jF",
+    "last_observed_deployment_not_reverified": "dpl_Dcd9Rw6L9FWn1PQBXRhjS9L2q17t",
+    "last_observed_sha_not_reverified": "76bc9d619836f0872241741570fb7974e51d2bf6",
+    "hostname": "app.axs-mx.com"
+  },
+  "ci": [
+    {
+      "id": 43597124709,
+      "name": "PostgreSQL RLS gate",
+      "event": "pull_request",
+      "head_sha": "bc04dcc4934a76e62cdc355943d16674cd8ab3b7",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/B10sp4rt4n/MSP_AXS/actions/runs/43597124709"
+    },
+    {
+      "id": 43597124724,
+      "name": "Tests",
+      "event": "pull_request",
+      "head_sha": "bc04dcc4934a76e62cdc355943d16674cd8ab3b7",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/B10sp4rt4n/MSP_AXS/actions/runs/43597124724"
+    },
+    {
+      "id": 43597122129,
+      "name": "PostgreSQL RLS gate",
+      "event": "push",
+      "head_sha": "bc04dcc4934a76e62cdc355943d16674cd8ab3b7",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/B10sp4rt4n/MSP_AXS/actions/runs/43597122129"
+    },
+    {
+      "id": 43597122166,
+      "name": "Tests",
+      "event": "push",
+      "head_sha": "bc04dcc4934a76e62cdc355943d16674cd8ab3b7",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/B10sp4rt4n/MSP_AXS/actions/runs/43597122166"
+    }
+  ],
+  "operations_executed": {
+    "deployments": false,
+    "migrations": false,
+    "production_backups": false,
+    "remote_data_writes": false,
+    "activation": false
+  }
+}
