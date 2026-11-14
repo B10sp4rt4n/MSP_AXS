@@ -84,7 +84,15 @@
     "team_id": "team_wCPRqvRGXWpRT4eUvfAz38jF",
     "last_observed_deployment_not_reverified": "dpl_Dcd9Rw6L9FWn1PQBXRhjS9L2q17t",
     "last_observed_sha_not_reverified": "76bc9d619836f0872241741570fb7974e51d2bf6",
-    "hostname": "app.axs-mx.com"
+    "hostname": "app.axs-mx.com",
+    "automatic_preview_observed_via_github": {
+      "sha": "6adb936423c480f899f76c4df4c0278ec90d4ad7",
+      "context": "Vercel",
+      "state": "success",
+      "description": "Deployment has completed",
+      "url": "https://vercel.com/salvador-ruiz-esparzas-projects/frontend-next/7izQxmXbt4kyX6eRcQPyg2qH7sRg",
+      "production_alias_not_verified": true
+    }
   },
   "ci": [
     {
@@ -125,10 +133,10 @@
     }
   ],
   "operations_executed": {
-    "deployments": false,
     "migrations": false,
     "production_backups": false,
     "remote_data_writes": false,
-    "activation": false
+    "activation": false,
+    "production_deployments": false
   }
 }

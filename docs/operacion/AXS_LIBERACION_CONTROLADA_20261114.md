@@ -1,8 +1,10 @@
 # AXS — paquete de liberación controlada, 14 de noviembre de 2026
 
 **Estado: candidato consolidado y procedimiento preparado. La publicación y la
-apertura del piloto siguen pendientes.** Esta preparación no ejecuta cambios
-en Railway, Vercel, Neon, Clerk ni almacenamiento.
+apertura del piloto siguen pendientes.** Esta preparación no solicita
+publicaciones productivas ni cambia configuración en Railway, Vercel, Neon,
+Clerk o almacenamiento. La integración Git de Vercel genera previews del PR;
+GitHub reportó uno completado sobre `6adb936`, sin acreditar el alias productivo.
 
 La rama `release/axs-integrado-20261114` contiene el código y las pruebas de
 `bc04dcc4934a76e62cdc355943d16674cd8ab3b7`, descendiente de los candidatos
