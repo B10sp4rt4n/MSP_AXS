@@ -1,9 +1,10 @@
 # AXS — paquete de liberación controlada, 14 de noviembre de 2026
 
-**Estado: candidato consolidado y procedimiento preparado. La publicación y la
-apertura del piloto siguen pendientes.** Esta preparación no solicita
-publicaciones productivas ni cambia configuración en Railway, Vercel, Neon,
-Clerk o almacenamiento. La integración Git de Vercel genera previews del PR;
+**Estado: candidato consolidado, conexiones y gates CORE comprobados, snapshot
+restaurado en aislamiento. La publicación sigue pendiente por los privilegios
+EVENT/GOV y la configuración JWKS.** No se publicaron aplicaciones ni se
+modificaron datos, permisos o configuración productivos. En Neon se crearon
+el snapshot y una copia temporal de verificación. La integración Git de Vercel genera previews del PR;
 GitHub reportó uno completado sobre `6adb936`, sin acreditar el alias productivo.
 Después de autorizar el equipo de Vercel, se confirmó directamente el alias
 productivo y el preview de la rama. La evidencia actual y el antecedente 403
@@ -45,6 +46,9 @@ No tratar `main@76bc9d6` como si fuera el backend actualmente publicado.
 
 La simulación no acredita cámara, Blob o sesión Clerk reales del piloto.
 El ensayo de restauración CI no es un respaldo productivo.
+El [acta de backend y restauración real](../evidence/AXS_BACKEND_Y_RESTAURACION_REAL_20261114.md)
+registra la comprobación posterior con conexiones efectivas, snapshot,
+restauración, integridad delimitada de eventos y hallazgos de permisos/Clerk.
 
 ## 3. Destinos y configuración a comprobar antes del cambio
 
@@ -55,14 +59,14 @@ El ensayo de restauración CI no es un respaldo productivo.
 | API pública | `https://web-production-ed4f3.up.railway.app` | Dominio confirmado por Railway. |
 | Frontend | `https://app.axs-mx.com`, proyecto `frontend-next` (`prj_m4X1hxQCfaYOFWzN50Uu1z6NrE3S`), equipo `salvador-ruiz-esparzas-projects` | Confirmado: alias apunta a `dpl_Dcd9Rw6L9FWn1PQBXRhjS9L2q17t`, Production READY, SHA `76bc9d6`. |
 | Fuente nueva | SHA exacto del candidato / commit documental revisado, nunca HEAD móvil | Fijar en la operación autorizada; conservar identificadores de build y deployment. |
-| `AXS_CORPORATE_API_ENABLED` | `false` en publicación de código | Nombre presente; valor actual oculto. |
-| `AXS_CORPORATE_PROVISIONING_ENABLED` | `false` en publicación de código | Nombre presente; valor actual oculto. |
-| `AXS_CORPORATE_SANDBOX_ONLY` | `false` en producción | Nombre presente; valor actual oculto. |
+| `AXS_CORPORATE_API_ENABLED` | `false` en publicación de código | `false`, confirmado dentro del contenedor productivo. |
+| `AXS_CORPORATE_PROVISIONING_ENABLED` | `false` en publicación de código | `false`, confirmado dentro del contenedor productivo. |
+| `AXS_CORPORATE_SANDBOX_ONLY` | `false` en producción | `false`, confirmado dentro del contenedor productivo. |
 | Perfil y constancia de sandbox | No copiar `integrated-20261114`, run ID, issuer Development ni conexiones `*_sbx_*` a producción | Exclusivos del ensayo. |
-| CORE / EVENT / GOV | Identificar host, base y rol efectivos de cada conexión; registrar sólo esos datos sin contraseña | Variables presentes; OAuth oculta valores. Aún no queda acreditada su correspondencia con Neon. |
-| Clerk | Instancia Production, issuer/JWKS coherentes y misma instancia en web/API | Variable pública Production verificada: instancia Production, host `clerk.auth.axs-mx.com`. Issuer/JWKS efectivos del backend pendientes; no se leyó la llave secreta. |
+| CORE / EVENT / GOV | Host `ep-rough-voice-b5vx4odv-pooler.c-7.us-east-2.aws.neon.tech`; bases `neondb` / `aup_event` / `aup_gov` | Confirmados desde Railway y mapeados a `br-empty-firefly-b5ob1gsg`. CORE usa `axs_core_app`; EVENT/GOV usan `neondb_owner`, con privilegios excesivos por corregir. |
+| Clerk | Instancia Production, issuer/JWKS coherentes y misma instancia en web/API | Issuer y dominio del backend Production confirmados; clave pública fijada presente. JWKS todavía apunta a Development: corrección pendiente, sin cambiar la clave fijada. Detalle en el acta. |
 | API del frontend | `NEXT_PUBLIC_API_URL` hacia la API productiva, compilada con configuración Production | Variable Production verificada: `https://web-production-ed4f3.up.railway.app`. Falta comprobar el build que se liberará. |
-| CORS y registro | `ALLOWED_ORIGINS` incluye el frontend elegido; callback/redirect Clerk coinciden | Valores actuales pendientes. |
+| CORS y registro | `ALLOWED_ORIGINS` incluye el frontend elegido; callback/redirect Clerk coinciden | CORS confirmado: incluye `https://app.axs-mx.com`. Callbacks y sesión real de aceptación pendientes. |
 | Fotografías | Conservar configuración vigente de captura/almacenamiento privado y su retención | Nombres de variables presentes; probar carga/lectura autorizadas antes del piloto. |
 | Build y arranque API | RAILPACK; `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`; salud `/health` | Configuración remota confirmada. No cambiar builder por el NIXPACKS del archivo histórico `railway.json`. |
 | Predeploy API | `python scripts/check_core_rls.py && python -m scripts.check_corporate_schema` | Confirmado en el servicio; ambos deben terminar con código 0. |
@@ -100,7 +104,18 @@ su alcance y respaldo; no incluirlo implícitamente en esta liberación.
 
 ## 5. Respaldo y recuperación de datos
 
-**Estado: procedimiento listo; respaldo productivo aún no creado ni verificado.**
+**Estado: snapshot PostgreSQL creado y restauración aislada verificada.**
+`snap-orange-hill-b5sz65pw` cubre las tres bases y vence el 21 de noviembre a
+las 07:40:13 CDMX. La copia `br-fancy-firefly-b5ov421w` aprobó gates CORE,
+comparación del catálogo/ACL público y 35 FKs sin huérfanos. De 267 eventos,
+202 tienen hash correcto, 65 son históricos no verificables y ninguno de los
+verificables presenta discrepancia. Su endpoint de lectura quedó deshabilitado
+e idle; la copia vence el 15 de noviembre a las 07:46:24 CDMX.
+
+No incluye binarios Blob ni un dump externo. El punto de datos declarado por
+Neon es 14 de noviembre, 07:39:39 CDMX; se debe refrescar antes de una futura
+ventana y conciliar escrituras/revocaciones posteriores si se usara la copia.
+El siguiente procedimiento conserva las condiciones para esa ventana.
 Antes de modificar el servicio:
 
 1. Identificar las conexiones efectivas CORE/EVENT/GOV y el destino privado de
@@ -132,8 +147,9 @@ evaluar pérdida de movimientos, evidencias y revocaciones posteriores.
 
 ## 6. Secuencia de liberación propuesta
 
-1. **Cerrar preparación:** confirmar conexiones,
-   flags y respaldo recuperable; fijar baseline web/API y candidato. Comprobar
+1. **Cerrar preparación:** resolver los privilegios EVENT/GOV y alinear JWKS
+   mediante un cambio separado y ensayado; refrescar conexiones, flags y
+   respaldo para la ventana; fijar baseline web/API y candidato. Comprobar
    de nuevo que no hay cambios staged ni otra operación en curso. Revisar
    disparadores automáticos de ambas plataformas antes de modificar una rama.
 2. **Revisar el cambio concreto:** SHA, servicio/proyecto, configuración,
@@ -203,8 +219,10 @@ ese estado y revisar explícitamente la siguiente promoción.
 | Baseline, fuente y predeploy API | Confirmados por Railway; refrescar al ejecutar. |
 | Baseline y objetivo de reversión de frontend | Confirmados por Vercel tras autorización del equipo; sin mover el alias. |
 | API y Clerk públicos de frontend | Confirmados en variables Production; build de liberación y autenticación real pendientes. |
-| Conexiones, flags, issuer/JWKS del backend y CORS | Pendiente: valores ocultos al conector Railway. |
-| Gates sobre conexiones efectivas de la ventana | Pendiente; no ejecutados remotamente en esta preparación. |
-| Respaldo productivo recuperable y restauración aislada | Pendiente; sólo existe el ensayo sintético acreditado. |
+| Conexiones, flags, issuer y CORS del backend | Confirmados dentro del contenedor; EVENT/GOV usan el propietario y JWKS apunta a Development. |
+| Gates sobre CORE efectivo y copia restaurada | RLS y esquema PASS en ambos; refrescar al ejecutar la ventana. |
+| Respaldo PostgreSQL y restauración aislada | Snapshot real creado y verificado; vencimientos y límites en el acta. |
+| Privilegios EVENT/GOV y JWKS | Corrección pendiente antes de publicar; sin cambios remotos aplicados. |
+| Recuperación de objetos privados / copia externa | Pendiente; snapshot PostgreSQL no respalda los binarios Blob. |
 | Aceptación real de Clerk/cámara/Blob y cruces/revocación de sesión | Pendiente antes de abrir el piloto. |
 | Publicación y activación | No ejecutadas; requieren revisar el cambio concreto anterior. |

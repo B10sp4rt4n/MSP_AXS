@@ -75,6 +75,15 @@
       "ALLOWED_ORIGINS": true,
       "AXS_ID_PHOTOS_ENABLED": true,
       "BLOB_READ_WRITE_TOKEN": true
+    },
+    "effective_runtime_audit": {
+      "audit_started_at_utc": "2026-11-14T13:37:25.587766+00:00",
+      "evidence": "docs/evidence/AXS_BACKEND_Y_RESTAURACION_REAL_20261114.json",
+      "connections_confirmed": true,
+      "core_rls": "PASS",
+      "core_schema": "PASS",
+      "event_gov_roles_require_correction": true,
+      "clerk_jwks_requires_alignment": true
     }
   },
   "vercel": {
@@ -263,9 +272,22 @@
   ],
   "operations_executed": {
     "migrations": false,
-    "production_backups": false,
-    "remote_data_writes": false,
+    "production_backups": true,
     "activation": false,
-    "production_deployments": false
+    "production_deployments": false,
+    "isolated_database_restore": true,
+    "production_application_data_writes": false,
+    "production_role_or_grant_changes": false,
+    "production_configuration_changes": false
+  },
+  "backup_and_restore": {
+    "snapshot_id": "snap-orange-hill-b5sz65pw",
+    "snapshot_expires_at": "2026-11-21T13:40:13Z",
+    "restore_branch_id": "br-fancy-firefly-b5ov421w",
+    "restore_compute_disabled": true,
+    "restore_compute_final_state": "idle",
+    "database_verification": "completed_with_documented_limits",
+    "blob_binaries_included": false,
+    "evidence": "docs/evidence/AXS_BACKEND_Y_RESTAURACION_REAL_20261114.json"
   }
 }

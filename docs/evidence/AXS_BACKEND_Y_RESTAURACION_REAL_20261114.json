@@ -1,0 +1,284 @@
+{
+  "observed_at_utc": "2026-11-14T13:50:21.229Z",
+  "project_id": "patient-tree-68362559",
+  "source_branch_id": "br-empty-firefly-b5ob1gsg",
+  "railway": {
+    "project_id": "532a32f5-6313-4ee3-98de-cfcfc225dbb7",
+    "environment_id": "72f597ee-89d2-4dd4-9295-6618d3694d22",
+    "service_id": "55c12ef5-ba69-449c-ad84-b77ee280eb5b",
+    "deployment_id": "be9b87a6-8a58-4341-a181-b4fc70ebd808",
+    "code_sha": "a68d1149242dd0b16cd0e363df3ccda917199423",
+    "observation_method": "signed_in_Railway_console_read_only_python_checks",
+    "audit_started_at_utc": "2026-11-14T13:37:25.587766+00:00"
+  },
+  "connections": [
+    {
+      "domain": "CORE",
+      "host": "ep-rough-voice-b5vx4odv-pooler.c-7.us-east-2.aws.neon.tech",
+      "database": "neondb",
+      "role": "axs_core_app",
+      "session_role": "axs_core_app",
+      "postgres_version": "18.6",
+      "transaction_read_only": "on"
+    },
+    {
+      "domain": "EVENT",
+      "host": "ep-rough-voice-b5vx4odv-pooler.c-7.us-east-2.aws.neon.tech",
+      "database": "aup_event",
+      "role": "neondb_owner",
+      "session_role": "neondb_owner",
+      "postgres_version": "18.6",
+      "transaction_read_only": "on"
+    },
+    {
+      "domain": "GOV",
+      "host": "ep-rough-voice-b5vx4odv-pooler.c-7.us-east-2.aws.neon.tech",
+      "database": "aup_gov",
+      "role": "neondb_owner",
+      "session_role": "neondb_owner",
+      "postgres_version": "18.6",
+      "transaction_read_only": "on"
+    }
+  ],
+  "live_core_gates": {
+    "rls": "PASS",
+    "schema": "PASS",
+    "corporate_tables": 6
+  },
+  "runtime_config": {
+    "AXS_CORPORATE_API_ENABLED": "false",
+    "AXS_CORPORATE_PROVISIONING_ENABLED": "false",
+    "AXS_CORPORATE_SANDBOX_ONLY": "false",
+    "CLERK_JWT_ISSUER": "https://clerk.auth.axs-mx.com",
+    "CLERK_JWKS_URL": "https://vocal-bee-4163.clerk.accounts.dev/.well-known/jwks.json",
+    "clerk_decoded_domain": "clerk.auth.axs-mx.com",
+    "pinned_public_key_present": true,
+    "ALLOWED_ORIGINS": [
+      "http://localhost:3000",
+      "https://axs-development-frontend-production.up.railway.app",
+      "https://app.axs-mx.com"
+    ],
+    "secret_values_exported": false
+  },
+  "runtime_permissions": {
+    "EVENT": {
+      "database": "aup_event",
+      "role": "neondb_owner",
+      "role_flags": {
+        "rolsuper": false,
+        "rolbypassrls": true,
+        "rolcreatedb": true,
+        "rolcreaterole": true,
+        "rolinherit": true
+      },
+      "tables": [
+        {
+          "name": "events_aup",
+          "owned_by_runtime": true,
+          "rls": false,
+          "force_rls": false,
+          "can_select": true,
+          "can_insert": true,
+          "can_update": true,
+          "can_delete": true,
+          "can_truncate": true
+        }
+      ]
+    },
+    "GOV": {
+      "database": "aup_gov",
+      "role": "neondb_owner",
+      "role_flags": {
+        "rolsuper": false,
+        "rolbypassrls": true,
+        "rolcreatedb": true,
+        "rolcreaterole": true,
+        "rolinherit": true
+      },
+      "tables": [
+        {
+          "name": "authorities_gov",
+          "owned_by_runtime": true,
+          "rls": false,
+          "force_rls": false,
+          "can_select": true,
+          "can_insert": true,
+          "can_update": true,
+          "can_delete": true,
+          "can_truncate": true
+        },
+        {
+          "name": "delegations_gov",
+          "owned_by_runtime": true,
+          "rls": false,
+          "force_rls": false,
+          "can_select": true,
+          "can_insert": true,
+          "can_update": true,
+          "can_delete": true,
+          "can_truncate": true
+        },
+        {
+          "name": "policies_gov",
+          "owned_by_runtime": true,
+          "rls": false,
+          "force_rls": false,
+          "can_select": true,
+          "can_insert": true,
+          "can_update": true,
+          "can_delete": true,
+          "can_truncate": true
+        },
+        {
+          "name": "recovery_gov_checkpoints",
+          "owned_by_runtime": true,
+          "rls": false,
+          "force_rls": false,
+          "can_select": true,
+          "can_insert": true,
+          "can_update": true,
+          "can_delete": true,
+          "can_truncate": true
+        }
+      ]
+    }
+  },
+  "snapshot": {
+    "id": "snap-orange-hill-b5sz65pw",
+    "name": "axs-preliberacion-20261114",
+    "source_branch_id": "br-empty-firefly-b5ob1gsg",
+    "created_at": "2026-11-14T13:40:13Z",
+    "expires_at": "2026-11-21T13:40:13Z",
+    "manual": true
+  },
+  "restore": {
+    "branch_id": "br-fancy-firefly-b5ov421w",
+    "name": "axs-restauracion-aislada-20261114",
+    "state": "ready",
+    "restore_status": "restored",
+    "finalize_requested": false,
+    "target_production_branch_requested": false,
+    "lsn": "0/58F97F0",
+    "parent_timestamp": "2026-11-14T13:39:39Z",
+    "expires_at": "2026-11-15T13:46:24Z",
+    "compute": {
+      "id": "ep-lingering-tree-b54koo6i",
+      "type": "read_only",
+      "min_cu": 0.25,
+      "max_cu": 0.25,
+      "disabled": true,
+      "final_state": "idle"
+    },
+    "core_gates": {
+      "rls": "PASS",
+      "schema": "PASS",
+      "corporate_tables": 6
+    },
+    "database_audits": [
+      {
+        "database": "neondb",
+        "tables": 23,
+        "columns": 204,
+        "constraints": 198,
+        "indexes": 70,
+        "policies": 13,
+        "public_catalog_and_table_acl_equal_source": true,
+        "row_counts": {
+          "alexa_accounts": 1,
+          "arco_cases": 0,
+          "casas": 33,
+          "casetas": 0,
+          "condominios_exo": 6,
+          "corporate_destinations": 0,
+          "corporate_memberships": 0,
+          "corporate_organizations": 0,
+          "corporate_provisioning_operations": 0,
+          "corporate_site_assignments": 0,
+          "corporate_sites": 0,
+          "event_outbox": 91,
+          "evidencias": 12,
+          "external_identities": 2,
+          "msp_memberships": 3,
+          "msps_exo": 3,
+          "provider_contracts": 0,
+          "recovery_checkpoints": 0,
+          "security_outbox": 56,
+          "solicitudes_acceso": 1,
+          "user_tenant_scope": 20,
+          "usuarios": 22,
+          "visitas": 38
+        },
+        "foreign_keys_checked": 34,
+        "orphan_rows": 0
+      },
+      {
+        "database": "aup_event",
+        "tables": 1,
+        "columns": 14,
+        "constraints": 12,
+        "indexes": 16,
+        "policies": 0,
+        "public_catalog_and_table_acl_equal_source": true,
+        "row_counts": {
+          "events_aup": 267
+        },
+        "foreign_keys_checked": 0,
+        "orphan_rows": 0
+      },
+      {
+        "database": "aup_gov",
+        "tables": 4,
+        "columns": 34,
+        "constraints": 26,
+        "indexes": 24,
+        "policies": 0,
+        "public_catalog_and_table_acl_equal_source": true,
+        "row_counts": {
+          "authorities_gov": 1,
+          "delegations_gov": 0,
+          "policies_gov": 6,
+          "recovery_gov_checkpoints": 0
+        },
+        "foreign_keys_checked": 1,
+        "orphan_rows": 0
+      }
+    ],
+    "event_integrity": {
+      "method": "existing_verificar_integridad_evento_in_Railway_process_against_restored_read_only_endpoint",
+      "total": 267,
+      "verified": 202,
+      "legacy_unverifiable": 65,
+      "mismatch": 0
+    }
+  },
+  "production_compute_after_restore": {
+    "id": "ep-rough-voice-b5vx4odv",
+    "branch_id": "br-empty-firefly-b5ob1gsg",
+    "current_state": "active",
+    "disabled": false
+  },
+  "limitations": [
+    "Database snapshot within Neon, not independent external dump",
+    "Vercel Blob binaries not included",
+    "No comparison of all rows against separate export at snapshot time",
+    "Legacy events are not cryptographically verified",
+    "No application workers or notifications connected to restored branch",
+    "Later production revocations and writes require reconciliation before any recovery use"
+  ],
+  "findings": [
+    {
+      "id": "EVENT_GOV_RUNTIME_OWNER",
+      "state": "open",
+      "detail": "Owner runtime can UPDATE DELETE TRUNCATE and BYPASSRLS; separate roles/grants/connectors change needed"
+    },
+    {
+      "id": "CLERK_JWKS_MISMATCH",
+      "state": "open",
+      "detail": "Pinned key configured; JWKS fallback URL is Development. Align to Production and test authentication."
+    }
+  ],
+  "production_application_data_writes": false,
+  "production_configuration_changes": false,
+  "production_roles_or_grants_changed": false,
+  "production_deployment_executed": false
+}

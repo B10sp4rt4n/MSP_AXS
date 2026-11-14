@@ -1,6 +1,6 @@
 {
   "release": "axs-integrado-20261114",
-  "status": "prepared_not_deployed_pending_operational_checks",
+  "status": "prepared_backend_findings_require_correction_before_publication",
   "prepared_at_utc": "2026-11-14T13:13:13.936907+00:00",
   "release_branch": "release/axs-integrado-20261114",
   "repository": "B10sp4rt4n/MSP_AXS",
@@ -113,12 +113,12 @@
     "AXS_CORPORATE_SANDBOX_ONLY": "false"
   },
   "pending_conditions": [
-    "effective_database_and_clerk_configuration",
-    "production_backup_and_isolated_restore_evidence",
-    "effective_runtime_schema_and_rls_gates",
+    "segregate_event_and_gov_runtime_roles_and_permissions",
+    "align_clerk_jwks_configuration_and_verify_authentication",
+    "private_blob_recovery_evidence",
     "real_clerk_camera_blob_acceptance_before_pilot"
   ],
-  "backup_status": "procedure_prepared_production_backup_not_created",
+  "backup_status": "neon_snapshot_restored_and_verified_database_only",
   "publication_status": "not_executed",
   "activation_status": "not_executed",
   "reviewable_runbook": "docs/operacion/AXS_LIBERACION_CONTROLADA_20261114.md",
@@ -213,6 +213,12 @@
   ],
   "completed_conditions": [
     "vercel_team_authorization_and_current_baseline",
-    "frontend_public_production_api_and_clerk_instance"
-  ]
+    "frontend_public_production_api_and_clerk_instance",
+    "effective_database_connections_and_runtime_configuration_observed",
+    "effective_core_schema_and_rls_gates_passed",
+    "database_snapshot_created_and_isolated_restore_verified"
+  ],
+  "backend_audit_evidence": "docs/evidence/AXS_BACKEND_Y_RESTAURACION_REAL_20261114.json",
+  "backup_snapshot_id": "snap-orange-hill-b5sz65pw",
+  "backup_expires_at": "2026-11-21T13:40:13Z"
 }
