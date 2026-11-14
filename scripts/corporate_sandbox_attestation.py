@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import create_engine, text
+from scripts.corporate_sandbox_targets import LEGACY, sandbox_targets
 from scripts.corporate_sandbox_contract import (
     ACK, DATABASES, ROLES, TABLE_GRANTS, COLUMN_GRANTS, SEQUENCES,
 )
@@ -51,8 +52,8 @@ def snapshot(conn):
     return hashlib.sha256(json.dumps(payload, default=str, separators=(",", ":")).encode()).hexdigest()
 
 
-def verify_permissions(conn, domain):
-    role = ROLES[domain]
+def verify_permissions(conn, domain, *, targets=LEGACY):
+    role = targets.roles[domain]
     if conn.execute(text("SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname NOT IN ('public','information_schema') AND nspname !~ '^pg_')")).scalar_one():
         raise RuntimeError("Sandbox: esquema adicional no aprobado")
     row = conn.execute(text("""
@@ -128,11 +129,11 @@ def verify_permissions(conn, domain):
             raise RuntimeError("Sandbox: permisos de secuencia fuera del contrato")
 
 
-def certify_empty(conn, domain, run_id, issuer, *, expected_db=None):
+def certify_empty(conn, domain, run_id, issuer, *, expected_db=None, targets=LEGACY):
     """Owner-only, explicit transaction. All tables locked until certificate commit."""
     UUID(run_id)
     actual_db, bypass = conn.execute(text("SELECT current_database(),rolsuper OR rolbypassrls FROM pg_roles WHERE rolname=current_user")).one()
-    if actual_db != (expected_db or DATABASES[domain]) or not bypass:
+    if actual_db != (expected_db or targets.databases[domain]) or not bypass:
         raise RuntimeError("Sandbox: certificación exige visibilidad completa y base exacta")
     tables = relations(conn)
     if ACK not in {r[0] for r in tables}:
@@ -148,19 +149,19 @@ def certify_empty(conn, domain, run_id, issuer, *, expected_db=None):
         quoted = conn.dialect.identifier_preparer.quote(table)
         if conn.execute(text(f"SELECT EXISTS(SELECT 1 FROM public.{quoted})")).scalar_one():
             raise RuntimeError("Sandbox: certificación inicial rechazada; base no vacía")
-    verify_permissions(conn, domain)
+    verify_permissions(conn, domain, targets=targets)
     if domain == "CORE":
-        verify_permissions(conn, "PROVISIONER")
+        verify_permissions(conn, "PROVISIONER", targets=targets)
     conn.execute(text(f"INSERT INTO public.{ACK}(singleton,run_id,domain,database_name,clerk_issuer,catalog_hash,certified_at,expires_at) VALUES (true,:run,:domain,:db,:issuer,:digest,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP + interval '24 hours')"),
         {"run": run_id, "domain": domain, "db": actual_db, "issuer": issuer, "digest": snapshot(conn)})
 
 
-def verify_attestation(conn, domain, run_id, issuer, *, expected_db=None):
+def verify_attestation(conn, domain, run_id, issuer, *, expected_db=None, targets=LEGACY):
     source_domain = "CORE" if domain == "PROVISIONER" else domain
     db, role = conn.execute(text("SELECT current_database(),current_user")).one()
-    if db != (expected_db or DATABASES[source_domain]) or role != ROLES[domain]:
+    if db != (expected_db or targets.databases[source_domain]) or role != targets.roles[domain]:
         raise RuntimeError("Sandbox: rol o base incorrectos")
-    verify_permissions(conn, domain)
+    verify_permissions(conn, domain, targets=targets)
     row = conn.execute(text(f"SELECT run_id,domain,database_name,clerk_issuer,catalog_hash,certified_at,expires_at FROM public.{ACK} WHERE singleton=true")).mappings().one()
     now = datetime.now(timezone.utc)
     source_domain = "CORE" if domain == "PROVISIONER" else domain
@@ -172,13 +173,14 @@ def verify_attestation(conn, domain, run_id, issuer, *, expected_db=None):
 
 
 def check_runtime(values):
+    targets = sandbox_targets(values)
     for domain in ("CORE", "GOV", "EVENT", "PROVISIONER"):
         key = "DATABASE_CORPORATE_PROVISIONING_URL" if domain == "PROVISIONER" else f"DATABASE_{domain}_URL"
         engine = None
         try:
             engine = create_engine(values[key], pool_pre_ping=True)
             with engine.connect() as conn:
-                verify_attestation(conn, domain, values['AXS_CORPORATE_SANDBOX_RUN_ID'], values['CLERK_JWT_ISSUER'])
+                verify_attestation(conn, domain, values['AXS_CORPORATE_SANDBOX_RUN_ID'], values['CLERK_JWT_ISSUER'], targets=targets)
         except Exception as exc:
             raise RuntimeError(f"Sandbox: arranque no verificable ({domain})") from exc
         finally:
@@ -196,14 +198,15 @@ def main():
     from scripts.bootstrap_corporate_sandbox_schemas import check_bootstrap_url
     if not __import__('re').fullmatch(r'https://[a-z0-9-]+[.]clerk[.]accounts[.]dev', args.clerk_issuer):
         raise RuntimeError('Sandbox: instancia Clerk de prueba requerida')
-    urls = {d: os.environ[f'AXS_CORPORATE_BOOTSTRAP_{d}_URL'] for d in DATABASES}
+    targets = sandbox_targets(os.environ)
+    urls = {d: os.environ[f'AXS_CORPORATE_BOOTSTRAP_{d}_URL'] for d in targets.databases}
     for domain, url in urls.items():
-        check_bootstrap_url(url, DATABASES[domain])
+        check_bootstrap_url(url, targets.databases[domain])
     for domain, url in urls.items():
         engine = create_engine(url)
         try:
             with engine.begin() as conn:
-                certify_empty(conn, domain, str(args.run_id), args.clerk_issuer)
+                certify_empty(conn, domain, str(args.run_id), args.clerk_issuer, targets=targets)
         finally:
             engine.dispose()
     print('AXS sandbox: initial emptiness certified; valid for 24 hours')
