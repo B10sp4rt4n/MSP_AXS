@@ -20,6 +20,7 @@ def listar(condominio_id: str, visita_id: str | None = None,
            gov: Session = Depends(get_gov_db), event_db: Session = Depends(get_event_db)):
     require_condominio(db, gov, usuario, condominio_id, AccessLevel.ADMIN_CONDOMINIO)
     _set_postgres_tenant(db, condominio_id)
+    _set_postgres_tenant(event_db, condominio_id)
     query = event_db.query(Event).filter(Event.tenant_id == condominio_id,
                                         Event.entidad.in_(["visita", "qr"]))
     pending = db.query(EventOutbox).filter(EventOutbox.condominio_id == condominio_id,
