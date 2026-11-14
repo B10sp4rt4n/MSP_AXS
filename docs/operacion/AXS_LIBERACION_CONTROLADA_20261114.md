@@ -5,6 +5,9 @@ apertura del piloto siguen pendientes.** Esta preparación no solicita
 publicaciones productivas ni cambia configuración en Railway, Vercel, Neon,
 Clerk o almacenamiento. La integración Git de Vercel genera previews del PR;
 GitHub reportó uno completado sobre `6adb936`, sin acreditar el alias productivo.
+Después de autorizar el equipo de Vercel, se confirmó directamente el alias
+productivo y el preview de la rama. La evidencia actual y el antecedente 403
+se conservan en `evidencia-plataformas.json`.
 
 La rama `release/axs-integrado-20261114` contiene el código y las pruebas de
 `bc04dcc4934a76e62cdc355943d16674cd8ab3b7`, descendiente de los candidatos
@@ -17,7 +20,7 @@ commit documental.
 | Componente | Referencia anterior | Candidato / efecto |
 | --- | --- | --- |
 | Backend Railway | `a68d1149242dd0b16cd0e363df3ccda917199423`, confirmado por el deployment y la configuración del servicio | `bc04dcc4934a76e62cdc355943d16674cd8ab3b7`: perfil aislado del ensayo y pruebas. En runtime productivo el provisioner conserva el rol original. |
-| Frontend Vercel | Última observación: `76bc9d619836f0872241741570fb7974e51d2bf6`; requiere confirmación actual | Mismo código candidato: incorpora directorio, consola GLOBAL, conciliación y ajuste de ARCO respecto a esa referencia. |
+| Frontend Vercel | `76bc9d619836f0872241741570fb7974e51d2bf6`, confirmado por alias y deployment Production READY | Mismo código candidato: incorpora directorio, consola GLOBAL, conciliación y ajuste de ARCO respecto a esa referencia. |
 | Esquema | C0/C1/C2/C4 forman parte de la base del backend publicado | **Cero migraciones nuevas** entre el backend confirmado y el candidato. Verificar estado efectivo, sin repetir C4. |
 | Activación corporativa | Valores actuales de flags no visibles por OAuth | La publicación propuesta mantiene API y aprovisionamiento desactivados. Habilitar un piloto es una fase posterior. |
 
@@ -50,15 +53,15 @@ El ensayo de restauración CI no es un respaldo productivo.
 | Railway proyecto | `532a32f5-6313-4ee3-98de-cfcfc225dbb7` | Confirmado por consulta. |
 | Entorno / servicio | `72f597ee-89d2-4dd4-9295-6618d3694d22` / `55c12ef5-ba69-449c-ad84-b77ee280eb5b` (`web`) | Servicio live, sin cambios staged al consultar. |
 | API pública | `https://web-production-ed4f3.up.railway.app` | Dominio confirmado por Railway. |
-| Frontend | `https://app.axs-mx.com`, proyecto histórico `frontend-next`, equipo `salvador-ruiz-esparzas-projects` | Lectura actual bloqueada por Vercel 403; confirmar equipo, proyecto, deployment, alias y SHA. |
+| Frontend | `https://app.axs-mx.com`, proyecto `frontend-next` (`prj_m4X1hxQCfaYOFWzN50Uu1z6NrE3S`), equipo `salvador-ruiz-esparzas-projects` | Confirmado: alias apunta a `dpl_Dcd9Rw6L9FWn1PQBXRhjS9L2q17t`, Production READY, SHA `76bc9d6`. |
 | Fuente nueva | SHA exacto del candidato / commit documental revisado, nunca HEAD móvil | Fijar en la operación autorizada; conservar identificadores de build y deployment. |
 | `AXS_CORPORATE_API_ENABLED` | `false` en publicación de código | Nombre presente; valor actual oculto. |
 | `AXS_CORPORATE_PROVISIONING_ENABLED` | `false` en publicación de código | Nombre presente; valor actual oculto. |
 | `AXS_CORPORATE_SANDBOX_ONLY` | `false` en producción | Nombre presente; valor actual oculto. |
 | Perfil y constancia de sandbox | No copiar `integrated-20261114`, run ID, issuer Development ni conexiones `*_sbx_*` a producción | Exclusivos del ensayo. |
 | CORE / EVENT / GOV | Identificar host, base y rol efectivos de cada conexión; registrar sólo esos datos sin contraseña | Variables presentes; OAuth oculta valores. Aún no queda acreditada su correspondencia con Neon. |
-| Clerk | Instancia Production, issuer/JWKS coherentes y misma instancia en web/API | Confirmación efectiva pendiente; no cambiar llaves ni copiar las de Development. |
-| API del frontend | `NEXT_PUBLIC_API_URL` hacia la API productiva, compilada con configuración Production | Confirmación en Vercel pendiente. |
+| Clerk | Instancia Production, issuer/JWKS coherentes y misma instancia en web/API | Variable pública Production verificada: instancia Production, host `clerk.auth.axs-mx.com`. Issuer/JWKS efectivos del backend pendientes; no se leyó la llave secreta. |
+| API del frontend | `NEXT_PUBLIC_API_URL` hacia la API productiva, compilada con configuración Production | Variable Production verificada: `https://web-production-ed4f3.up.railway.app`. Falta comprobar el build que se liberará. |
 | CORS y registro | `ALLOWED_ORIGINS` incluye el frontend elegido; callback/redirect Clerk coinciden | Valores actuales pendientes. |
 | Fotografías | Conservar configuración vigente de captura/almacenamiento privado y su retención | Nombres de variables presentes; probar carga/lectura autorizadas antes del piloto. |
 | Build y arranque API | RAILPACK; `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`; salud `/health` | Configuración remota confirmada. No cambiar builder por el NIXPACKS del archivo histórico `railway.json`. |
@@ -66,6 +69,12 @@ El ensayo de restauración CI no es un respaldo productivo.
 
 Registrar los valores no secretos en un acta de la ventana. No solicitar ni
 publicar cadenas de conexión completas, tokens, fotografías o llaves.
+
+El preview `dpl_H6Kagg9e13JJLrfTAUDjMucUSfiT`, SHA `f4b8272` de la rama de
+liberación, figura READY con target no productivo. El inventario de Vercel
+sitúa las variables de Clerk/API listadas en Production, no en Preview;
+un build READY de preview no acredita autenticación funcional ni su promoción
+con configuración productiva. No se cambiaron variables ni aliases.
 
 ## 4. Esquema y migraciones
 
@@ -123,7 +132,7 @@ evaluar pérdida de movimientos, evidencias y revocaciones posteriores.
 
 ## 6. Secuencia de liberación propuesta
 
-1. **Cerrar preparación:** resolver la lectura de Vercel, confirmar conexiones,
+1. **Cerrar preparación:** confirmar conexiones,
    flags y respaldo recuperable; fijar baseline web/API y candidato. Comprobar
    de nuevo que no hay cambios staged ni otra operación en curso. Revisar
    disparadores automáticos de ambas plataformas antes de modificar una rama.
@@ -169,7 +178,7 @@ los resultados sintéticos de esos casos quedan claramente separados.
 
 | Componente | Objetivo anterior | Condición |
 | --- | --- | --- |
-| Frontend | Deployment histórico `dpl_Dcd9Rw6L9FWn1PQBXRhjS9L2q17t`, último SHA observado `76bc9d6` | Volver a verificar cuál está realmente publicado y disponible antes del cambio. Este ID aún no es un rollback acreditado hoy. |
+| Frontend | Deployment `dpl_Dcd9Rw6L9FWn1PQBXRhjS9L2q17t`, SHA `76bc9d6` | Confirmado Production READY y asociado a `app.axs-mx.com`; objetivo anterior de reversión fijado. Refrescar disponibilidad antes del cambio; no se ejecutó ni ensayó una reversión remota. |
 | Backend | Deployment `be9b87a6-8a58-4341-a181-b4fc70ebd808`, SHA `a68d1149242dd0b16cd0e363df3ccda917199423` | Railway lo reportó SUCCESS, redeploy/rollback disponibles al preparar. Reconfirmar disponibilidad en la ventana. |
 | Datos y esquema | Conservar tablas, columnas, journal, evidencias y escrituras | Sin DROP, downgrade SQL ni restauración global automática. |
 
@@ -192,8 +201,9 @@ ese estado y revisar explícitamente la siguiente promoción.
 | --- | --- |
 | Código consolidado, CI y diferencias inventariadas | Completado en esta preparación. |
 | Baseline, fuente y predeploy API | Confirmados por Railway; refrescar al ejecutar. |
-| Baseline y reversión actuales de frontend | Pendiente: Vercel 403 por falta de autorización de equipo. |
-| Valores efectivos de conexiones, flags, Clerk y CORS | Pendiente: valores ocultos al conector. |
+| Baseline y objetivo de reversión de frontend | Confirmados por Vercel tras autorización del equipo; sin mover el alias. |
+| API y Clerk públicos de frontend | Confirmados en variables Production; build de liberación y autenticación real pendientes. |
+| Conexiones, flags, issuer/JWKS del backend y CORS | Pendiente: valores ocultos al conector Railway. |
 | Gates sobre conexiones efectivas de la ventana | Pendiente; no ejecutados remotamente en esta preparación. |
 | Respaldo productivo recuperable y restauración aislada | Pendiente; sólo existe el ensayo sintético acreditado. |
 | Aceptación real de Clerk/cámara/Blob y cruces/revocación de sesión | Pendiente antes de abrir el piloto. |

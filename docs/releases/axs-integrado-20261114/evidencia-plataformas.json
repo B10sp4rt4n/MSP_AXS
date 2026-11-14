@@ -78,13 +78,142 @@
     }
   },
   "vercel": {
-    "current_verification": "blocked_team_authorization",
-    "http_status": 403,
-    "team_slug": "salvador-ruiz-esparzas-projects",
+    "observed_at_utc": "2026-11-14T13:25:36.614Z",
+    "current_verification": "verified_after_user_team_authorization",
     "team_id": "team_wCPRqvRGXWpRT4eUvfAz38jF",
-    "last_observed_deployment_not_reverified": "dpl_Dcd9Rw6L9FWn1PQBXRhjS9L2q17t",
-    "last_observed_sha_not_reverified": "76bc9d619836f0872241741570fb7974e51d2bf6",
-    "hostname": "app.axs-mx.com",
+    "team_slug": "salvador-ruiz-esparzas-projects",
+    "project": {
+      "id": "prj_m4X1hxQCfaYOFWzN50Uu1z6NrE3S",
+      "name": "frontend-next",
+      "framework": "nextjs",
+      "nodeVersion": "24.x"
+    },
+    "production_alias": {
+      "hostname": "app.axs-mx.com",
+      "deployment_id": "dpl_Dcd9Rw6L9FWn1PQBXRhjS9L2q17t",
+      "project_id": "prj_m4X1hxQCfaYOFWzN50Uu1z6NrE3S",
+      "updated_at": 1792759856721
+    },
+    "production_deployment": {
+      "id": "dpl_Dcd9Rw6L9FWn1PQBXRhjS9L2q17t",
+      "url": "frontend-next-ibwyplnq2-salvador-ruiz-esparzas-projects.vercel.app",
+      "state": "READY",
+      "target": "production",
+      "sha": "76bc9d619836f0872241741570fb7974e51d2bf6",
+      "branch": "main",
+      "repository": "B10sp4rt4n/MSP_AXS"
+    },
+    "rollback": {
+      "previous_production_deployment_id": "dpl_Dcd9Rw6L9FWn1PQBXRhjS9L2q17t",
+      "previous_sha": "76bc9d619836f0872241741570fb7974e51d2bf6",
+      "status": "baseline_ready_and_alias_verified_remote_rollback_not_executed"
+    },
+    "public_production_configuration": {
+      "api": {
+        "key": "NEXT_PUBLIC_API_URL",
+        "value": "https://web-production-ed4f3.up.railway.app",
+        "target": [
+          "production"
+        ]
+      },
+      "clerk": {
+        "instance": "production",
+        "host": "clerk.auth.axs-mx.com",
+        "target": [
+          "production"
+        ]
+      },
+      "secret_values_read": false
+    },
+    "environment_metadata": [
+      {
+        "key": "BLOB_WEBHOOK_PUBLIC_KEY",
+        "type": "plain",
+        "target": [
+          "development"
+        ]
+      },
+      {
+        "key": "BLOB_STORE_ID",
+        "type": "plain",
+        "target": [
+          "development"
+        ]
+      },
+      {
+        "key": "BLOB_READ_WRITE_TOKEN",
+        "type": "encrypted",
+        "target": [
+          "development"
+        ]
+      },
+      {
+        "key": "CLERK_SECRET_KEY",
+        "type": "sensitive",
+        "target": [
+          "production"
+        ]
+      },
+      {
+        "key": "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+        "type": "encrypted",
+        "target": [
+          "production"
+        ]
+      },
+      {
+        "key": "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL",
+        "type": "encrypted",
+        "target": [
+          "production"
+        ]
+      },
+      {
+        "key": "NEXT_PUBLIC_API_URL",
+        "type": "encrypted",
+        "target": [
+          "production"
+        ]
+      },
+      {
+        "key": "NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL",
+        "type": "encrypted",
+        "target": [
+          "production"
+        ]
+      },
+      {
+        "key": "NEXT_PUBLIC_CLERK_SIGN_UP_URL",
+        "type": "encrypted",
+        "target": [
+          "production"
+        ]
+      },
+      {
+        "key": "NEXT_PUBLIC_CLERK_SIGN_IN_URL",
+        "type": "encrypted",
+        "target": [
+          "production"
+        ]
+      }
+    ],
+    "release_preview": {
+      "id": "dpl_H6Kagg9e13JJLrfTAUDjMucUSfiT",
+      "url": "frontend-next-7i23oe5j6-salvador-ruiz-esparzas-projects.vercel.app",
+      "state": "READY",
+      "target": null,
+      "sha": "f4b82722278df94a6779d4715de4e3a6006f7466",
+      "branch": "release/axs-integrado-20261114",
+      "production_alias_assigned": false
+    },
+    "verification_history": [
+      {
+        "observed_at_utc": "2026-11-14T13:13:13.668Z",
+        "current_verification": "blocked_team_authorization",
+        "http_status": 403,
+        "resolution": "user_authorized_team_then_same_target_retried_successfully"
+      }
+    ],
     "automatic_preview_observed_via_github": {
       "sha": "6adb936423c480f899f76c4df4c0278ec90d4ad7",
       "context": "Vercel",
