@@ -208,6 +208,7 @@ function Directory({ tenant, getToken }: { tenant: string; getToken: TokenGetter
         </>}
       </section>
     </div> : null}
-    <p className="text-sm text-gray-400">Las altas requieren ser propietario o administrador y respetan las capacidades contratadas. Este directorio no habilita visitas, QR ni accesos físicos.</p>
+    {selected && destinations ? <a className="inline-block min-h-12 rounded-xl bg-blue-700 px-5 py-3 text-white" href={`/dashboard/corporativo/visitas?empresa=${encodeURIComponent(tenant)}&sede=${encodeURIComponent(selected)}`}>Abrir visitas de esta sede</a> : null}
+    <p className="text-sm text-gray-400">Las altas requieren ser propietario o administrador y respetan las capacidades contratadas. El registro de visitas requiere habilitación independiente y no acciona accesos físicos.</p>
   </>;
 }
