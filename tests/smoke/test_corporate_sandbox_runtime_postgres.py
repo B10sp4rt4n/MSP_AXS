@@ -201,7 +201,7 @@ def test_c5_upgrade_preserves_initial_certificate_and_data(sandbox_databases):
     with pytest.raises(RuntimeError), engine.begin() as conn:
         upgrade_catalog(conn, str(before['run_id']), 'https://wrong.clerk.accounts.dev', **kwargs)
     with pytest.raises(RuntimeError), engine.begin() as conn:
-        conn.execute(text(f"UPDATE public.{ACK} SET expires_at=CURRENT_TIMESTAMP-interval '1 second'"))
+        conn.execute(text(f"UPDATE public.{ACK} SET certified_at=CURRENT_TIMESTAMP-interval '2 hours', expires_at=CURRENT_TIMESTAMP-interval '1 hour'"))
         upgrade_catalog(conn, str(before['run_id']), before['clerk_issuer'], **kwargs)
     with engine.begin() as conn:
         assert conn.execute(text("SELECT to_regclass('public.corporate_visits')")).scalar_one() is None
