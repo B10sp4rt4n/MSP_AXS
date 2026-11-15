@@ -150,17 +150,17 @@ if os.getenv("AXS_CORPORATE_SANDBOX_ONLY", "").lower() != "true":
 
         run_gate(engine_core)
     try:
-        # ✅ Crear tablas en AUP_CORE
-        Base_CORE.metadata.create_all(bind=engine_core)
-        logger.info("✅ AUP_CORE: Tablas verificadas/creadas")
+        from .db.startup import bootstrap_local_schema
 
-        # ✅ Crear tablas en AUP_EVENT
-        Base_EVENT.metadata.create_all(bind=engine_event)
-        logger.info("✅ AUP_EVENT: Tablas verificadas/creadas")
-
-        # ✅ Crear tablas en AUP_GOV
-        Base_GOV.metadata.create_all(bind=engine_gov)
-        logger.info("✅ AUP_GOV: Tablas verificadas/creadas")
+        for domain, base, engine in (
+            ("CORE", Base_CORE, engine_core),
+            ("EVENT", Base_EVENT, engine_event),
+            ("GOV", Base_GOV, engine_gov),
+        ):
+            if bootstrap_local_schema(base, engine):
+                logger.info("%s: esquema local SQLite preparado", domain)
+            else:
+                logger.info("%s: esquema administrado mediante migraciones; sin DDL de arranque", domain)
 
     except Exception as exc:
         logger.warning("⚠ No se pudieron crear/verificar todas las tablas", exc_info=exc)

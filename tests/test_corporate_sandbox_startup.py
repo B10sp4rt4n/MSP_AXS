@@ -8,12 +8,12 @@ import subprocess
 import sys
 
 
-def test_sandbox_gate_precedes_legacy_create_all():
+def test_sandbox_gate_precedes_local_schema_bootstrap():
     source = Path("backend/main.py").read_text(encoding="utf-8")
     assert source.index('if os.getenv("AXS_CORPORATE_SANDBOX_ONLY"') < source.index(
         "from .db.core import Base_CORE, engine_core"
     )
-    assert source.index("check_data(os.environ)") < source.index("Base_CORE.metadata.create_all(")
+    assert source.index("check_data(os.environ)") < source.index("bootstrap_local_schema(base, engine)")
 
 
 def test_sandbox_import_denied_with_missing_configuration():
