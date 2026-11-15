@@ -18,6 +18,10 @@ INTEGRATED = SandboxTargets(
     {d: name + "_20261114" for d, name in LEGACY.databases.items()},
     {d: name + "_20261114" for d, name in LEGACY.roles.items()},
 )
+VISITS = SandboxTargets(
+    {d: name + "_c5_20261115" for d, name in LEGACY.databases.items()},
+    {d: name + "_c5_20261115" for d, name in LEGACY.roles.items()},
+)
 
 
 def sandbox_targets(values):
@@ -26,6 +30,8 @@ def sandbox_targets(values):
         return LEGACY
     if profile == "integrated-20261114":
         return INTEGRATED
+    if profile == "visits-20261115":
+        return VISITS
     raise RuntimeError("Sandbox: perfil de ensayo no aprobado")
 
 
