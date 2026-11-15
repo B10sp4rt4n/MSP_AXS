@@ -184,3 +184,40 @@ def test_event_delivery_rechecks_tenant_and_preserves_append_only(sandbox_databa
             conn.execute(text("SELECT set_config('app.tenant_id','A',true)"))
             conn.execute(text(mutation))
         assert denied.value.orig.sqlstate == "42501"
+
+
+def test_c5_upgrade_preserves_initial_certificate_and_data(sandbox_databases):
+    from scripts.corporate_sandbox_targets import LEGACY
+    from scripts.upgrade_corporate_sandbox_visits import upgrade_catalog
+    db, engine = sandbox_databases['CORE']
+    with engine.begin() as conn:
+        row = conn.execute(text(f'SELECT * FROM public.{ACK}')).mappings().one_or_none()
+        if row is None:
+            certify_empty(conn, 'CORE', str(uuid4()), 'https://axs-test.clerk.accounts.dev', expected_db=db)
+        before = dict(conn.execute(text(f'SELECT * FROM public.{ACK}')).mappings().one())
+        conn.execute(text("INSERT INTO usuarios(usuario_id,clerk_id,nombre,email,rol) VALUES ('c5_sentinel','user_c5_sentinel','Synthetic','c5@example.invalid','ADMIN_CONDOMINIO')"))
+    kwargs = dict(targets=LEGACY, expected_db=db)
+    # A changed issuer or expired certificate must not create any new table.
+    with pytest.raises(RuntimeError), engine.begin() as conn:
+        upgrade_catalog(conn, str(before['run_id']), 'https://wrong.clerk.accounts.dev', **kwargs)
+    with pytest.raises(RuntimeError), engine.begin() as conn:
+        conn.execute(text(f"UPDATE public.{ACK} SET expires_at=CURRENT_TIMESTAMP-interval '1 second'"))
+        upgrade_catalog(conn, str(before['run_id']), before['clerk_issuer'], **kwargs)
+    with engine.begin() as conn:
+        assert conn.execute(text("SELECT to_regclass('public.corporate_visits')")).scalar_one() is None
+        result = upgrade_catalog(conn, str(before['run_id']), before['clerk_issuer'], **kwargs)
+        assert result['initial_certification_preserved']
+    with engine.begin() as conn:
+        after = dict(conn.execute(text(f'SELECT * FROM public.{ACK}')).mappings().one())
+        assert after['catalog_hash'] != before['catalog_hash']
+        assert {k: v for k, v in after.items() if k != 'catalog_hash'} == {k: v for k, v in before.items() if k != 'catalog_hash'}
+        assert conn.execute(text("SELECT count(*) FROM usuarios WHERE usuario_id='c5_sentinel'")).scalar_one() == 1
+    for domain in ('CORE', 'PROVISIONER'):
+        with engine.begin() as conn:
+            as_role(conn, domain)
+            verify_attestation(conn, domain, str(before['run_id']), before['clerk_issuer'], expected_db=db, visits_enabled=True)
+    with pytest.raises(RuntimeError), engine.begin() as conn:
+        as_role(conn, 'CORE')
+        verify_attestation(conn, 'CORE', str(before['run_id']), before['clerk_issuer'], expected_db=db)
+    with pytest.raises(RuntimeError), engine.begin() as conn:
+        upgrade_catalog(conn, str(before['run_id']), before['clerk_issuer'], **kwargs)

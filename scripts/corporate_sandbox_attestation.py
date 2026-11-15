@@ -52,8 +52,14 @@ def snapshot(conn):
     return hashlib.sha256(json.dumps(payload, default=str, separators=(",", ":")).encode()).hexdigest()
 
 
-def verify_permissions(conn, domain, *, targets=LEGACY):
+def verify_permissions(conn, domain, *, targets=LEGACY, visits_enabled=False):
     role = targets.roles[domain]
+    table_grants = dict(TABLE_GRANTS[domain])
+    column_grants = dict(COLUMN_GRANTS[domain])
+    if visits_enabled and domain == 'CORE':
+        table_grants['corporate_visits'] = ('SELECT', 'INSERT')
+        column_grants['corporate_visits'] = {'UPDATE': (
+            'state', 'authorized_by', 'authorized_at', 'entered_at', 'exited_at', 'cancelled_at')}
     if conn.execute(text("SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname NOT IN ('public','information_schema') AND nspname !~ '^pg_')")).scalar_one():
         raise RuntimeError("Sandbox: esquema adicional no aprobado")
     row = conn.execute(text("""
@@ -86,7 +92,7 @@ def verify_permissions(conn, domain, *, targets=LEGACY):
     if domain == 'CORE' and not any(f[0] == 'corporate_sandbox_lock_company' for f in functions):
         raise RuntimeError("Sandbox: falta capacidad de bloqueo")
     tables = relations(conn)
-    if not set(TABLE_GRANTS[domain]).issubset({r[0] for r in tables}):
+    if not set(table_grants).issubset({r[0] for r in tables}):
         raise RuntimeError("Sandbox: contrato incompleto")
     if any(not rls or not forced for _, rls, forced in tables):
         raise RuntimeError("Sandbox: RLS obligatorio")
@@ -100,7 +106,7 @@ def verify_permissions(conn, domain, *, targets=LEGACY):
         WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','f')
     """), {"role": role}).all()
     for table, privilege, actual, delegable in table_acl:
-        if actual != (privilege in TABLE_GRANTS[domain].get(table, ())) or delegable:
+        if actual != (privilege in table_grants.get(table, ())) or delegable:
             raise RuntimeError("Sandbox: permisos de tabla fuera del contrato")
     column_acl = conn.execute(text("""
         SELECT c.relname,a.attname,p.privilege,
@@ -112,8 +118,8 @@ def verify_permissions(conn, domain, *, targets=LEGACY):
         WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','f') AND a.attnum>0 AND NOT a.attisdropped
     """), {"role": role}).all()
     for table, column, privilege, actual, delegable in column_acl:
-        specified = COLUMN_GRANTS[domain].get(table, {}).get(privilege, ())
-        if delegable or actual != (privilege in TABLE_GRANTS[domain].get(table, ()) or column in specified):
+        specified = column_grants.get(table, {}).get(privilege, ())
+        if delegable or actual != (privilege in table_grants.get(table, ()) or column in specified):
             raise RuntimeError("Sandbox: permisos de columna fuera del contrato")
     expected = {conn.execute(text("SELECT pg_get_serial_sequence(:table,'id')"), {"table": 'public.' + table}).scalar_one() for table in SEQUENCES[domain]}
     sequence_acl = conn.execute(text("""
@@ -156,12 +162,12 @@ def certify_empty(conn, domain, run_id, issuer, *, expected_db=None, targets=LEG
         {"run": run_id, "domain": domain, "db": actual_db, "issuer": issuer, "digest": snapshot(conn)})
 
 
-def verify_attestation(conn, domain, run_id, issuer, *, expected_db=None, targets=LEGACY):
+def verify_attestation(conn, domain, run_id, issuer, *, expected_db=None, targets=LEGACY, visits_enabled=False):
     source_domain = "CORE" if domain == "PROVISIONER" else domain
     db, role = conn.execute(text("SELECT current_database(),current_user")).one()
     if db != (expected_db or targets.databases[source_domain]) or role != targets.roles[domain]:
         raise RuntimeError("Sandbox: rol o base incorrectos")
-    verify_permissions(conn, domain, targets=targets)
+    verify_permissions(conn, domain, targets=targets, visits_enabled=visits_enabled)
     row = conn.execute(text(f"SELECT run_id,domain,database_name,clerk_issuer,catalog_hash,certified_at,expires_at FROM public.{ACK} WHERE singleton=true")).mappings().one()
     now = datetime.now(timezone.utc)
     source_domain = "CORE" if domain == "PROVISIONER" else domain
@@ -174,13 +180,17 @@ def verify_attestation(conn, domain, run_id, issuer, *, expected_db=None, target
 
 def check_runtime(values):
     targets = sandbox_targets(values)
+    visits_enabled = values.get('AXS_CORPORATE_VISITS_ENABLED', 'false').lower() == 'true'
     for domain in ("CORE", "GOV", "EVENT", "PROVISIONER"):
         key = "DATABASE_CORPORATE_PROVISIONING_URL" if domain == "PROVISIONER" else f"DATABASE_{domain}_URL"
         engine = None
         try:
             engine = create_engine(values[key], pool_pre_ping=True)
             with engine.connect() as conn:
-                verify_attestation(conn, domain, values['AXS_CORPORATE_SANDBOX_RUN_ID'], values['CLERK_JWT_ISSUER'], targets=targets)
+                verify_attestation(conn, domain, values['AXS_CORPORATE_SANDBOX_RUN_ID'], values['CLERK_JWT_ISSUER'], targets=targets, visits_enabled=visits_enabled)
+                if domain == 'CORE' and visits_enabled:
+                    from scripts.check_corporate_visit_schema import check_schema
+                    check_schema(conn, role=targets.roles['CORE'])
         except Exception as exc:
             raise RuntimeError(f"Sandbox: arranque no verificable ({domain})") from exc
         finally:
