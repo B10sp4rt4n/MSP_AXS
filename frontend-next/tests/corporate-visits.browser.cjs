@@ -3,7 +3,7 @@ const fs=require('fs'),path=require('path'),ts=require('typescript'),assert=requ
 const {chromium}=require('playwright');
 const modules=[],ids=new Map();
 const mocks={
- '@clerk/nextjs': `const getToken=async()=>window.__session?'synthetic':null;
+ '@clerk/nextjs': `const getToken=async()=>{if(window.__holdToken)await new Promise(r=>window.__tokenWaits.push(r));return window.__session?'synthetic':null};
  exports.useAuth=()=>({getToken,isLoaded:true,userId:window.__session?'fixture':null});`,
  '@/lib/api': `exports.api={get:async(p,t,signal)=>{
  window.__reads.push(p); if(window.__deny)throw Error('denied');
@@ -73,6 +73,16 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
   await page.evaluate(()=>{window.__role='host';window.__visits[0].state='autorizada';window.__mount()});
   await page.getByRole('heading',{name:'FOLIO_TEST',exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Registrar entrada',exact:true}).count(),0);
+  await page.getByLabel('Referencia de visita').fill('OLD_CONTEXT');
+  await page.getByLabel('Anfitrión',{exact:true}).selectOption('host');
+  await page.getByLabel('Destino',{exact:true}).selectOption('d1');
+  const writesBefore=await page.evaluate(()=>window.__writes.length);
+  await page.evaluate(()=>{window.__holdToken=true;window.__tokenWaits=[]});
+  await page.getByRole('button',{name:'Crear preregistro',exact:true}).click();
+  await page.waitForFunction(()=>window.__tokenWaits.length>0);
+  await page.evaluate(()=>{window.__mount('corp_other');window.__holdToken=false;for(const release of window.__tokenWaits)release()});
+  await page.getByRole('alert').waitFor();
+  assert.equal(await page.evaluate(()=>window.__writes.length),writesBefore);
   await page.evaluate(()=>{window.__deny=true;window.__mount()});
   await page.getByRole('alert').waitFor();
   assert.equal(await page.getByRole('button',{name:'Crear preregistro',exact:true}).count(),0);
@@ -83,6 +93,6 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
   await page.evaluate(()=>{window.__session=false;window.__mount()});
   await page.getByText('Inicia sesión para continuar.',{exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>window.__reads.length),reads);
-  console.log('PASS corporate visits: lost ACK stable UUID, explicit review, complete cycle, audit, host permissions, denial, company switch and signed-out gate. Synthetic only.');
+  console.log('PASS corporate visits: lost ACK stable UUID, explicit review, complete cycle, audit, host permissions, denial, company switch, pending-token scope change and signed-out gate. Synthetic only.');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

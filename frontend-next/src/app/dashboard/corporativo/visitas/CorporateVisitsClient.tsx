@@ -40,7 +40,7 @@ function Board({ tenant, site, getToken }: { tenant: string; site: string; getTo
   const [log, setLog] = useState<Log[] | null>(null);
   const alive = useRef(true);
   const locked = useRef(false);
-  async function token() { const value = await getToken(); if (!value) throw Error("Sesión no disponible"); return value; }
+  async function token() { const value = await getToken(); if (!value || !alive.current) throw Error("Sesión no disponible"); return value; }
   async function read(signal?: AbortSignal) {
     const t = await token();
     const [caps, visits, destinations] = await Promise.all([
