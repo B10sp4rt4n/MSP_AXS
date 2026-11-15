@@ -149,6 +149,11 @@ if os.getenv("AXS_CORPORATE_SANDBOX_ONLY", "").lower() != "true":
         from scripts.check_corporate_schema import run_gate
 
         run_gate(engine_core)
+        if os.getenv("AXS_CORPORATE_VISITS_ENABLED", "false").lower() == "true":
+            from scripts.check_corporate_visit_schema import check_schema
+            with engine_core.connect() as conn, conn.begin():
+                conn.exec_driver_sql("SET TRANSACTION READ ONLY")
+                check_schema(conn)
     try:
         from .db.startup import bootstrap_local_schema
 
@@ -192,6 +197,9 @@ from backend.routers import arco_clients_router
 app.include_router(arco_clients_router.router)
 from backend.routers import corporativo_router
 app.include_router(corporativo_router.router)  # feature OFF por defecto; nunca activa empresas
+from backend.routers import corporate_visits_router
+app.include_router(corporate_visits_router.router)  # separate visit flag, OFF by default
+app.include_router(corporate_visits_router.privacy_router)  # privacy does not depend on business flags
 from backend.routers import corporate_superadmin_router
 app.include_router(corporate_superadmin_router.router)  # provisioning requiere credencial separada
 app.include_router(visitas_router.router)

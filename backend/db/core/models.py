@@ -297,6 +297,7 @@ class CorporateDestination(Base_CORE):
             name="fk_corporate_destination_site",
         ),
         UniqueConstraint("tenant_id", "site_id", "nombre", name="uq_corporate_destination_name"),
+        UniqueConstraint("tenant_id", "site_id", "destination_id", name="uq_corporate_destination_scope"),
     )
 
 
