@@ -135,7 +135,7 @@ def verify_permissions(conn, domain, *, targets=LEGACY, visits_enabled=False):
             raise RuntimeError("Sandbox: permisos de secuencia fuera del contrato")
 
 
-def certify_empty(conn, domain, run_id, issuer, *, expected_db=None, targets=LEGACY):
+def certify_empty(conn, domain, run_id, issuer, *, expected_db=None, targets=LEGACY, visits_enabled=False):
     """Owner-only, explicit transaction. All tables locked until certificate commit."""
     UUID(run_id)
     actual_db, bypass = conn.execute(text("SELECT current_database(),rolsuper OR rolbypassrls FROM pg_roles WHERE rolname=current_user")).one()
@@ -155,9 +155,9 @@ def certify_empty(conn, domain, run_id, issuer, *, expected_db=None, targets=LEG
         quoted = conn.dialect.identifier_preparer.quote(table)
         if conn.execute(text(f"SELECT EXISTS(SELECT 1 FROM public.{quoted})")).scalar_one():
             raise RuntimeError("Sandbox: certificación inicial rechazada; base no vacía")
-    verify_permissions(conn, domain, targets=targets)
+    verify_permissions(conn, domain, targets=targets, visits_enabled=visits_enabled)
     if domain == "CORE":
-        verify_permissions(conn, "PROVISIONER", targets=targets)
+        verify_permissions(conn, "PROVISIONER", targets=targets, visits_enabled=visits_enabled)
     conn.execute(text(f"INSERT INTO public.{ACK}(singleton,run_id,domain,database_name,clerk_issuer,catalog_hash,certified_at,expires_at) VALUES (true,:run,:domain,:db,:issuer,:digest,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP + interval '24 hours')"),
         {"run": run_id, "domain": domain, "db": actual_db, "issuer": issuer, "digest": snapshot(conn)})
 
@@ -216,7 +216,8 @@ def main():
         engine = create_engine(url)
         try:
             with engine.begin() as conn:
-                certify_empty(conn, domain, str(args.run_id), args.clerk_issuer, targets=targets)
+                certify_empty(conn, domain, str(args.run_id), args.clerk_issuer, targets=targets,
+                              visits_enabled=os.getenv('AXS_CORPORATE_VISITS_ENABLED', 'false').lower() == 'true')
         finally:
             engine.dispose()
     print('AXS sandbox: initial emptiness certified; valid for 24 hours')
