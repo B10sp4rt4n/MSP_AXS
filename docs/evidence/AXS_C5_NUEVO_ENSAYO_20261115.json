@@ -1,0 +1,87 @@
+{
+  "code_sha": "52a03c633b829057792a6726fa7a4b110539f6f9",
+  "run_id": "8d21baad-bc93-4898-8056-99cedd5a40f6",
+  "targets": {
+    "databases": {
+      "CORE": "axs_corp_core_sbx_c5_20261115",
+      "GOV": "axs_corp_gov_sbx_c5_20261115",
+      "EVENT": "axs_corp_event_sbx_c5_20261115"
+    },
+    "roles": {
+      "CORE": "axs_corp_sandbox_core_c5_20261115",
+      "GOV": "axs_corp_sandbox_gov_c5_20261115",
+      "EVENT": "axs_corp_sandbox_event_c5_20261115",
+      "PROVISIONER": "axs_corporate_provisioner_c5_20261115"
+    }
+  },
+  "hashes": {
+    "CORE": {
+      "python_hash": "143625ea230a10a50166579c3ff71ae2894ff7f9805a36d0953a52627844a48f",
+      "sql_hash": "143625ea230a10a50166579c3ff71ae2894ff7f9805a36d0953a52627844a48f"
+    },
+    "GOV": {
+      "python_hash": "3e575b2e904e3f9211c0c9c0a4262d1381dc113048856aa354e2b187ea27d52e",
+      "sql_hash": "3e575b2e904e3f9211c0c9c0a4262d1381dc113048856aa354e2b187ea27d52e"
+    },
+    "EVENT": {
+      "python_hash": "7184303d6c1d2b91058e569c86ece04e70492724e2e3e619a14b2dd24659aeac",
+      "sql_hash": "7184303d6c1d2b91058e569c86ece04e70492724e2e3e619a14b2dd24659aeac"
+    }
+  },
+  "acl_checks": [
+    {
+      "domain": "CORE",
+      "result": "PASS",
+      "tables": 26,
+      "tableChecks": 182,
+      "columnChecks": 980
+    },
+    {
+      "domain": "GOV",
+      "result": "PASS",
+      "tables": 5,
+      "tableChecks": 35,
+      "columnChecks": 168
+    },
+    {
+      "domain": "EVENT",
+      "result": "PASS",
+      "tables": 2,
+      "tableChecks": 14,
+      "columnChecks": 88
+    },
+    {
+      "domain": "PROVISIONER",
+      "result": "PASS",
+      "tables": 26,
+      "tableChecks": 182,
+      "columnChecks": 980
+    }
+  ],
+  "certificates": {
+    "CORE": {
+      "domain": "CORE",
+      "run_id": "8d21baad-bc93-4898-8056-99cedd5a40f6",
+      "certified_at": "2026-11-15T13:19:32.718Z",
+      "expires_at": "2026-11-16T13:19:32.718Z"
+    },
+    "GOV": {
+      "domain": "GOV",
+      "run_id": "8d21baad-bc93-4898-8056-99cedd5a40f6",
+      "certified_at": "2026-11-15T13:19:33.624Z",
+      "expires_at": "2026-11-16T13:19:33.624Z"
+    },
+    "EVENT": {
+      "domain": "EVENT",
+      "run_id": "8d21baad-bc93-4898-8056-99cedd5a40f6",
+      "certified_at": "2026-11-15T13:19:34.679Z",
+      "expires_at": "2026-11-16T13:19:34.679Z"
+    }
+  },
+  "deployment": {
+    "state": "STAGED",
+    "patch_id": "45565227-ab2b-4f73-b50c-b8272cea53bb",
+    "change_count": 16
+  },
+  "no_production_changes": true
+}
