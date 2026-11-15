@@ -1,0 +1,31 @@
+{
+  "executed_at_utc": "2026-11-15T03:32:51.782212+00:00",
+  "code_sha": "7ccef8e897d98555c0540aa8b03e0340102bf163",
+  "environment": "local disposable SQLite, synthetic JWT/transports",
+  "production_mutated": false,
+  "runs": [
+    {
+      "file": "corporativo-20261115.xml",
+      "sha256": "3856eccb8b4bea667057c2404deb60c67bee61d2f4be63dfc48a4dd886c641cd",
+      "tests": 66,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 14.965
+    },
+    {
+      "file": "corporativo-frontera-20261115.xml",
+      "sha256": "3eec5aca7b85f02d2a4e3e2ecabdbc0950d7725ce32d7bc6fd75caabf13b5529",
+      "tests": 425,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 56.334
+    }
+  ],
+  "total_tests": 491,
+  "corporate_entry_exit": "NOT_IMPLEMENTED_IN_CURRENT_SCOPE",
+  "corporate_directory_governance": "PASS",
+  "postgres_rls_in_this_run": "NOT_TESTED",
+  "real_clerk_camera_blob": "NOT_TESTED"
+}
