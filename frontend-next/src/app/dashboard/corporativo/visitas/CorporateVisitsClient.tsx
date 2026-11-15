@@ -66,6 +66,7 @@ function Board({ tenant, site, getToken }: { tenant: string; site: string; getTo
   }
   function create(event: FormEvent) {
     event.preventDefault();
+    if (locked.current) return;
     const command = pending ?? { ...draft, request_id: crypto.randomUUID() };
     setPending(command);
     void run(async () => { await api.post<Visit>(base, command, await token());
@@ -86,10 +87,10 @@ function Board({ tenant, site, getToken }: { tenant: string; site: string; getTo
       <p className="text-sm text-gray-300">Usa un folio interno. No escribas nombres, correos ni documentos en la referencia.</p>
       <fieldset disabled={busy || !!pending || !data} className="space-y-3">
         <label className="block">Referencia de visita<input className={field} required pattern="[A-Za-z0-9_-]{1,80}" maxLength={80} value={draft.visitor_ref} onChange={e => setDraft({ ...draft, visitor_ref: e.target.value })} /></label>
-        <label className="block">Anfitrión<select className={field} required value={draft.host_user_id} onChange={e => setDraft({ ...draft, host_user_id: e.target.value })}>
-          <option value="">Seleccionar anfitrión</option>{data?.caps.hosts.map(h => <option key={h.user_id} value={h.user_id}>{h.nombre}</option>)}</select></label>
-        <label className="block">Destino<select className={field} required value={draft.destination_id} onChange={e => setDraft({ ...draft, destination_id: e.target.value })}>
-          <option value="">Seleccionar destino</option>{data?.destinations.map(d => <option key={d.destination_id} value={d.destination_id}>{d.nombre}</option>)}</select></label>
+        <label className="block" htmlFor="visit-host">Anfitrión</label><select id="visit-host" className={field} required value={draft.host_user_id} onChange={e => setDraft({ ...draft, host_user_id: e.target.value })}>
+          <option value="">Seleccionar anfitrión</option>{data?.caps.hosts.map(h => <option key={h.user_id} value={h.user_id}>{h.nombre}</option>)}</select>
+        <label className="block" htmlFor="visit-destination">Destino</label><select id="visit-destination" className={field} required value={draft.destination_id} onChange={e => setDraft({ ...draft, destination_id: e.target.value })}>
+          <option value="">Seleccionar destino</option>{data?.destinations.map(d => <option key={d.destination_id} value={d.destination_id}>{d.nombre}</option>)}</select>
       </fieldset>
       <button className={button} disabled={busy || (!data && !pending)}>{pending ? "Reintentar misma solicitud" : "Crear preregistro"}</button>
     </form> : null}

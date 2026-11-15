@@ -46,12 +46,12 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
  try{
   const page=await browser.newPage({viewport:{width:360,height:800}});
   await page.setContent('<div id="root"></div>');
-  await page.evaluate(()=>{if(!crypto.randomUUID)Object.defineProperty(crypto,'randomUUID',{value:()=> '00000000-0000-4000-8000-000000000001'});window.__session=true;window.__role='owner';window.__reads=[];window.__writes=[];window.__patches=[];window.__visits=[];window.__events=[];window.__lost=true;window.__deny=false});
+  await page.evaluate(()=>{if(!crypto.randomUUID){let id=0;Object.defineProperty(crypto,'randomUUID',{value:()=> '00000000-0000-4000-8000-'+String(++id).padStart(12,'0')})};window.__session=true;window.__role='owner';window.__reads=[];window.__writes=[];window.__patches=[];window.__visits=[];window.__events=[];window.__lost=true;window.__deny=false});
   await page.addScriptTag({content:js});
   await page.getByLabel('Referencia de visita').fill('FOLIO_TEST');
   await page.getByLabel('Anfitrión',{exact:true}).selectOption('host');
   await page.getByLabel('Destino',{exact:true}).selectOption('d1');
-  await page.getByRole('button',{name:'Crear preregistro',exact:true}).click();
+  await page.locator('form').evaluate(form=>{for(let i=0;i<2;i++)form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))});
   await page.getByRole('alert').waitFor();
   assert.equal(await page.getByRole('button',{name:'Registrar entrada',exact:true}).count(),0);
   await page.getByRole('button',{name:'Reintentar misma solicitud',exact:true}).click();
