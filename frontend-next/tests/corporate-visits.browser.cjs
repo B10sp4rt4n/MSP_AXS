@@ -48,6 +48,10 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
   await page.setContent('<div id="root"></div>');
   await page.evaluate(()=>{if(!crypto.randomUUID){let id=0;Object.defineProperty(crypto,'randomUUID',{value:()=> '00000000-0000-4000-8000-'+String(++id).padStart(12,'0')})};window.__session=true;window.__role='owner';window.__reads=[];window.__writes=[];window.__patches=[];window.__visits=[];window.__events=[];window.__lost=true;window.__deny=false});
   await page.addScriptTag({content:js});
+  await page.getByLabel('Referencia de visita').fill('INVALID REF');
+  assert.equal(await page.getByLabel('Referencia de visita').evaluate(input=>input.checkValidity()),false);
+  await page.getByLabel('Referencia de visita').fill('FOLIO-TEST');
+  assert.equal(await page.getByLabel('Referencia de visita').evaluate(input=>input.checkValidity()),true);
   await page.getByLabel('Referencia de visita').fill('FOLIO_TEST');
   await page.getByLabel('Anfitrión',{exact:true}).selectOption('host');
   await page.getByLabel('Destino',{exact:true}).selectOption('d1');

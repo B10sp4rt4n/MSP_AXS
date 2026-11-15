@@ -86,7 +86,7 @@ function Board({ tenant, site, getToken }: { tenant: string; site: string; getTo
       <h2 className="text-xl font-semibold">Preregistrar visita</h2>
       <p className="text-sm text-gray-300">Usa un folio interno. No escribas nombres, correos ni documentos en la referencia.</p>
       <fieldset disabled={busy || !!pending || !data} className="space-y-3">
-        <label className="block">Referencia de visita<input className={field} required pattern="[A-Za-z0-9_-]{1,80}" maxLength={80} value={draft.visitor_ref} onChange={e => setDraft({ ...draft, visitor_ref: e.target.value })} /></label>
+        <label className="block">Referencia de visita<input className={field} required pattern={"[A-Za-z0-9_\\-]{1,80}"} maxLength={80} value={draft.visitor_ref} onChange={e => setDraft({ ...draft, visitor_ref: e.target.value })} /></label>
         <label className="block" htmlFor="visit-host">Anfitrión</label><select id="visit-host" className={field} required value={draft.host_user_id} onChange={e => setDraft({ ...draft, host_user_id: e.target.value })}>
           <option value="">Seleccionar anfitrión</option>{data?.caps.hosts.map(h => <option key={h.user_id} value={h.user_id}>{h.nombre}</option>)}</select>
         <label className="block" htmlFor="visit-destination">Destino</label><select id="visit-destination" className={field} required value={draft.destination_id} onChange={e => setDraft({ ...draft, destination_id: e.target.value })}>
