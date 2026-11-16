@@ -31,6 +31,7 @@ import logging
 import os
 import asyncio
 from contextlib import suppress
+from datetime import datetime, timezone
 
 _log_level = logging.DEBUG if os.getenv("ENVIRONMENT") != "production" else logging.INFO
 logging.basicConfig(
@@ -44,9 +45,10 @@ logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
 
 # Sandbox fail-closed BEFORE importing engines or running legacy create_all.
 # Normal residential runtime stays unchanged unless this explicit flag is set.
+sandbox_deadline = None
 if os.getenv("AXS_CORPORATE_SANDBOX_ONLY", "").lower() == "true":
     from scripts.check_corporate_sandbox_data import check_data
-    check_data(os.environ)
+    sandbox_deadline = check_data(os.environ)
 
 # ✅ AUP: Importar engines y bases separadas por dominio
 from .db.core import Base_CORE, engine_core
@@ -122,6 +124,9 @@ async def detener_auditoria():
 app.add_middleware(AUPSessionGuard)
 from backend.core.recovery_gate import RecoveryGuard
 app.add_middleware(RecoveryGuard)
+if os.getenv("AXS_CORPORATE_SANDBOX_ONLY", "").lower() == "true":
+    from backend.core.sandbox_expiry import SandboxExpiryGuard
+    app.add_middleware(SandboxExpiryGuard, deadline=sandbox_deadline)
 logger.info("🔒 AUP-01 ACTIVADO: Middleware de SESSION activo")
 
 _allowed_origins = os.getenv(
@@ -280,10 +285,14 @@ else:
 @app.get("/health")
 def health_check():
     """Endpoint de salud para deployment."""
-    return {
+    result = {
         "status": "healthy",
         "environment": os.getenv("ENVIRONMENT", "development"),
         "aup_blocks_active": True,
         "version": "3.0.0-aup-gov"
     }
+    if os.getenv("AXS_CORPORATE_SANDBOX_ONLY", "").lower() == "true":
+        result["sandbox_operational"] = sandbox_deadline is not None and datetime.now(timezone.utc) < sandbox_deadline
+        result["sandbox_window_expires_at"] = sandbox_deadline.isoformat() if sandbox_deadline else None
+    return result
 

@@ -84,8 +84,7 @@ def check_data(values: dict) -> None:
     check_config(values)
     if values.get("AXS_CORPORATE_SANDBOX_PHASE") == "runtime":
         from scripts.corporate_sandbox_attestation import check_runtime
-        check_runtime(values)
-        return
+        return check_runtime(values)
     for name, tables in REQUIRED_EMPTY.items():
         engine = None
         try:

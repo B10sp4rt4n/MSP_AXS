@@ -162,7 +162,7 @@ def certify_empty(conn, domain, run_id, issuer, *, expected_db=None, targets=LEG
         {"run": run_id, "domain": domain, "db": actual_db, "issuer": issuer, "digest": snapshot(conn)})
 
 
-def verify_attestation(conn, domain, run_id, issuer, *, expected_db=None, targets=LEGACY, visits_enabled=False):
+def verify_attestation(conn, domain, run_id, issuer, *, expected_db=None, targets=LEGACY, visits_enabled=False, authorization=None):
     source_domain = "CORE" if domain == "PROVISIONER" else domain
     db, role = conn.execute(text("SELECT current_database(),current_user")).one()
     if db != (expected_db or targets.databases[source_domain]) or role != targets.roles[domain]:
@@ -173,13 +173,25 @@ def verify_attestation(conn, domain, run_id, issuer, *, expected_db=None, target
     source_domain = "CORE" if domain == "PROVISIONER" else domain
     if (str(row['run_id']) != run_id or row['domain'] != source_domain or row['database_name'] != db
             or row['clerk_issuer'] != issuer or row['catalog_hash'] != snapshot(conn)
-            or not row['certified_at'] <= now < row['expires_at']
+            or not row['certified_at'] <= now
+            or row['expires_at'] <= row['certified_at']
             or row['expires_at'] - row['certified_at'] > timedelta(hours=24)):
-        raise RuntimeError("Sandbox: constancia ausente, vencida o incompatible")
+        raise RuntimeError("Sandbox: constancia ausente o incompatible")
+    if authorization is None:
+        if now >= row['expires_at']:
+            raise RuntimeError("Sandbox: constancia vencida; sin autorización operativa")
+        return row['expires_at']
+    from scripts.corporate_sandbox_window import validate_window, certificate_matches
+    deadline = validate_window(authorization, run_id=run_id, issuer=issuer, now=now)
+    certificate_matches(authorization, row)
+    return deadline
 
 
 def check_runtime(values):
+    from scripts.corporate_sandbox_window import load_window
+    authorization = load_window(values)
     targets = sandbox_targets(values)
+    deadlines = []
     visits_enabled = values.get('AXS_CORPORATE_VISITS_ENABLED', 'false').lower() == 'true'
     for domain in ("CORE", "GOV", "EVENT", "PROVISIONER"):
         key = "DATABASE_CORPORATE_PROVISIONING_URL" if domain == "PROVISIONER" else f"DATABASE_{domain}_URL"
@@ -187,7 +199,7 @@ def check_runtime(values):
         try:
             engine = create_engine(values[key], pool_pre_ping=True)
             with engine.connect() as conn:
-                verify_attestation(conn, domain, values['AXS_CORPORATE_SANDBOX_RUN_ID'], values['CLERK_JWT_ISSUER'], targets=targets, visits_enabled=visits_enabled)
+                deadlines.append(verify_attestation(conn, domain, values['AXS_CORPORATE_SANDBOX_RUN_ID'], values['CLERK_JWT_ISSUER'], targets=targets, visits_enabled=visits_enabled, authorization=authorization))
                 if domain == 'CORE' and visits_enabled:
                     from scripts.check_corporate_visit_schema import check_schema
                     check_schema(conn, role=targets.roles['CORE'])
@@ -196,6 +208,7 @@ def check_runtime(values):
         finally:
             if engine is not None:
                 engine.dispose()
+    return min(deadlines)
 
 
 def main():
