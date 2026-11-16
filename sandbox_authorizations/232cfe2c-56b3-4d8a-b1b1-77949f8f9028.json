@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "authorization_id": "232cfe2c-56b3-4d8a-b1b1-77949f8f9028",
+  "run_id": "8d21baad-bc93-4898-8056-99cedd5a40f6",
+  "clerk_issuer": "https://vocal-bee-4163.clerk.accounts.dev",
+  "approved_by": "Salvador Ruiz Esparza",
+  "approval_reference": "Conversación AXS Condominios, 2026-11-16: propuesta de ventana de siete días aceptada con Adelante.",
+  "approved_at": "2026-11-16T14:07:48.675159+00:00",
+  "starts_at": "2026-11-16T14:07:48.675159+00:00",
+  "expires_at": "2026-11-23T14:07:48.675159+00:00",
+  "synthetic_only": true,
+  "revoked": false,
+  "reason": "Completar pruebas de aislamiento entre empresas y permisos por rol en el ensayo C5 existente.",
+  "certificates": {
+    "CORE": {
+      "database_name": "axs_corp_core_sbx_c5_20261115",
+      "catalog_hash": "143625ea230a10a50166579c3ff71ae2894ff7f9805a36d0953a52627844a48f",
+      "certified_at": "2026-11-15T13:19:32.718Z",
+      "expires_at": "2026-11-16T13:19:32.718Z"
+    },
+    "GOV": {
+      "database_name": "axs_corp_gov_sbx_c5_20261115",
+      "catalog_hash": "3e575b2e904e3f9211c0c9c0a4262d1381dc113048856aa354e2b187ea27d52e",
+      "certified_at": "2026-11-15T13:19:33.624Z",
+      "expires_at": "2026-11-16T13:19:33.624Z"
+    },
+    "EVENT": {
+      "database_name": "axs_corp_event_sbx_c5_20261115",
+      "catalog_hash": "7184303d6c1d2b91058e569c86ece04e70492724e2e3e619a14b2dd24659aeac",
+      "certified_at": "2026-11-15T13:19:34.679Z",
+      "expires_at": "2026-11-16T13:19:34.679Z"
+    }
+  }
+}

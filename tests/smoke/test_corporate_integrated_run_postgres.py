@@ -1,5 +1,6 @@
 """Fresh-run SQL, ACL, certificate and provisioner checks on disposable CI only."""
 import os
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import pytest
 from sqlalchemy import create_engine, text
@@ -60,6 +61,32 @@ def test_new_run_certificate_and_isolation(monkeypatch,targets,profile,visits):
             with pytest.raises(RuntimeError), engine.begin() as conn:
                 conn.execute(text("SET LOCAL ROLE " + targets.roles[domain]))
                 verify_attestation(conn, domain, run, issuer, expected_db=db, targets=targets,visits_enabled=visits)
+            if visits:
+                # Independent authorization accepts an expired ORIGINAL certificate
+                # while keeping evidence and all normal privileges unchanged.
+                with engine.connect() as conn:
+                    original = dict(conn.execute(text('SELECT * FROM corporate_sandbox_attestation')).mappings().one())
+                now = datetime.now(timezone.utc)
+                window = {'version':1, 'authorization_id':str(uuid4()), 'run_id':run,
+                    'clerk_issuer':issuer, 'approved_by':'Synthetic CI operator',
+                    'reason':'Isolated seven-day window rehearsal', 'synthetic_only':True, 'revoked':False,
+                    'approved_at':now.isoformat(), 'starts_at':now.isoformat(),
+                    'expires_at':(now+timedelta(days=7)).isoformat(),
+                    'certificates':{d: {k: original[k].isoformat() if isinstance(original[k],datetime) else original[k]
+                        for k in ('database_name','catalog_hash','certified_at','expires_at')} for d in ('CORE','GOV','EVENT')}}
+                for role in roles:
+                    with engine.begin() as conn:
+                        conn.execute(text('SET LOCAL ROLE '+targets.roles[role]))
+                        assert verify_attestation(conn,role,run,issuer,expected_db=db,targets=targets,
+                            visits_enabled=True,authorization=window) == now+timedelta(days=7)
+                with engine.connect() as conn:
+                    assert dict(conn.execute(text('SELECT * FROM corporate_sandbox_attestation')).mappings().one()) == original
+                # Even with an approved window, unexpected catalog drift is denied.
+                with pytest.raises(RuntimeError), engine.begin() as conn:
+                    conn.execute(text('CREATE TABLE public.unapproved_window_catalog(id integer)'))
+                    conn.execute(text('SET LOCAL ROLE '+targets.roles[domain]))
+                    verify_attestation(conn,domain,run,issuer,expected_db=db,targets=targets,
+                        visits_enabled=True,authorization=window)
         from backend.services.corporate_provisioner_db import require_provisioner_role
         monkeypatch.setenv("AXS_CORPORATE_SANDBOX_ONLY", "true")
         monkeypatch.setenv("AXS_CORPORATE_SANDBOX_RUN_PROFILE", profile)
