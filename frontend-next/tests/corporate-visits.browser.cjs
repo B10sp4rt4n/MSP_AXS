@@ -9,6 +9,7 @@ const mocks={
  window.__reads.push(p); if(window.__deny)throw Error('denied');
  if(p.includes('/corp_other/'))throw Error('foreign company');
  if(signal?.aborted)throw Error('aborted');
+ if(p.endsWith('/sedes'))return [{site_id:'site_fixture',nombre:'Oficina de prueba',zona_horaria:window.__zone||'America/Mexico_City'}];
  if(p.endsWith('/capacidades'))return {hosts:[{user_id:'host',nombre:'Anfitrion'}],can_authorize:window.__role!=='reception',can_record_movement:window.__role!=='host'};
  if(p.endsWith('/destinos'))return [{destination_id:'d1',nombre:'Recepcion'}];
  if(p.endsWith('/bitacora'))return window.__events.map((a,i)=>({action:a,event_uid:String(i),timestamp:'2026-11-15T00:00:00'}));
@@ -20,6 +21,8 @@ const mocks={
  if(window.__lost){window.__lost=false;throw Error('lost ACK')}return row;
  },patch:async(p)=>{window.__patches.push(p);const action=p.split('/').at(-1),row=window.__visits[0];
  row.state={autorizar:'autorizada',entrada:'dentro',salida:'cerrada',cancelar:'cancelada'}[action];
+ if(action==='entrada')row.entered_at='2026-11-16T11:49:59.009280';
+ if(action==='salida')row.exited_at='2026-11-16T11:50:18.496997';
  window.__events.push(action);return structuredClone(row);}};`
 };
 function bundle(name,parent=path.join(process.cwd(),'entry.js')){
@@ -44,7 +47,7 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
  window.__mount=(tenant='corp_fixture')=>{window.__root?.unmount();window.__root=require(${dom}).createRoot(document.getElementById('root'));window.__root.render(require(${react}).createElement(require(${comp}).default,{tenant,site:'site_fixture'}))};window.__mount();`;
  const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{})});
  try{
-  const page=await browser.newPage({viewport:{width:360,height:800}});
+  const page=await browser.newPage({viewport:{width:360,height:800},timezoneId:'Asia/Tokyo'});
   await page.setContent('<div id="root"></div>');
   await page.evaluate(()=>{if(!crypto.randomUUID){let id=0;Object.defineProperty(crypto,'randomUUID',{value:()=> '00000000-0000-4000-8000-'+String(++id).padStart(12,'0')})};window.__session=true;window.__role='owner';window.__reads=[];window.__writes=[];window.__patches=[];window.__visits=[];window.__events=[];window.__lost=true;window.__deny=false});
   await page.addScriptTag({content:js});
@@ -71,9 +74,21 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
    await page.waitForFunction(n=>window.__patches.length===n,before+1);
   }
   await page.getByText('Salida registrada',{exact:true}).waitFor();
+  assert.ok((await page.locator('article').textContent()).includes('05:49:59'));
+  assert.ok((await page.locator('article').textContent()).includes('05:50:18'));
+  assert.ok((await page.locator('article').textContent()).includes('America/Mexico_City'));
+  assert.ok((await page.locator('article').textContent()).includes('2026-11-16T11:49:59.009280Z'));
   await page.getByRole('button',{name:'Ver bitácora de FOLIO_TEST',exact:true}).click();
   await page.getByRole('region',{name:'Bitácora de visita'}).waitFor();
   assert.deepEqual(await page.evaluate(()=>window.__events),['preregistrar','autorizar','entrada','salida']);
+  assert.ok((await page.getByRole('region',{name:'Bitácora de visita'}).textContent()).includes('14/11/2026'));
+  assert.ok((await page.getByRole('region',{name:'Bitácora de visita'}).textContent()).includes('18:00:00'));
+  const writesAtZoneChange=await page.evaluate(()=>window.__writes.length+window.__patches.length);
+  await page.evaluate(()=>{window.__zone='America/New_York'});
+  await page.getByRole('button',{name:'Consultar visitas',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('article')?.textContent.includes('06:49:59'));
+  assert.ok((await page.locator('article').textContent()).includes('2026-11-16T11:49:59.009280Z'));
+  assert.equal(await page.evaluate(()=>window.__writes.length+window.__patches.length),writesAtZoneChange);
   await page.evaluate(()=>{window.__role='host';window.__visits[0].state='autorizada';window.__mount()});
   await page.getByRole('heading',{name:'FOLIO_TEST',exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Registrar entrada',exact:true}).count(),0);
