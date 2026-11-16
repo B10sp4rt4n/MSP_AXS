@@ -12,7 +12,7 @@ const mocks={
  if(p.endsWith('/sedes'))return [{site_id:'site_fixture',nombre:'Oficina de prueba',zona_horaria:window.__zone||'America/Mexico_City'}];
  if(p.endsWith('/capacidades'))return {hosts:[{user_id:'host',nombre:'Anfitrion'}],can_authorize:window.__role!=='reception',can_record_movement:window.__role!=='host'};
  if(p.endsWith('/destinos'))return [{destination_id:'d1',nombre:'Recepcion'}];
- if(p.endsWith('/bitacora'))return window.__events.map((a,i)=>({action:a,event_uid:String(i),timestamp:'2026-11-15T00:00:00'}));
+ if(p.endsWith('/bitacora'))return window.__emptyLog?[]:window.__events.map((a,i)=>({action:a,event_uid:String(i),timestamp:'2026-11-15T00:00:00'}));
  return structuredClone(window.__visits);
  },post:async(p,b)=>{window.__writes.push({p,b});
  const found=window.__visits.find(v=>v.visit_id===b.request_id);if(found)return found;
@@ -62,7 +62,10 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
   await page.getByRole('alert').waitFor();
   assert.equal(await page.getByRole('button',{name:'Registrar entrada',exact:true}).count(),0);
   await page.getByRole('button',{name:'Reintentar misma solicitud',exact:true}).click();
-  await page.getByRole('heading',{name:'FOLIO_TEST',exact:true}).waitFor();
+  await page.getByRole('article',{name:'Visita con referencia FOLIO_TEST',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Visita a Recepcion',exact:true}).waitFor();
+  assert.ok((await page.locator('article').textContent()).includes('Anfitrion'));
+  assert.ok((await page.locator('article').textContent()).includes('Referencia de visita'));
   assert.equal(await page.evaluate(()=>window.__visits.length),1);
   assert.equal(await page.evaluate(()=>window.__writes[0].b.request_id===window.__writes[1].b.request_id),true);
   for(const action of ['Autorizar','Registrar entrada','Registrar salida']){
@@ -78,11 +81,14 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
   assert.ok((await page.locator('article').textContent()).includes('05:50:18'));
   assert.ok((await page.locator('article').textContent()).includes('America/Mexico_City'));
   assert.ok((await page.locator('article').textContent()).includes('2026-11-16T11:49:59.009280Z'));
-  await page.getByRole('button',{name:'Ver bitácora de FOLIO_TEST',exact:true}).click();
+  await page.getByRole('button',{name:'Ver bitácora',exact:true}).click();
   await page.getByRole('region',{name:'Bitácora de visita'}).waitFor();
   assert.deepEqual(await page.evaluate(()=>window.__events),['preregistrar','autorizar','entrada','salida']);
   assert.ok((await page.getByRole('region',{name:'Bitácora de visita'}).textContent()).includes('14/11/2026'));
   assert.ok((await page.getByRole('region',{name:'Bitácora de visita'}).textContent()).includes('18:00:00'));
+  assert.deepEqual(await page.getByRole('region',{name:'Bitácora de visita'}).locator('li > p').allTextContents(),['Preregistro creado','Visita autorizada','Entrada registrada','Salida registrada']);
+  await page.getByRole('button',{name:'Cerrar bitácora',exact:true}).click();
+  assert.equal(await page.getByRole('region',{name:'Bitácora de visita'}).count(),0);
   const writesAtZoneChange=await page.evaluate(()=>window.__writes.length+window.__patches.length);
   await page.evaluate(()=>{window.__zone='America/New_York'});
   await page.getByRole('button',{name:'Consultar visitas',exact:true}).click();
@@ -90,8 +96,25 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
   assert.ok((await page.locator('article').textContent()).includes('2026-11-16T11:49:59.009280Z'));
   assert.equal(await page.evaluate(()=>window.__writes.length+window.__patches.length),writesAtZoneChange);
   await page.evaluate(()=>{window.__role='host';window.__visits[0].state='autorizada';window.__mount()});
-  await page.getByRole('heading',{name:'FOLIO_TEST',exact:true}).waitFor();
+  await page.getByRole('article',{name:'Visita con referencia FOLIO_TEST',exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Registrar entrada',exact:true}).count(),0);
+  // Two visits may share a reference. Audit stays bound to the visit UUID, not that reference.
+  await page.evaluate(()=>{const visit=window.__visits[0];visit.visitor_ref='614445133fde465dbc0d14005ccde848'.repeat(2);window.__visits.push({...visit,visit_id:'00000000-0000-4000-8000-999999999999',host_user_id:'revoked-host',destination_id:'missing-destination'});window.__mount()});
+  await page.waitForFunction(()=>document.querySelectorAll('article').length===2);
+  const first=page.locator('article').nth(0),second=page.locator('article').nth(1);
+  assert.equal(await page.getByRole('heading',{name:'Visita a destino no disponible',exact:true}).count(),1);
+  assert.ok((await second.textContent()).includes('No disponible en el directorio'));
+  await first.getByRole('button',{name:'Ver bitácora',exact:true}).click();
+  await first.getByRole('region',{name:'Bitácora de visita'}).waitFor();
+  assert.equal(await first.getByRole('button',{name:'Cerrar bitácora'}).getAttribute('aria-expanded'),'true');
+  await page.evaluate(()=>{window.__emptyLog=true});
+  await second.getByRole('button',{name:'Ver bitácora',exact:true}).click();
+  await second.getByText('No hay movimientos disponibles en la bitácora.',{exact:true}).waitFor();
+  assert.equal(await first.getByRole('region',{name:'Bitácora de visita'}).count(),0);
+  assert.equal(await page.evaluate(()=>window.__reads.at(-1).endsWith('/00000000-0000-4000-8000-999999999999/bitacora')),true);
+  assert.equal(await page.getByRole('region',{name:'Bitácora de visita'}).count(),1);
+  await page.evaluate(()=>{window.__emptyLog=false;window.__visits.pop();window.__visits[0].visitor_ref='FOLIO_TEST';window.__mount()});
+  await page.getByRole('article',{name:'Visita con referencia FOLIO_TEST',exact:true}).waitFor();
   await page.getByLabel('Referencia de visita').fill('OLD_CONTEXT');
   await page.getByLabel('Anfitrión',{exact:true}).selectOption('host');
   await page.getByLabel('Destino',{exact:true}).selectOption('d1');
@@ -112,6 +135,6 @@ function bundle(name,parent=path.join(process.cwd(),'entry.js')){
   await page.evaluate(()=>{window.__session=false;window.__mount()});
   await page.getByText('Inicia sesión para continuar.',{exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>window.__reads.length),reads);
-  console.log('PASS corporate visits: lost ACK stable UUID, explicit review, complete cycle, audit, host permissions, denial, company switch, pending-token scope change and signed-out gate. Synthetic only.');
+  console.log('PASS corporate visits: readable destination/host/reference, scoped audit for duplicate references, empty audit, UTC/site time, lost ACK stable UUID, explicit review, complete cycle, host permissions, denial, company switch, pending-token scope change and signed-out gate. Synthetic only.');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

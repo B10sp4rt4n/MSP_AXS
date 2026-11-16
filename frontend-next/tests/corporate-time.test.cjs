@@ -51,7 +51,7 @@ test('visit card and audit display site time plus exact UTC, including pending m
   for (const [zone, local] of [['America/Mexico_City', '05:49:59'], ['Asia/Tokyo', '20:49:59'], ['Invalid/Zone', '11:49:59']]) {
     const states = [{ site: {nombre:'Central', zona_horaria:zone}, caps:{hosts:[]}, destinations:[], visits:[{
       visit_id:'v1', visitor_ref:'TEST', state:'dentro', entered_at:'2026-11-16T11:49:59.009280', exited_at:null,
-    }] }, '', false, {}, null, null, [{event_uid:'e1',action:'entrada',timestamp:'2026-11-16T11:49:59.009280'}]];
+    }] }, '', false, {}, null, null, {visitId:'v1',entries:[{event_uid:'e1',action:'entrada',timestamp:'2026-11-16T11:49:59.009280'}]}];
     let index = 0;
     const loaded = { exports: {} };
     vm.runInThisContext(`(function(require,module,exports){${component}\n})`)(name => {
