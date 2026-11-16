@@ -129,3 +129,25 @@ def test_running_process_closes_operations_at_exact_deadline(monkeypatch):
     assert response.headers['cache-control'] == 'private, no-store'
     assert calls == ['called']
     assert client.get('/health').status_code == 200
+
+
+def test_postgres_text_microseconds_are_exact_and_correction_does_not_extend_window():
+    from pathlib import Path
+    root = Path('sandbox_authorizations')
+    original = json.loads((root / '232cfe2c-56b3-4d8a-b1b1-77949f8f9028.json').read_text())
+    corrected = json.loads((root / '4436d9a7-bb98-49a4-8dc8-fc38a9b59165.json').read_text())
+    assert corrected['supersedes'] == original['authorization_id']
+    for key in ('run_id', 'approved_at', 'starts_at', 'expires_at'):
+        assert corrected[key] == original[key]
+    # PostgreSQL text export keeps microseconds; a JS Date conversion does not.
+    for domain, stamp in (
+        ('CORE', '2026-11-15 13:19:32.718061+00'),
+        ('GOV', '2026-11-15 13:19:33.624953+00'),
+        ('EVENT', '2026-11-15 13:19:34.679637+00'),
+    ):
+        cert = corrected['certificates'][domain]
+        row = {**cert, 'domain':domain, 'certified_at':windows.utc(stamp),
+               'expires_at':windows.utc(stamp)+timedelta(days=1)}
+        windows.certificate_matches(corrected, row)
+        with pytest.raises(RuntimeError):
+            windows.certificate_matches(original, row)

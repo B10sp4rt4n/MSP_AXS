@@ -53,3 +53,13 @@ run/emisor equivocado, revocación, selección ausente, rutas arbitrarias, huell
 constancia alterada; bloqueo de una petición tras vencer con el mismo proceso.
 El ensayo PostgreSQL existente verifica CORE/GOV/EVENT/PROVISIONER con una
 autorización separada, constancias expiradas intactas y rechazo de deriva de catálogo.
+
+
+## Precisión en la captura de evidencia
+
+Exportar `certified_at::text` y `expires_at::text` directamente desde PostgreSQL.
+No usar la serialización de fechas JavaScript del conector: puede recortar los
+microsegundos a milisegundos e impedir la coincidencia exacta con la constancia.
+Una corrección de captura se registra con otro UUID y referencia `supersedes`,
+conservando aprobación, inicio y fin operativos. El manifiesto anterior se
+conserva como evidencia del intento fallido; no se rebaja la comparación exacta.
