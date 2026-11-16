@@ -2,18 +2,30 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
+import { corporateTime, validTimeZone } from "@/lib/corporate-time";
 
 type Visit = { visit_id: string; visitor_ref: string; state: string; host_user_id: string;
   created_at: string; authorized_at: string | null; entered_at: string | null; exited_at: string | null };
 type Capabilities = { hosts: { user_id: string; nombre: string }[];
   can_authorize: boolean; can_record_movement: boolean };
 type Destination = { destination_id: string; nombre: string };
+type Site = { site_id: string; nombre: string; zona_horaria: string };
 type Log = { event_uid: string; action: string; timestamp: string };
 type Command = { request_id: string; visitor_ref: string; host_user_id: string; destination_id: string };
 const field = "w-full rounded-lg border border-gray-500 bg-gray-900 p-3 text-white";
 const button = "min-h-12 rounded-lg bg-blue-700 px-4 py-3 text-white disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-blue-300";
 const labels: Record<string, string> = { preregistrada: "Pendiente de autorización", autorizada: "Autorizada", dentro: "Dentro", cerrada: "Salida registrada", cancelada: "Cancelada" };
 const actions: Record<string, string> = { autorizar: "Autorizar", entrada: "Registrar entrada", salida: "Registrar salida", cancelar: "Cancelar visita" };
+
+function VisitTime({ value, zone }: { value: string | null; zone: string }) {
+  if (!value) return <span>Pendiente</span>;
+  const time = corporateTime(value, zone);
+  if (!time) return <span>Fecha no válida</span>;
+  return <span className="inline-flex min-w-0 flex-col">
+    <time dateTime={time.utc}>{time.local} · {time.timeZone}</time>
+    <span className="break-all text-xs text-gray-400">UTC: <time dateTime={time.utc}>{time.utc}</time></span>
+  </span>;
+}
 
 export default function CorporateVisitsClient({ tenant, site }: { tenant: string; site: string }) {
   const { userId, isLoaded, getToken } = useAuth();
@@ -31,7 +43,7 @@ export default function CorporateVisitsClient({ tenant, site }: { tenant: string
 
 function Board({ tenant, site, getToken }: { tenant: string; site: string; getToken: () => Promise<string | null> }) {
   const base = `/corporativo/${encodeURIComponent(tenant)}/sedes/${encodeURIComponent(site)}/visitas`;
-  const [data, setData] = useState<{ visits: Visit[]; caps: Capabilities; destinations: Destination[] } | null>(null);
+  const [data, setData] = useState<{ visits: Visit[]; caps: Capabilities; destinations: Destination[]; site: Site } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState({ visitor_ref: "", host_user_id: "", destination_id: "" });
@@ -43,11 +55,14 @@ function Board({ tenant, site, getToken }: { tenant: string; site: string; getTo
   async function token() { const value = await getToken(); if (!value || !alive.current) throw Error("Sesión no disponible"); return value; }
   async function read(signal?: AbortSignal) {
     const t = await token();
-    const [caps, visits, destinations] = await Promise.all([
+    const [caps, visits, destinations, sites] = await Promise.all([
       api.get<Capabilities>(base + "/capacidades", t, signal), api.get<Visit[]>(base, t, signal),
       api.get<Destination[]>(`/corporativo/${encodeURIComponent(tenant)}/sedes/${encodeURIComponent(site)}/destinos`, t, signal),
+      api.get<Site[]>(`/corporativo/${encodeURIComponent(tenant)}/sedes`, t, signal),
     ]);
-    if (alive.current && !signal?.aborted) setData({ caps, visits, destinations });
+    const selectedSite = sites.find(row => row.site_id === site);
+    if (!selectedSite) throw Error("Sede no disponible");
+    if (alive.current && !signal?.aborted) setData({ caps, visits, destinations, site: selectedSite });
   }
   useEffect(() => {
     alive.current = true;
@@ -79,6 +94,7 @@ function Board({ tenant, site, getToken }: { tenant: string; site: string; getTo
     void run(async () => { await api.patch<Visit>(`${base}/${chosen.visit.visit_id}/${chosen.action}`, {}, await token()); await read(); });
   }
   return <>
+    {data ? <p className="text-sm text-gray-300">Sede: {data.site.nombre} · Zona horaria: {validTimeZone(data.site.zona_horaria) ? data.site.zona_horaria : "UTC (zona de sede no válida; revisa su configuración)"}. Todos los registros conservan su referencia UTC.</p> : null}
     {error ? <p role="alert" className="rounded-lg border border-red-500 p-4">{error}</p> : null}
     <button className={button} disabled={busy} onClick={() => void run(() => read())}>Consultar visitas</button>
     {!data && !error ? <p role="status">Cargando sede y permisos…</p> : null}
@@ -103,7 +119,10 @@ function Board({ tenant, site, getToken }: { tenant: string; site: string; getTo
     {data ? <section className="space-y-3"><h2 className="text-xl font-semibold">Últimas 50 visitas de esta sede</h2>
       {!data.visits.length ? <p>No hay visitas registradas.</p> : data.visits.map(v => <article key={v.visit_id} className="space-y-3 rounded-xl border border-gray-700 p-4">
         <h3 className="text-lg font-semibold">{v.visitor_ref}</h3><p>{labels[v.state] || v.state}</p>
-        <p className="text-sm text-gray-300">Entrada: {v.entered_at ? v.entered_at + " UTC" : "Pendiente"} · Salida: {v.exited_at ? v.exited_at + " UTC" : "Pendiente"}</p>
+        <div className="space-y-2 text-sm text-gray-300">
+          <p>Entrada: <VisitTime value={v.entered_at} zone={data.site.zona_horaria} /></p>
+          <p>Salida: <VisitTime value={v.exited_at} zone={data.site.zona_horaria} /></p>
+        </div>
         <div className="flex flex-wrap gap-3">
           {[(data.caps.can_authorize && v.state === "preregistrada") ? "autorizar" : "",
             (data.caps.can_record_movement && v.state === "autorizada") ? "entrada" : "",
@@ -114,6 +133,6 @@ function Board({ tenant, site, getToken }: { tenant: string; site: string; getTo
         </div>
       </article>)}
     </section> : null}
-    {log ? <section className="space-y-2" aria-label="Bitácora de visita"><h2 className="text-xl font-semibold">Bitácora</h2>{log.map(row => <p key={row.event_uid}>{row.action} · {row.timestamp} UTC</p>)}</section> : null}
+    {log && data ? <section className="space-y-2" aria-label="Bitácora de visita"><h2 className="text-xl font-semibold">Bitácora</h2>{log.map(row => <p key={row.event_uid} className="text-sm">{row.action} · <VisitTime value={row.timestamp} zone={data.site.zona_horaria} /></p>)}</section> : null}
   </>;
 }
