@@ -25,7 +25,7 @@ function fixture({ role = 'GUARDIA', userId = 'clerk-guard', token = 'test-token
         useAuth: () => ({ userId, isLoaded: true, getToken: async () => token }),
         useUser: () => ({ user: null }), UserButton: () => null,
       };
-      if (name === 'next/navigation') return { redirect: url => { throw new Error(`redirect:${url}`); } };
+      if (name === 'next/navigation') return { useRouter: () => ({ replace() {} }), redirect: url => { throw new Error(`redirect:${url}`); } };
       if (name === '@/lib/api') return { api: { get: async (url, value) => {
         calls.push({ url, token: value });
         if (apiError) throw new Error('backend unavailable');

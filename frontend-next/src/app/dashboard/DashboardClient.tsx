@@ -3,8 +3,10 @@
 import AxsBrand from "@/components/AxsBrand";
 import { useEffect, useState } from "react";
 import { UserButton, useAuth, useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { PORTAL_ROLES } from "@/lib/portal-roles";
+import { forgetCorporateWorkspace, readCorporateWorkspace, verifiedCorporateEntry } from "@/lib/corporate-entry";
 
 interface MeResponse {
   rol: string;
@@ -54,6 +56,8 @@ const PORTALES: {
 export default function DashboardClient() {
   const { user } = useUser();
   const { getToken, userId, isLoaded } = useAuth();
+  const router = useRouter();
+  const [revision, setRevision] = useState(0);
   const [profile, setProfile] = useState<{ userId: string; data: MeResponse } | null>(null);
   const [failure, setFailure] = useState<{ userId: string; message: string } | null>(null);
   const me = profile && profile.userId === userId ? profile.data : null;
@@ -61,23 +65,30 @@ export default function DashboardClient() {
 
   useEffect(() => {
     if (!isLoaded || !userId) return;
-    let active = true;
-    getToken()
-      .then((token) => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const token = await getToken();
+        if (controller.signal.aborted) return;
         if (!token) throw new Error("Sin sesión");
-        return api.get<MeResponse>("/auth/me", token);
-      })
-      .then((data) => {
-        if (active) { setProfile({ userId, data }); setFailure(null); }
-      })
-      .catch(() => {
-        if (active) {
-          setProfile(null);
-          setFailure({ userId, message: "No pudimos comprobar tus permisos. Intenta de nuevo." });
+        const data = await api.get<MeResponse>("/auth/me", token, controller.signal);
+        if (controller.signal.aborted) return;
+        const workspace = readCorporateWorkspace(userId);
+        if (workspace) {
+          const href = await verifiedCorporateEntry(workspace, token, controller.signal);
+          if (!controller.signal.aborted) router.replace(href);
+          return;
         }
-      });
-    return () => { active = false; };
-  }, [getToken, userId, isLoaded]);
+        setProfile({ userId, data }); setFailure(null);
+      } catch {
+        if (!controller.signal.aborted) {
+          setProfile(null);
+          setFailure({ userId, message: "No pudimos comprobar tus permisos. Intenta de nuevo o selecciona otro acceso." });
+        }
+      }
+    })();
+    return () => controller.abort();
+  }, [getToken, userId, isLoaded, router, revision]);
 
   const portales = me
     ? PORTALES.filter((p) => p.roles.includes(me.rol))
@@ -108,6 +119,9 @@ export default function DashboardClient() {
         {error && <div role="alert" className="text-red-400">
           <p>{error}</p>
           <a href="/dashboard" className="text-blue-400">Reintentar</a>
+          {userId && <button className="ml-4 text-blue-400" onClick={() => {
+            forgetCorporateWorkspace(userId); setFailure(null); setProfile(null); setRevision(value => value + 1);
+          }}>Usar otro acceso</button>}
         </div>}
         {me?.condominio_id === null && me?.rol === "RESIDENTE" && (
           <div className="mb-4 bg-yellow-900/30 border border-yellow-700 rounded-xl p-4 text-sm text-yellow-300">
@@ -118,6 +132,8 @@ export default function DashboardClient() {
           {portales.map((p) => (
             <DashCard key={p.href} title={p.title} href={p.href} icon={p.icon} desc={p.desc} />
           ))}
+          {me && <DashCard title="Acceso corporativo" href="/dashboard/corporativo" icon="🏢"
+            desc="Abrir la empresa y sede que te compartió tu administrador" />}
         </div>
       </main>
     </div>

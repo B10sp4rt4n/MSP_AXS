@@ -59,6 +59,7 @@ test('visit card and audit display site time plus exact UTC, including pending m
       if (name === '@clerk/nextjs') return {useAuth:()=>({userId:'fixture',isLoaded:true,getToken:async()=>null})};
       if (name === '@/lib/api') return {api:{}};
       if (name === '@/lib/corporate-time') return mod.exports;
+      if (name === '@/lib/corporate-entry') return {rememberCorporateWorkspace(){}};
       return require(name);
     }, loaded, loaded.exports);
     const html = renderToStaticMarkup(React.createElement(loaded.exports.default, {tenant:'corp_fixture',site:'site_fixture'}));
