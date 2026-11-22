@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth, UserButton } from "@clerk/nextjs";
 import { api, ApiError } from "@/lib/api";
+import { rememberCorporateWorkspace } from "@/lib/corporate-entry";
 
 type Site = { site_id: string; tenant_id: string; nombre: string; zona_horaria: string; activa: boolean };
 type Destination = { destination_id: string; tenant_id: string; site_id: string; nombre: string; activa: boolean };
@@ -63,12 +64,12 @@ export default function CorporateDirectoryClient({ initialTenant = "" }: { initi
         {invalid ? <p role="alert" className="mt-3 text-red-300">{invalid}</p> : null}
       </form>
       {!isLoaded ? <p role="status">Comprobando sesión…</p> : !userId ? <p role="alert">Inicia sesión para consultar tu directorio.</p>
-        : tenant ? <Directory key={`${userId}:${tenant}`} tenant={tenant} getToken={getToken} /> : null}
+        : tenant ? <Directory key={`${userId}:${tenant}`} userId={userId} tenant={tenant} getToken={getToken} /> : null}
     </main>
   </div>;
 }
 
-function Directory({ tenant, getToken }: { tenant: string; getToken: TokenGetter }) {
+function Directory({ tenant, getToken, userId }: { tenant: string; getToken: TokenGetter; userId: string }) {
   const [sites, setSites] = useState<Site[] | null>(null);
   const [selected, setSelected] = useState("");
   const [destinations, setDestinations] = useState<Destination[] | null>(null);
@@ -100,6 +101,7 @@ function Directory({ tenant, getToken }: { tenant: string; getToken: TokenGetter
         if (!token) throw new ApiError("Sin sesión", 401);
         const rows = await api.get<Site[]>(`${base}/sedes`, token, controller.signal);
         if (controller.signal.aborted) return;
+        rememberCorporateWorkspace(userId, { tenant });
         setSites(rows);
         setSelected(previous => rows.some(s => s.site_id === previous && s.activa) ? previous : "");
         setUncertain(false);
@@ -108,7 +110,7 @@ function Directory({ tenant, getToken }: { tenant: string; getToken: TokenGetter
       } finally { if (!controller.signal.aborted) setLoading(false); }
     })();
     return () => controller.abort();
-  }, [base, getToken, revision]);
+  }, [base, getToken, revision, tenant, userId]);
 
   useEffect(() => {
     if (!selected || !sites) return;
@@ -118,7 +120,10 @@ function Directory({ tenant, getToken }: { tenant: string; getToken: TokenGetter
         const token = await getToken();
         if (!token) throw new ApiError("Sin sesión", 401);
         const rows = await api.get<Destination[]>(`${base}/sedes/${encodeURIComponent(selected)}/destinos`, token, controller.signal);
-        if (!controller.signal.aborted) setDestinations(rows);
+        if (!controller.signal.aborted) {
+          rememberCorporateWorkspace(userId, { tenant, site: selected });
+          setDestinations(rows);
+        }
       } catch (err) {
         if (!controller.signal.aborted) {
           setError(message(err));
@@ -127,7 +132,7 @@ function Directory({ tenant, getToken }: { tenant: string; getToken: TokenGetter
       }
     })();
     return () => controller.abort();
-  }, [base, getToken, selected, sites]);
+  }, [base, getToken, selected, sites, tenant, userId]);
 
   async function create(event: FormEvent, kind: "site" | "destination") {
     event.preventDefault();

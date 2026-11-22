@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/lib/api";
 import { corporateTime, validTimeZone } from "@/lib/corporate-time";
+import { rememberCorporateWorkspace } from "@/lib/corporate-entry";
 
 type Visit = { visit_id: string; visitor_ref: string; state: string; host_user_id: string; destination_id: string;
   created_at: string; authorized_at: string | null; entered_at: string | null; exited_at: string | null };
@@ -37,12 +38,12 @@ export default function CorporateVisitsClient({ tenant, site }: { tenant: string
       <a className="text-blue-300 underline" href={`/dashboard/corporativo?empresa=${encodeURIComponent(tenant)}`}>Volver al directorio</a>
       {!valid ? <p role="alert">Abre una sede desde el directorio corporativo.</p> : !isLoaded ? <p role="status">Comprobando sesión…</p>
         : !userId ? <p role="alert">Inicia sesión para continuar.</p>
-        : <Board key={`${userId}:${tenant}:${site}`} tenant={tenant} site={site} getToken={getToken} />}
+        : <Board key={`${userId}:${tenant}:${site}`} userId={userId} tenant={tenant} site={site} getToken={getToken} />}
     </div>
   </main>;
 }
 
-function Board({ tenant, site, getToken }: { tenant: string; site: string; getToken: () => Promise<string | null> }) {
+function Board({ tenant, site, getToken, userId }: { tenant: string; site: string; getToken: () => Promise<string | null>; userId: string }) {
   const base = `/corporativo/${encodeURIComponent(tenant)}/sedes/${encodeURIComponent(site)}/visitas`;
   const [data, setData] = useState<{ visits: Visit[]; caps: Capabilities; destinations: Destination[]; site: Site } | null>(null);
   const [error, setError] = useState("");
@@ -63,7 +64,10 @@ function Board({ tenant, site, getToken }: { tenant: string; site: string; getTo
     ]);
     const selectedSite = sites.find(row => row.site_id === site);
     if (!selectedSite) throw Error("Sede no disponible");
-    if (alive.current && !signal?.aborted) setData({ caps, visits, destinations, site: selectedSite });
+    if (alive.current && !signal?.aborted) {
+      rememberCorporateWorkspace(userId, { tenant, site });
+      setData({ caps, visits, destinations, site: selectedSite });
+    }
   }
   useEffect(() => {
     alive.current = true;
