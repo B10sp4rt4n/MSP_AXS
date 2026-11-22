@@ -3,6 +3,9 @@
 Después de iniciar sesión, el inicio residencial podía mostrar «casa sin asignar»
 a un propietario corporativo. Entrar por Superadmin tampoco resolvía el acceso:
 esa consola exige autoridad GLOBAL, independiente de la membresía empresarial.
+Los formularios de inicio de sesión y alta ahora fijan `/dashboard` como destino
+alternativo, manteniendo los enlaces de retorno que Clerk valide. Esto prevalece
+sobre un fallback del ambiente que apuntaba a Superadmin, sin cambiar variables.
 
 El frontend recuerda la última empresa y sede consultadas satisfactoriamente por
 cada identidad Clerk. Al volver a `/dashboard`, consulta de nuevo las capacidades

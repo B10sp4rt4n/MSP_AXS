@@ -64,6 +64,7 @@ jobs:
     - run: npm install --no-save --package-lock=false jsdom@26.1.0
     - run: node --test tests/corporate-reconciliation-dom.test.cjs
     - run: node --test tests/corporate-entry-dom.test.cjs
+    - run: node --test tests/auth-entry.test.cjs
     - run: node --test tests/arco-clients-dom.test.cjs
     - run: npx next typegen && npx tsc --noEmit
 

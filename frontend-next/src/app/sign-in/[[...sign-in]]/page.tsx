@@ -6,7 +6,7 @@ export default function SignInPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-950">
       <div className="flex flex-col items-center gap-6">
         <AxsBrand />
-        <SignIn />
+        <SignIn fallbackRedirectUrl="/dashboard" />
       </div>
     </div>
   );
