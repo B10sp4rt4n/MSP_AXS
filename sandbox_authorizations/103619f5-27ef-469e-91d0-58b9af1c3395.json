@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "run_id": "8d21baad-bc93-4898-8056-99cedd5a40f6",
+  "clerk_issuer": "https://vocal-bee-4163.clerk.accounts.dev",
+  "approved_by": "Salvador Ruiz Esparza",
+  "synthetic_only": true,
+  "revoked": false,
+  "certificates": {
+    "CORE": {
+      "database_name": "axs_corp_core_sbx_c5_20261115",
+      "catalog_hash": "143625ea230a10a50166579c3ff71ae2894ff7f9805a36d0953a52627844a48f",
+      "certified_at": "2026-11-15 13:19:32.718061+00",
+      "expires_at": "2026-11-16 13:19:32.718061+00"
+    },
+    "GOV": {
+      "database_name": "axs_corp_gov_sbx_c5_20261115",
+      "catalog_hash": "3e575b2e904e3f9211c0c9c0a4262d1381dc113048856aa354e2b187ea27d52e",
+      "certified_at": "2026-11-15 13:19:33.624953+00",
+      "expires_at": "2026-11-16 13:19:33.624953+00"
+    },
+    "EVENT": {
+      "database_name": "axs_corp_event_sbx_c5_20261115",
+      "catalog_hash": "7184303d6c1d2b91058e569c86ece04e70492724e2e3e619a14b2dd24659aeac",
+      "certified_at": "2026-11-15 13:19:34.679637+00",
+      "expires_at": "2026-11-16 13:19:34.679637+00"
+    }
+  },
+  "authorization_id": "103619f5-27ef-469e-91d0-58b9af1c3395",
+  "approval_reference": "Conversación AXS, 2026-11-22: Salvador acepta con «adelante» completar aceptación, preparar la siguiente ventana y continuar el ensayo sintético.",
+  "approved_at": "2026-11-22T23:54:01.338367+00:00",
+  "starts_at": "2026-11-22T23:54:01.338367+00:00",
+  "expires_at": "2026-11-29T23:54:01.338367+00:00",
+  "reason": "Siguiente ventana C5 para aceptación de navegación, revocación y piloto controlado con cuentas independientes y datos sintéticos.",
+  "supersedes": "4436d9a7-bb98-49a4-8dc8-fc38a9b59165"
+}
